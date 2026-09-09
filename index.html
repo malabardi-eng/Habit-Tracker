@@ -420,6 +420,7 @@ function sbFetch(path, opts){
 
 const Data={
   online:false,
+  ready:false,
   CATEGORIES:structuredClone(DEFAULT_CATEGORIES),
   ENTRIES:[],
   OFFICE_DAYS:{},
@@ -451,6 +452,7 @@ const Data={
       this.online=false;
       this._loadLocal();
     }
+    this.ready=true;
     updateSyncUI();
     render();
   },
@@ -1025,6 +1027,7 @@ function render(){
   document.getElementById("page-title").textContent=ROUTE_TITLES[state.route];
   renderRailNav(); renderTabbar();
   const root=document.getElementById("view-root");
+  if(!Data.ready){ root.innerHTML=emptyState("Caricamento dei tuoi dati…"); return; }
   switch(state.route){
     case "dashboard": root.innerHTML=renderDashboard(); break;
     case "sport": root.innerHTML=renderCategoryPage("sport"); break;
