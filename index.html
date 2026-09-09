@@ -233,8 +233,10 @@ h1,h2,h3{font-family:var(--font-display);text-wrap:balance;margin:0;}
 .cal-bottom{display:flex;align-items:center;gap:4px;font-size:.68rem;font-weight:700;color:var(--accent,var(--c-sport));font-family:var(--font-mono);}
 
 /* office slots in modal */
-.slot-row{display:flex;align-items:center;gap:8px;}
-.slot-row input[type=time]{flex:1;}
+.slot-row{display:flex;flex-direction:column;gap:8px;padding:10px 11px;border:1px solid var(--line);border-radius:var(--r-sm);}
+.slot-where{padding:8px 10px;border-radius:var(--r-sm);border:1px solid var(--line);background:var(--surface);font-size:.86rem;}
+.slot-times{display:flex;align-items:center;gap:8px;}
+.slot-times input[type=time]{flex:1;}
 .slot-sep{color:var(--ink-faint);}
 
 /* diary photos */
@@ -351,7 +353,20 @@ const Stats={
   minutesByCategory(entries){const o={};for(const e of entries)o[e.categoryId]=(o[e.categoryId]||0)+(e.durationMin||0);return o;},
   minutesByActivity(entries){const o={};for(const e of entries){const k=`${e.categoryId}::${e.activityId}`;o[k]=(o[k]||0)+(e.durationMin||0);}return o;},
   officeDayMinutes(day){if(!day||!Array.isArray(day.slots))return 0;return day.slots.reduce((s,sl)=>{const i=timeToMinutes(sl.in),o=timeToMinutes(sl.out);if(i===null||o===null||o<=i)return s;return s+(o-i);},0);},
-  officeMinutesInRange(days,f,t){let tot=0;for(const[date,day]of Object.entries(days||{})){if(date<f||date>t)continue;tot+=this.officeDayMinutes(day);}return tot;}
+  officeMinutesInRange(days,f,t){let tot=0;for(const[date,day]of Object.entries(days||{})){if(date<f||date>t)continue;tot+=this.officeDayMinutes(day);}return tot;},
+  officeMinutesByLocation(days,f,t){
+    const out={};
+    for(const[date,day]of Object.entries(days||{})){
+      if(date<f||date>t||!day||!Array.isArray(day.slots))continue;
+      for(const s of day.slots){
+        const inM=timeToMinutes(s.in),outM=timeToMinutes(s.out);
+        if(inM===null||outM===null||outM<=inM)continue;
+        const loc=s.where||"ufficio";
+        out[loc]=(out[loc]||0)+(outM-inM);
+      }
+    }
+    return out;
+  }
 };
 
 /* =========================================================
@@ -386,6 +401,13 @@ const ROUTES=[
   {id:"impostazioni",label:"Impostazioni",icon:"⚙️",group:"Altro"}
 ];
 const BOTTOM_TAB_IDS=["dashboard","sport","studio","ufficio","diario"];
+const WORK_LOCATIONS=[
+  {id:"ufficio",icon:"🏢",label:"Ufficio"},
+  {id:"remoto",icon:"🏠",label:"Remoto / Casa"},
+  {id:"coworking",icon:"☕",label:"Coworking"},
+  {id:"viaggio",icon:"✈️",label:"In viaggio"}
+];
+function workLocationOf(id){ return WORK_LOCATIONS.find(l=>l.id===id)||WORK_LOCATIONS[0]; }
 
 
 /* =========================================================
@@ -891,6 +913,13 @@ function renderCategoryPage(categoryId){
     <div class="card"><div class="card-header"><h3>Storico recente — ${cat.name}</h3></div>${recent.length?recentListHTML(recent):emptyState("Nessuna attività registrata in questa sezione.")}</div>`;
 }
 
+function officeDayLocations(day){
+  if(!day||!Array.isArray(day.slots))return[];
+  const seen=new Set(); const out=[];
+  for(const s of day.slots){ const id=s.where||"ufficio"; if(!seen.has(id)){ seen.add(id); out.push(id); } }
+  return out;
+}
+
 function renderOffice(){
   const{year,month}=state.officeMonth;
   const monthLabel=monthLabelOf(year,month);
@@ -898,21 +927,26 @@ function renderOffice(){
   const monthFrom=isoOf(new Date(year,month,1)), monthTo=isoOf(new Date(year,month+1,0));
   const monthTotalMin=Stats.officeMinutesInRange(days,monthFrom,monthTo);
   const daysWorked=Object.keys(days).filter(d=>d>=monthFrom&&d<=monthTo&&(days[d].slots||[]).length).length;
+  const locMinutes=Stats.officeMinutesByLocation(days,monthFrom,monthTo);
+  const locBars=WORK_LOCATIONS.map(l=>({label:`${l.icon} ${l.label}`,value:locMinutes[l.id]||0,displayValue:minutesToHM(locMinutes[l.id]||0),color:"ufficio"})).filter(b=>b.value>0);
   const now=new Date(); const isCurrentMonth=year===now.getFullYear()&&month===now.getMonth();
   const cal=monthCalendarHTML(year,month,{accentVar:"--c-ufficio",action:"log-office-day",cellFor:iso=>{
     const day=days[iso]; const mins=day?Stats.officeDayMinutes(day):0; const hasNotes=!!(day&&day.notes);
-    const bottom=`${mins?`<span>${minutesToHM(mins)}</span>`:""}${hasNotes?`<span title="Note presenti">📝</span>`:""}`;
+    const locIcons=officeDayLocations(day).map(id=>workLocationOf(id).icon).join("");
+    const bottom=`${locIcons?`<span>${locIcons}</span>`:""}${mins?`<span>${minutesToHM(mins)}</span>`:""}${hasNotes?`<span title="Note presenti">📝</span>`:""}`;
     return{filled:!!(mins||hasNotes),bottomHTML:bottom};
   }});
   const recentNotes=Object.entries(days).filter(([,d])=>d.notes).sort((a,b)=>a[0]<b[0]?1:-1).slice(0,8);
   const notesHTML=`<div class="rlist">${recentNotes.map(([date,day])=>{
     const mins=Stats.officeDayMinutes(day);
-    return `<div class="rrow"><span class="badge" style="--accent-soft:var(--c-ufficio-soft)">🏢</span><div class="rmain"><div class="rtitle">${formatDateIT(date)}${mins?`<span class="rdur">⏳ ${minutesToHM(mins)}</span>`:""}</div><div class="rdesc">${escapeHTML(day.notes)}</div></div><div class="ractions"><button class="icon-btn" data-action="log-office-day" data-date="${date}" title="Modifica">✏️</button></div></div>`;
+    const locs=officeDayLocations(day).map(id=>workLocationOf(id)).map(l=>`${l.icon} ${l.label}`).join(" · ");
+    return `<div class="rrow"><span class="badge" style="--accent-soft:var(--c-ufficio-soft)">🏢</span><div class="rmain"><div class="rtitle">${formatDateIT(date)}${mins?`<span class="rdur">⏳ ${minutesToHM(mins)}</span>`:""}</div>${locs?`<div class="rdesc" style="color:var(--c-ufficio);font-weight:600;">${locs}</div>`:""}<div class="rdesc">${escapeHTML(day.notes)}</div></div><div class="ractions"><button class="icon-btn" data-action="log-office-day" data-date="${date}" title="Modifica">✏️</button></div></div>`;
   }).join("")}</div>`;
   return `
-    <div class="card intro" style="--accent:var(--c-ufficio)"><div>Registra i giorni in cui vai in ufficio: orari di entrata/uscita, ore totali e un riepilogo di cosa hai fatto.</div></div>
-    <div class="stat-row">${statTile("🏢","Giorni in ufficio",daysWorked,"ufficio",monthLabel)}${statTile("⏳","Ore totali",minutesToHM(monthTotalMin),"ufficio",monthLabel)}</div>
+    <div class="card intro" style="--accent:var(--c-ufficio)"><div>Registra i tuoi giorni di lavoro, in ufficio o da remoto: per ogni fascia oraria scegli da dove hai lavorato, e un riepilogo di cosa hai fatto.</div></div>
+    <div class="stat-row">${statTile("🏢","Giorni lavorati",daysWorked,"ufficio",monthLabel)}${statTile("⏳","Ore totali",minutesToHM(monthTotalMin),"ufficio",monthLabel)}</div>
     <div class="card"><div class="card-header"><h3>Calendario</h3>${monthNavHTML({prevAction:"office-prev-month",nextAction:"office-next-month",label:monthLabel,nextDisabled:isCurrentMonth})}</div>${cal}</div>
+    ${locBars.length?`<div class="card"><div class="card-header"><h3>Ore per luogo</h3><span class="card-sub">${monthLabel}</span></div>${barListHTML(locBars)}</div>`:""}
     <div class="card"><div class="card-header"><h3>Note recenti</h3></div>${recentNotes.length?notesHTML:emptyState("Nessuna nota registrata. Clicca su un giorno nel calendario per aggiungerne una.")}</div>`;
 }
 
@@ -1121,7 +1155,14 @@ function openAddActivityModal(categoryId){
 }
 
 function officeSlotRowHTML(slot={}){
-  return `<div class="slot-row"><input type="time" class="slot-in" value="${slot.in||""}"><span class="slot-sep">–</span><input type="time" class="slot-out" value="${slot.out||""}"><button type="button" class="icon-btn" data-remove-slot title="Rimuovi fascia">🗑️</button></div>`;
+  const whereOptions=WORK_LOCATIONS.map(l=>`<option value="${l.id}" ${(slot.where||"ufficio")===l.id?"selected":""}>${l.icon} ${l.label}</option>`).join("");
+  return `<div class="slot-row">
+    <select class="slot-where">${whereOptions}</select>
+    <div class="slot-times">
+      <input type="time" class="slot-in" value="${slot.in||""}"><span class="slot-sep">–</span><input type="time" class="slot-out" value="${slot.out||""}">
+      <button type="button" class="icon-btn" data-remove-slot title="Rimuovi fascia">🗑️</button>
+    </div>
+  </div>`;
 }
 function openOfficeDayModal(date){
   const existing=Data.getOfficeDay(date);
@@ -1142,7 +1183,7 @@ function openOfficeDayModal(date){
   if(existing) document.getElementById("office-delete").addEventListener("click",()=>{ if(confirm("Eliminare tutti i dati di questo giorno (orari e note)?")){ Data.deleteOfficeDay(date); closeModal(); } });
   document.getElementById("office-form").addEventListener("submit",e=>{
     e.preventDefault();
-    const parsedSlots=[...slotsBox.querySelectorAll(".slot-row")].map(row=>({in:row.querySelector(".slot-in").value,out:row.querySelector(".slot-out").value})).filter(s=>s.in&&s.out);
+    const parsedSlots=[...slotsBox.querySelectorAll(".slot-row")].map(row=>({where:row.querySelector(".slot-where").value,in:row.querySelector(".slot-in").value,out:row.querySelector(".slot-out").value})).filter(s=>s.in&&s.out);
     if(parsedSlots.some(s=>s.out<=s.in)){ alert("L'orario di uscita deve essere successivo a quello di entrata in ogni fascia."); return; }
     Data.saveOfficeDay(date,{slots:parsedSlots,notes:document.getElementById("office-notes").value});
     closeModal();
