@@ -11,6 +11,7 @@
 <style>
 <style>
 :root{
+  color-scheme:light;
   --bg:#F3F6FB; --surface:#FFFFFF; --surface-2:#F8FAFD;
   --ink:#1B2333; --ink-soft:#64708A; --ink-faint:#97A2BA;
   --line:#E3E9F4; --line-strong:#D3DBEA;
@@ -28,6 +29,7 @@
 }
 @media (prefers-color-scheme: dark){
   :root:not([data-theme="light"]){
+    color-scheme:dark;
     --bg:#0C1220; --surface:#131C31; --surface-2:#0F1728;
     --ink:#E8ECF8; --ink-soft:#93A0C0; --ink-faint:#5C6885;
     --line:rgba(255,255,255,.08); --line-strong:rgba(255,255,255,.14);
@@ -41,6 +43,7 @@
   }
 }
 :root[data-theme="dark"]{
+  color-scheme:dark;
   --bg:#0C1220; --surface:#131C31; --surface-2:#0F1728;
   --ink:#E8ECF8; --ink-soft:#93A0C0; --ink-faint:#5C6885;
   --line:rgba(255,255,255,.08); --line-strong:rgba(255,255,255,.14);
@@ -585,8 +588,15 @@ const Data={
 
   getOfficeDay(date){ return this.OFFICE_DAYS[date]||null; },
   async saveOfficeDay(date,{slots,notes}){
-    const cleanSlots=(slots||[]).filter(s=>s&&s.in&&s.out&&s.out>s.in).sort((a,b)=>a.in<b.in?-1:1);
     const cleanNotes=(notes||"").trim();
+    // una fascia con orari validi conta sempre; una fascia senza orari (solo il luogo scelto)
+    // conta solo se c'è una nota associata, altrimenti sarebbe solo la riga vuota di default
+    const cleanSlots=(slots||[]).filter(s=>{
+      if(!s||!s.where)return false;
+      if(s.in&&s.out) return s.out>s.in;
+      if(!s.in&&!s.out) return !!cleanNotes;
+      return false; // orario a metà compilato: scartato
+    }).sort((a,b)=>(a.in||"")<(b.in||"")?-1:1);
     if(!cleanSlots.length&&!cleanNotes) return this.deleteOfficeDay(date);
     this.OFFICE_DAYS[date]={slots:cleanSlots,notes:cleanNotes}; render();
     try{ await sbFetch("/habit_office_days?on_conflict=date",{method:"POST",body:{date,slots:cleanSlots,notes:cleanNotes},prefer:"resolution=merge-duplicates"}); this._persistLocal(); }
@@ -1183,8 +1193,8 @@ function openOfficeDayModal(date){
   if(existing) document.getElementById("office-delete").addEventListener("click",()=>{ if(confirm("Eliminare tutti i dati di questo giorno (orari e note)?")){ Data.deleteOfficeDay(date); closeModal(); } });
   document.getElementById("office-form").addEventListener("submit",e=>{
     e.preventDefault();
-    const parsedSlots=[...slotsBox.querySelectorAll(".slot-row")].map(row=>({where:row.querySelector(".slot-where").value,in:row.querySelector(".slot-in").value,out:row.querySelector(".slot-out").value})).filter(s=>s.in&&s.out);
-    if(parsedSlots.some(s=>s.out<=s.in)){ alert("L'orario di uscita deve essere successivo a quello di entrata in ogni fascia."); return; }
+    const parsedSlots=[...slotsBox.querySelectorAll(".slot-row")].map(row=>({where:row.querySelector(".slot-where").value,in:row.querySelector(".slot-in").value,out:row.querySelector(".slot-out").value}));
+    if(parsedSlots.some(s=>s.in&&s.out&&s.out<=s.in)){ alert("L'orario di uscita deve essere successivo a quello di entrata in ogni fascia."); return; }
     Data.saveOfficeDay(date,{slots:parsedSlots,notes:document.getElementById("office-notes").value});
     closeModal();
   });
