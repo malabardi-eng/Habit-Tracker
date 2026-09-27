@@ -293,7 +293,9 @@ h1,h2,h3{font-family:var(--font-display);text-wrap:balance;margin:0;}
 </style>
 </style>
 </head>
-<body>
+<body><style>[hidden]{display:none!important}#accesso-personale{max-width:440px;margin:12vh auto;padding:28px;background:#fff;color:#17202a;border-radius:18px;font:17px system-ui}#accesso-personale input,#accesso-personale button{box-sizing:border-box;width:100%;padding:12px;margin:10px 0}#accesso-barra{padding:12px;background:#fff2cf;color:#312916;font:15px system-ui}#accesso-barra button{margin-left:16px}</style>
+<section id="accesso-personale"><h1>Il tuo accesso personale</h1><p>Accedi con il tuo account personale. La sessione resta attiva su questo browser.</p><form id="accesso-form"><label>Email<input type="email" autocomplete="username" id="accesso-email" required></label><label>Password<input id="accesso-password" type="password" autocomplete="current-password" required></label><button>Accedi</button></form><p id="accesso-messaggio" role="status">La sessione rimane attiva su questo browser. Non inviare la password nella chat.</p></section>
+<main id="app-protetta" hidden inert><div id="accesso-barra"><span id="accesso-stato"></span><button id="accesso-esci">Esci</button></div>
 <div class="app">
   <aside class="rail">
     <div class="rail-logo"><span>🧭</span><span>Habit Tracker</span></div>
@@ -318,7 +320,123 @@ h1,h2,h3{font-family:var(--font-display);text-wrap:balance;margin:0;}
 
 <div class="overlay hidden" id="overlay"><div class="modal" id="modal"></div></div>
 
-<script>
+
+
+
+
+</main><script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/dist/umd/supabase.js" integrity="sha384-Rj26LVGvoeRVR6+mwQmFfcR3QOBEwT+ZmuCWpuiqeTzJpCs0ER4ITAWGb4Hiy3Ok" crossorigin="anonymous"></script>
+<script>/* Copia di verifica: nessuna scrittura. Le regole RLS restano necessarie. */
+(function (root) {
+  'use strict';
+  function createAccess(client, config) {
+    let identity = null;
+    async function token() {
+      const result = await client.auth.getSession();
+      const session = result.data && result.data.session;
+      if (result.error || !session || !session.access_token) throw new Error('Accedi per continuare.');
+      // Verify the user at the server, not merely the local session payload.
+      const verified = await client.auth.getUser(session.access_token);
+      const user = verified.data && verified.data.user;
+      if (verified.error || !user || (config.email && user.email !== config.email) ||
+          (config.ownerId && user.id !== config.ownerId)) {
+        identity = null;
+        throw new Error('Accesso personale non verificato.');
+      }
+      identity = user.id;
+      return session.access_token;
+    }
+    return {
+      token,
+      async request(path, opts = {}) {
+        if (!/^\/(finanze_(categorie|impostazioni|metodi|movimenti)|habit_(activities|entries|office_days|diario_days|diario_photos))(\?|$)/.test(path)) throw new Error('Percorso non valido.');
+        const method=(opts.method || 'GET').toUpperCase();
+        if (!['GET','POST','PATCH','DELETE'].includes(method)) throw new Error('Metodo non consentito.');
+        if (method !== 'GET' && !config.allowMutations) {
+          throw new Error('Versione di verifica: il salvataggio non è ancora attivo.');
+        }
+        let bearer;
+        try { bearer = await token(); } catch (error) { if(config.onAuthFailure) config.onAuthFailure(); throw error; }
+        const headers={ apikey: config.key, Authorization: 'Bearer ' + bearer, 'Content-Type':'application/json' };
+        if(opts.prefer) headers.Prefer=opts.prefer;
+        const res = await config.fetch(config.url + '/rest/v1' + path, {
+          method, headers, body:opts.body===undefined?undefined:JSON.stringify(opts.body)
+        });
+        if (!res.ok) {
+          if(res.status===401 && config.onAuthFailure) config.onAuthFailure();
+          throw new Error('Richiesta non riuscita (' + res.status + '). Verifica i dati prima di riprovare.');
+        }
+        if(res.status===204) return null;
+        const body=await res.text();return body?JSON.parse(body):null;
+      },
+      identity: () => identity
+    };
+  }
+  if (typeof module !== 'undefined' && module.exports) module.exports = { createAccess };
+  root.createPersonalAccess = createAccess;
+})(typeof window === 'undefined' ? globalThis : window);
+</script><script>(function () {
+  'use strict';
+  window.startPersonalAccess = async function (url, key) {
+    if (!window.supabase) throw new Error('Connessione alla libreria di accesso non riuscita. Ricarica la pagina.');
+    const client = window.supabase.createClient(url, key, {
+      auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: false,
+        storageKey: 'second-brain-verifica-accesso-v1' }
+    });
+    const access = createPersonalAccess(client, {
+      url, key, allowMutations: true, onAuthFailure: () => { if(admitted) { hideData(); window.location.reload(); } }, ownerId: 'c31718b9-1c82-48bc-93fb-5a313cd5dd6c', fetch: window.fetch.bind(window)
+    });
+    const app = document.getElementById('app-protetta');
+    const panel = document.getElementById('accesso-personale');
+    const message = document.getElementById('accesso-messaggio');
+    const form = document.getElementById('accesso-form');
+    let admitted = false;
+    function hideData() { app.hidden = true; app.inert = true; panel.hidden = false; }
+    hideData();
+    client.auth.onAuthStateChange(function (event) {
+      // No async auth calls here: avoid the SDK auth callback lock.
+      if (event === 'SIGNED_OUT') {
+        hideData();
+        if (admitted) window.location.reload();
+      }
+    });
+    document.getElementById('accesso-esci').onclick = async function () {
+      hideData();
+      await client.auth.signOut({ scope: 'local' });
+      window.location.reload();
+    };
+    try { await access.token(); }
+    catch (_) {
+      await new Promise(resolve => {
+        form.onsubmit = async function (event) {
+          event.preventDefault();
+          const button = form.querySelector('button');
+          const password = document.getElementById('accesso-password');
+          button.disabled = true;
+          message.textContent = 'Verifico il tuo accesso…';
+          try {
+            const result = await client.auth.signInWithPassword({
+              email: document.getElementById('accesso-email').value.trim(), password: password.value
+            });
+            password.value = '';
+            if (result.error) throw result.error;
+            await access.token();
+            resolve();
+          } catch (_) {
+            password.value = '';
+            message.textContent = 'Accesso non riuscito. Controlla la password e che il tuo account sia stato attivato.';
+          } finally { button.disabled = false; }
+        };
+      });
+    }
+    admitted = true;
+    panel.hidden = true; app.hidden = false; app.inert = false;
+    document.getElementById('accesso-stato').textContent = 'Accesso personale verificato';
+    return access;
+  };
+})();
+</script><script>(async function(){
+const personalAccess = await startPersonalAccess("https://dlihwgoddmdbeedqgkww.supabase.co","sb_publishable_HMjSVRl0CMmlpCpbDTkeZQ_hXtA_-DN");
+
 /* =========================================================
    UTIL
    ========================================================= */
@@ -408,7 +526,9 @@ const WORK_LOCATIONS=[
   {id:"ufficio",icon:"🏢",label:"Ufficio"},
   {id:"remoto",icon:"🏠",label:"Remoto / Casa"},
   {id:"coworking",icon:"☕",label:"Coworking"},
-  {id:"viaggio",icon:"✈️",label:"In viaggio"}
+  {id:"viaggio",icon:"✈️",label:"In viaggio"},
+  {id:"estero",icon:"🌍",label:"Estero"},
+  {id:"altro",icon:"📍",label:"Altro"}
 ];
 function workLocationOf(id){ return WORK_LOCATIONS.find(l=>l.id===id)||WORK_LOCATIONS[0]; }
 
@@ -422,25 +542,13 @@ var SUPABASE_KEY = "sb_publishable_HMjSVRl0CMmlpCpbDTkeZQ_hXtA_-DN";
 var REST = SUPABASE_URL + "/rest/v1";
 var LOCAL_KEY = "habitTrackerLocalCacheV1";
 
-function sbHeaders(extra){
-  var h = { "apikey": SUPABASE_KEY, "Authorization": "Bearer " + SUPABASE_KEY, "Content-Type": "application/json" };
-  if (extra) for (var k in extra) h[k] = extra[k];
-  return h;
-}
-function sbFetch(path, opts){
-  opts = opts || {};
-  var extraHeaders = opts.prefer ? { "Prefer": opts.prefer } : null;
-  return fetch(REST + path, {
-    method: opts.method || "GET",
-    headers: sbHeaders(extraHeaders),
-    body: opts.body ? JSON.stringify(opts.body) : undefined
-  }).then(function(res){
-    if (!res.ok) return res.text().then(function(t){ throw new Error("Supabase " + res.status + ": " + t); });
-    if (res.status === 204) return null;
-    var len = res.headers.get("content-length");
-    if (len === "0") return null;
-    return res.json();
-  });
+function sbFetch(path, opts) { return personalAccess.request(path, opts); }
+async function readAllRows(path, order) {
+    const result=[];
+    for(let offset=0;;offset+=500){
+      const rows=await sbFetch(path+(path.includes('?')?'&':'?')+'order='+order+'&limit=500&offset='+offset);
+      result.push(...rows);if(rows.length<500)return result;
+    }
 }
 
 const Data={
@@ -462,20 +570,20 @@ const Data={
     updateSyncUI("busy");
     try{
       const[acts,entries,office,diario]=await Promise.all([
-        sbFetch("/habit_activities?select=category_id,id,name,custom&order=name"),
-        sbFetch("/habit_entries?select=id,date,category_id,activity_id,description,duration_min,created_at&order=date.desc"),
-        sbFetch("/habit_office_days?select=date,slots,notes"),
-        sbFetch("/habit_diario_days?select=date,text,photo_ids")
+        readAllRows("/habit_activities?select=category_id,id,name,custom","category_id,id"),
+        readAllRows("/habit_entries?select=id,date,category_id,activity_id,description,duration_min,created_at","date.desc,id"),
+        readAllRows("/habit_office_days?select=date,slots,notes","date"),
+        readAllRows("/habit_diario_days?select=date,text,photo_ids","date")
       ]);
       this._applyActivities(acts||[]);
       this.ENTRIES=(entries||[]).map(e=>({id:e.id,date:e.date,categoryId:e.category_id,activityId:e.activity_id,description:e.description||"",durationMin:e.duration_min,createdAt:e.created_at}));
       this.OFFICE_DAYS=Object.fromEntries((office||[]).map(d=>[d.date,{slots:d.slots||[],notes:d.notes||""}]));
       this.DIARIO_DAYS=Object.fromEntries((diario||[]).map(d=>[d.date,{text:d.text||"",photoIds:d.photo_ids||[]}]));
       this.online=true;
-      this._persistLocal();
+      // Verification build: do not persist personal data in the old cache.
     }catch(e){
       this.online=false;
-      this._loadLocal();
+      updateSyncUI(); alert("Impossibile aggiornare i dati. Verifica l’accesso e la connessione."); return;
     }
     this.ready=true;
     updateSyncUI();
@@ -491,23 +599,8 @@ const Data={
     }
   },
 
-  _loadLocal(){
-    try{
-      const raw=localStorage.getItem(LOCAL_KEY);
-      if(raw){
-        const p=JSON.parse(raw);
-        if(p.categories) this.CATEGORIES=p.categories;
-        this.ENTRIES=p.entries||[];
-        this.OFFICE_DAYS=p.office||{};
-        this.DIARIO_DAYS=p.diario||{};
-        this.PHOTO_CACHE=p.photos||{};
-      }
-    }catch(e){/* ignore */}
-  },
-  _persistLocal(){
-    try{ localStorage.setItem(LOCAL_KEY,JSON.stringify({categories:this.CATEGORIES,entries:this.ENTRIES,office:this.OFFICE_DAYS,diario:this.DIARIO_DAYS,photos:this.PHOTO_CACHE})); }
-    catch(e){/* ignore */}
-  },
+  _loadLocal(){},
+  _persistLocal(){},
 
   async addActivity(categoryId,name){
     const cat=this.CATEGORIES[categoryId]; if(!cat)return null;
@@ -582,7 +675,7 @@ const Data={
         sbFetch("/habit_entries?id=not.is.null",{method:"DELETE"}),
         sbFetch("/habit_activities?custom=eq.true",{method:"DELETE"})
       ]);
-      this._persistLocal();
+      // Verification build: do not persist personal data in the old cache.
     }catch(e){ alert("Il ripristino locale è avvenuto, ma non sono riuscito a pulire il server: "+e.message); }
   },
 
@@ -594,12 +687,11 @@ const Data={
     const cleanSlots=(slots||[]).filter(s=>{
       if(!s||!s.where)return false;
       if(s.in&&s.out) return s.out>s.in;
-      if(!s.in&&!s.out) return !!cleanNotes;
+      if(!s.in&&!s.out) return !!cleanNotes || s.where!=="ufficio" || !!s.placeDetail;
       return false; // orario a metà compilato: scartato
     }).sort((a,b)=>(a.in||"")<(b.in||"")?-1:1);
     if(!cleanSlots.length&&!cleanNotes) return this.deleteOfficeDay(date);
-    this.OFFICE_DAYS[date]={slots:cleanSlots,notes:cleanNotes}; render();
-    try{ await sbFetch("/habit_office_days?on_conflict=date",{method:"POST",body:{date,slots:cleanSlots,notes:cleanNotes},prefer:"resolution=merge-duplicates"}); this._persistLocal(); }
+    try{ await sbFetch("/habit_office_days?on_conflict=date",{method:"POST",body:{date,slots:cleanSlots,notes:cleanNotes},prefer:"resolution=merge-duplicates"}); this.OFFICE_DAYS[date]={slots:cleanSlots,notes:cleanNotes}; render(); this._persistLocal(); }
     catch(e){ alert("Non sono riuscito a salvare: "+e.message); }
     return this.OFFICE_DAYS[date];
   },
@@ -615,8 +707,7 @@ const Data={
     const cleanText=(text||"").trim();
     const ids=Array.isArray(photoIds)?photoIds:[];
     if(!cleanText&&!ids.length) return this.deleteDiaryDay(date);
-    this.DIARIO_DAYS[date]={text:cleanText,photoIds:ids}; render();
-    try{ await sbFetch("/habit_diario_days?on_conflict=date",{method:"POST",body:{date,text:cleanText,photo_ids:ids},prefer:"resolution=merge-duplicates"}); this._persistLocal(); }
+    try{ await sbFetch("/habit_diario_days?on_conflict=date",{method:"POST",body:{date,text:cleanText,photo_ids:ids},prefer:"resolution=merge-duplicates"}); this.DIARIO_DAYS[date]={text:cleanText,photoIds:ids}; render(); this._persistLocal(); }
     catch(e){ alert("Non sono riuscito a salvare: "+e.message); }
     return this.DIARIO_DAYS[date];
   },
@@ -665,8 +756,8 @@ function updateSyncUI(mode){
   texts.forEach(t=>t.textContent=label);
   if(banner) banner.hidden=!local;
 }
-</script>
-<script>
+
+
 /* =========================================================
    CHART BUILDERS
    ========================================================= */
@@ -801,8 +892,8 @@ function recentListHTML(entries){
     </div>`;
   }).join("")}</div>`;
 }
-</script>
-<script>
+
+
 /* =========================================================
    VIEWS
    ========================================================= */
@@ -1028,8 +1119,8 @@ function renderSettings(){
       <button class="btn btn-danger" data-action="reset-data">Ripristina dati predefiniti</button>
     </div>`;
 }
-</script>
-<script>
+
+
 /* =========================================================
    NAV + ROUTING + STATE
    ========================================================= */
@@ -1166,8 +1257,8 @@ function openAddActivityModal(categoryId){
 
 function officeSlotRowHTML(slot={}){
   const whereOptions=WORK_LOCATIONS.map(l=>`<option value="${l.id}" ${(slot.where||"ufficio")===l.id?"selected":""}>${l.icon} ${l.label}</option>`).join("");
-  return `<div class="slot-row">
-    <select class="slot-where">${whereOptions}</select>
+  return `<div class="slot-row" data-original="${escapeHTML(JSON.stringify(slot))}">
+    <select class="slot-where">${whereOptions}</select><input type="text" class="slot-detail" aria-label="Dettaglio luogo" placeholder="Dettaglio luogo" value="${escapeHTML(slot.placeDetail||'')}">
     <div class="slot-times">
       <input type="time" class="slot-in" value="${slot.in||""}"><span class="slot-sep">–</span><input type="time" class="slot-out" value="${slot.out||""}">
       <button type="button" class="icon-btn" data-remove-slot title="Rimuovi fascia">🗑️</button>
@@ -1193,7 +1284,7 @@ function openOfficeDayModal(date){
   if(existing) document.getElementById("office-delete").addEventListener("click",()=>{ if(confirm("Eliminare tutti i dati di questo giorno (orari e note)?")){ Data.deleteOfficeDay(date); closeModal(); } });
   document.getElementById("office-form").addEventListener("submit",e=>{
     e.preventDefault();
-    const parsedSlots=[...slotsBox.querySelectorAll(".slot-row")].map(row=>({where:row.querySelector(".slot-where").value,in:row.querySelector(".slot-in").value,out:row.querySelector(".slot-out").value}));
+    const parsedSlots=[...slotsBox.querySelectorAll(".slot-row")].map(row=>({...JSON.parse(row.dataset.original||"{}"),placeDetail:row.querySelector(".slot-detail").value,where:row.querySelector(".slot-where").value,in:row.querySelector(".slot-in").value,out:row.querySelector(".slot-out").value}));
     if(parsedSlots.some(s=>s.in&&s.out&&s.out<=s.in)){ alert("L'orario di uscita deve essere successivo a quello di entrata in ogni fascia."); return; }
     Data.saveOfficeDay(date,{slots:parsedSlots,notes:document.getElementById("office-notes").value});
     closeModal();
@@ -1337,6 +1428,6 @@ document.addEventListener("change",e=>{
 
 render();
 Data.init();
-</script>
-</body>
+
+})().catch(function(){document.getElementById("accesso-messaggio").textContent="Verifica non completata. Ricarica la pagina o chiedi assistenza.";});</script></body>
 </html>
