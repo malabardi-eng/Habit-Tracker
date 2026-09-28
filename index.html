@@ -21,6 +21,7 @@
   --c-ufficio:#7C4DEF; --c-ufficio-soft:#F1EBFF;
   --c-diario:#1B9C6E; --c-diario-soft:#E3FAF1;
   --c-danger:#D64545; --c-danger-soft:#FDEDEE;
+  --c-todo:#0E8A9A; --c-todo-soft:#E0F6F8;
   --shadow:0 6px 20px rgba(16,35,63,.07); --shadow-sm:0 2px 8px rgba(16,35,63,.05);
   --r-lg:18px; --r-md:12px; --r-sm:9px;
   --font-display:'Sora',system-ui,sans-serif;
@@ -39,6 +40,7 @@
     --c-ufficio:#A78BFA; --c-ufficio-soft:rgba(167,139,250,.16);
     --c-diario:#34C48F; --c-diario-soft:rgba(52,196,143,.14);
     --c-danger:#FF7A70; --c-danger-soft:rgba(255,122,112,.14);
+    --c-todo:#3CC6D6; --c-todo-soft:rgba(60,198,214,.14);
     --shadow:0 6px 24px rgba(0,0,0,.35); --shadow-sm:0 2px 10px rgba(0,0,0,.3);
   }
 }
@@ -53,6 +55,7 @@
   --c-ufficio:#A78BFA; --c-ufficio-soft:rgba(167,139,250,.16);
   --c-diario:#34C48F; --c-diario-soft:rgba(52,196,143,.14);
   --c-danger:#FF7A70; --c-danger-soft:rgba(255,122,112,.14);
+  --c-todo:#3CC6D6; --c-todo-soft:rgba(60,198,214,.14);
   --shadow:0 6px 24px rgba(0,0,0,.35); --shadow-sm:0 2px 10px rgba(0,0,0,.3);
 }
 *{box-sizing:border-box;}
@@ -267,6 +270,35 @@ h1,h2,h3{font-family:var(--font-display);text-wrap:balance;margin:0;}
 
 .empty{color:var(--ink-faint);font-size:.87rem;padding:22px 4px;text-align:center;}
 
+/* da fare */
+.todo-toolbar{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;}
+.seg{display:inline-flex;background:var(--surface);border-radius:999px;padding:4px;box-shadow:var(--shadow-sm);gap:2px;}
+.seg button{border:none;background:transparent;padding:7px 14px;border-radius:999px;font-size:.84rem;font-weight:600;color:var(--ink-soft);cursor:pointer;}
+.seg button.active{background:var(--c-todo);color:#fff;}
+.todo-row{display:flex;align-items:flex-start;gap:11px;padding:10px 0;border-bottom:1px solid var(--line);}
+.todo-row:last-child{border-bottom:none;}
+.todo-check{width:26px;height:26px;border-radius:50%;border:2px solid var(--line-strong);background:var(--surface);cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:.8rem;font-weight:700;color:#fff;padding:0;}
+.todo-check:hover{border-color:var(--c-todo);}
+.todo-check.done{background:var(--c-todo);border-color:var(--c-todo);}
+.todo-row.done .rtitle{text-decoration:line-through;color:var(--ink-faint);}
+.todo-meta{display:flex;flex-wrap:wrap;gap:6px;margin-top:4px;}
+.chip{font-size:.7rem;padding:1px 8px;border-radius:999px;background:var(--surface-2);color:var(--ink-soft);font-family:var(--font-mono);border:1px solid var(--line);}
+.chip-late{background:var(--c-danger-soft);color:var(--c-danger);border-color:transparent;}
+.chip-time{background:var(--c-todo-soft);color:var(--c-todo);border-color:transparent;}
+.card.late{border-left:4px solid var(--c-danger);}
+.todo-week{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:10px;}
+@media (max-width:1000px){.todo-week{grid-template-columns:1fr;}}
+.todo-day{background:var(--surface);border-radius:var(--r-md);padding:11px 12px;box-shadow:var(--shadow-sm);display:flex;flex-direction:column;gap:4px;min-height:110px;min-width:0;}
+.todo-day.today{box-shadow:0 0 0 2px var(--c-todo);}
+.todo-day-head{display:flex;justify-content:space-between;align-items:center;font-family:var(--font-mono);font-size:.78rem;color:var(--ink-soft);font-weight:600;text-transform:capitalize;}
+.todo-day .todo-row{padding:6px 0;gap:8px;}
+.todo-day .todo-check{width:20px;height:20px;font-size:.66rem;}
+.todo-day .rtitle{font-size:.8rem;overflow-wrap:anywhere;}
+.todo-day .ractions{display:none;}
+.weekday-picks{display:flex;flex-wrap:wrap;gap:6px;}
+.weekday-picks label{display:flex;align-items:center;gap:4px;font-size:.8rem;padding:5px 9px;border:1px solid var(--line);border-radius:999px;cursor:pointer;font-weight:500;color:var(--ink);}
+.hint{font-size:.72rem;color:var(--ink-faint);}
+
 /* modal */
 .overlay{position:fixed;inset:0;background:rgba(8,14,26,.5);display:flex;align-items:center;justify-content:center;z-index:60;padding:18px;}
 .overlay.hidden{display:none;}
@@ -348,7 +380,7 @@ h1,h2,h3{font-family:var(--font-display);text-wrap:balance;margin:0;}
     return {
       token,
       async request(path, opts = {}) {
-        if (!/^\/(finanze_(categorie|impostazioni|metodi|movimenti)|habit_(activities|entries|office_days|diario_days|diario_photos))(\?|$)/.test(path)) throw new Error('Percorso non valido.');
+        if (!/^\/(finanze_(categorie|impostazioni|metodi|movimenti)|habit_(activities|entries|office_days|diario_days|diario_photos|todos|todo_done))(\?|$)/.test(path)) throw new Error('Percorso non valido.');
         const method=(opts.method || 'GET').toUpperCase();
         if (!['GET','POST','PATCH','DELETE'].includes(method)) throw new Error('Metodo non consentito.');
         if (method !== 'GET' && !config.allowMutations) {
@@ -490,6 +522,77 @@ const Stats={
   }
 };
 
+/* DA-FARE-LOGICA-INIZIO — stesse regole di strumenti/da_fare.py del Second Brain */
+const TodoLogic=(function(){
+  const DAY=86400000, MAX_LOOKBACK=3660;
+  function parse(iso){const[y,m,d]=iso.split("-").map(Number);return Date.UTC(y,m-1,d);}
+  function fmt(ms){return new Date(ms).toISOString().slice(0,10);}
+  function addDaysISO(iso,n){return fmt(parse(iso)+n*DAY);}
+  function isoWeekday(ms){const w=new Date(ms).getUTCDay();return w===0?7:w;}
+  function sameDayInMonth(startDay,y,m){return Math.min(startDay,new Date(Date.UTC(y,m,0)).getUTCDate());}
+  function occursOn(todo,iso){
+    const start=todo.due_date;
+    if(!start||iso<start)return false;
+    const r=todo.recurrence;
+    if(!r)return iso===start;
+    if(r.until&&iso>r.until)return false;
+    const s=parse(start),d=parse(iso),n=r.interval||1;
+    if(r.freq==="daily")return Math.round((d-s)/DAY)%n===0;
+    if(r.freq==="weekly"){
+      const days=(r.weekdays&&r.weekdays.length)?r.weekdays:[isoWeekday(s)];
+      if(!days.includes(isoWeekday(d)))return false;
+      const weeks=Math.round(((d-(isoWeekday(d)-1)*DAY)-(s-(isoWeekday(s)-1)*DAY))/DAY/7);
+      return weeks%n===0;
+    }
+    const sd=new Date(s),dd=new Date(d);
+    const sy=sd.getUTCFullYear(),sm=sd.getUTCMonth()+1,y=dd.getUTCFullYear(),m=dd.getUTCMonth()+1;
+    const target=sameDayInMonth(sd.getUTCDate(),y,m);
+    if(r.freq==="monthly")return ((y-sy)*12+m-sm)%n===0&&dd.getUTCDate()===target;
+    if(r.freq==="yearly")return (y-sy)%n===0&&m===sm&&dd.getUTCDate()===target;
+    return false;
+  }
+  function cmp(a,b){for(let i=0;i<a.length;i++){if(a[i]<b[i])return -1;if(a[i]>b[i])return 1;}return 0;}
+  const byTime=(a,b)=>cmp([a.todo.due_time||"99:99",(a.todo.title||"").toLowerCase()],[b.todo.due_time||"99:99",(b.todo.title||"").toLowerCase()]);
+  // Singole non spuntate: in ritardo finché non si spuntano. Ricorrenti mancate: ricordate una volta
+  // sola (dalla prima saltata dopo l'ultima spuntata); se cadono anche oggi compaiono solo in «oggi».
+  function summary(todos,done,today,daysAhead=6){
+    const ticks={};
+    for(const row of done)(ticks[row.todo_id]||=new Set()).add(row.occurrence);
+    const out={in_ritardo:[],oggi:[],quando_posso:[],prossimi_giorni:{}};
+    for(let k=1;k<=daysAhead;k++)out.prossimi_giorni[addDaysISO(today,k)]=[];
+    for(const t of todos){
+      if(!t.recurrence){
+        if(t.done_at)continue;
+        const due=t.due_date;
+        if(!due)out.quando_posso.push({todo:t});
+        else if(due<today)out.in_ritardo.push({todo:t,dal:due,saltate:0,occurrence:null});
+        else if(due===today)out.oggi.push({todo:t,occurrence:null,saltate:0});
+        else if(out.prossimi_giorni[due])out.prossimi_giorni[due].push({todo:t,occurrence:null});
+        continue;
+      }
+      const mine=ticks[t.id]||new Set();
+      const last=[...mine].sort().pop();
+      let begin=t.due_date>addDaysISO(today,-MAX_LOOKBACK)?t.due_date:addDaysISO(today,-MAX_LOOKBACK);
+      if(last&&addDaysISO(last,1)>begin)begin=addDaysISO(last,1);
+      const missed=[];
+      for(let d=begin;d<today;d=addDaysISO(d,1)) if(!mine.has(d)&&occursOn(t,d))missed.push(d);
+      if(occursOn(t,today)){
+        if(!mine.has(today))out.oggi.push({todo:t,occurrence:today,saltate:missed.length});
+      }else if(missed.length){
+        out.in_ritardo.push({todo:t,dal:missed[0],saltate:missed.length,occurrence:missed[missed.length-1]});
+      }
+      for(const[day,items]of Object.entries(out.prossimi_giorni)) if(!mine.has(day)&&occursOn(t,day))items.push({todo:t,occurrence:day});
+    }
+    out.in_ritardo.sort((a,b)=>cmp([a.dal,(a.todo.title||"").toLowerCase()],[b.dal,(b.todo.title||"").toLowerCase()]));
+    out.oggi.sort(byTime);
+    out.quando_posso.sort((a,b)=>cmp([a.todo.created_at||""],[b.todo.created_at||""]));
+    for(const items of Object.values(out.prossimi_giorni))items.sort(byTime);
+    return out;
+  }
+  return {occursOn,summary,addDaysISO,byTime};
+})();
+/* DA-FARE-LOGICA-FINE */
+
 /* =========================================================
    DEFAULTS / ROUTES
    ========================================================= */
@@ -514,6 +617,7 @@ const DEFAULT_CATEGORIES={
 };
 const ROUTES=[
   {id:"dashboard",label:"Dashboard",icon:"📊",group:null},
+  {id:"dafare",label:"Da fare",icon:"✅",group:"Organizza"},
   {id:"sport",label:"Sport",icon:"🏃",group:"Attività"},
   {id:"studio",label:"Studio",icon:"📚",group:"Attività"},
   {id:"ufficio",label:"Ufficio",icon:"🏢",group:"Lavoro"},
@@ -521,7 +625,7 @@ const ROUTES=[
   {id:"storico",label:"Storico",icon:"🗓️",group:"Altro"},
   {id:"impostazioni",label:"Impostazioni",icon:"⚙️",group:"Altro"}
 ];
-const BOTTOM_TAB_IDS=["dashboard","sport","studio","ufficio","diario"];
+const BOTTOM_TAB_IDS=["dashboard","dafare","sport","studio","ufficio","diario"];
 const WORK_LOCATIONS=[
   {id:"ufficio",icon:"🏢",label:"Ufficio"},
   {id:"remoto",icon:"🏠",label:"Remoto / Casa"},
@@ -559,6 +663,9 @@ const Data={
   OFFICE_DAYS:{},
   DIARIO_DAYS:{},
   PHOTO_CACHE:{},
+  TODOS:[],
+  TODO_DONE:[],
+  todosAvailable:false,
 
   async init(){
     await this.loadAll();
@@ -579,6 +686,14 @@ const Data={
       this.ENTRIES=(entries||[]).map(e=>({id:e.id,date:e.date,categoryId:e.category_id,activityId:e.activity_id,description:e.description||"",durationMin:e.duration_min,createdAt:e.created_at}));
       this.OFFICE_DAYS=Object.fromEntries((office||[]).map(d=>[d.date,{slots:d.slots||[],notes:d.notes||""}]));
       this.DIARIO_DAYS=Object.fromEntries((diario||[]).map(d=>[d.date,{text:d.text||"",photoIds:d.photo_ids||[]}]));
+      // «Da fare»: disponibile solo dopo l'aggiornamento del database; il resto dell'app funziona comunque.
+      try{
+        const[todos,done]=await Promise.all([
+          readAllRows("/habit_todos?select=*","created_at,id"),
+          readAllRows("/habit_todo_done?select=*","todo_id,occurrence")
+        ]);
+        this.TODOS=todos||[]; this.TODO_DONE=done||[]; this.todosAvailable=true;
+      }catch(_){ this.todosAvailable=false; }
       this.online=true;
       // Verification build: do not persist personal data in the old cache.
     }catch(e){
@@ -730,6 +845,36 @@ const Data={
     delete this.PHOTO_CACHE[id];
     try{ await sbFetch(`/habit_diario_photos?id=eq.${id}`,{method:"DELETE"}); }catch(e){/* ignore */}
   },
+  async addTodo(payload){
+    try{ const res=await sbFetch("/habit_todos",{method:"POST",body:payload,prefer:"return=representation"}); this.TODOS.push(res[0]); render(); return res[0]; }
+    catch(e){ alert("Non sono riuscito a salvare: "+e.message); return null; }
+  },
+  async updateTodo(id,payload){
+    try{
+      const res=await sbFetch(`/habit_todos?id=eq.${encodeURIComponent(id)}`,{method:"PATCH",body:payload,prefer:"return=representation"});
+      const i=this.TODOS.findIndex(t=>t.id===id); if(i!==-1&&res&&res[0]) this.TODOS[i]=res[0];
+      render(); return res&&res[0];
+    }catch(e){ alert("Non sono riuscito a salvare: "+e.message); return null; }
+  },
+  async deleteTodo(id){
+    try{ await sbFetch(`/habit_todos?id=eq.${encodeURIComponent(id)}`,{method:"DELETE"}); }
+    catch(e){ alert("Non sono riuscito a eliminare: "+e.message); return false; }
+    this.TODOS=this.TODOS.filter(t=>t.id!==id); this.TODO_DONE=this.TODO_DONE.filter(d=>d.todo_id!==id); render(); return true;
+  },
+  // Singole: done_at sulla riga. Ricorrenti: una riga in habit_todo_done per ogni ripetizione.
+  async completeTodo(id,occurrence){
+    if(occurrence){
+      try{ const res=await sbFetch("/habit_todo_done",{method:"POST",body:{todo_id:id,occurrence},prefer:"return=representation"}); this.TODO_DONE.push(res[0]); render(); }
+      catch(e){ alert("Non sono riuscito a segnarla come fatta: "+e.message); }
+    }else await this.updateTodo(id,{done_at:new Date().toISOString()});
+  },
+  async uncompleteTodo(id,occurrence){
+    if(occurrence){
+      try{ await sbFetch(`/habit_todo_done?todo_id=eq.${encodeURIComponent(id)}&occurrence=eq.${encodeURIComponent(occurrence)}`,{method:"DELETE"}); this.TODO_DONE=this.TODO_DONE.filter(d=>!(d.todo_id===id&&d.occurrence===occurrence)); render(); }
+      catch(e){ alert("Non sono riuscito ad annullare la spunta: "+e.message); }
+    }else await this.updateTodo(id,{done_at:null});
+  },
+
   async getPhotos(ids){
     if(!ids||!ids.length)return[];
     const missing=ids.filter(id=>!this.PHOTO_CACHE[id]);
@@ -761,7 +906,7 @@ function updateSyncUI(mode){
 /* =========================================================
    CHART BUILDERS
    ========================================================= */
-const COLOR_VAR={sport:"--c-sport",studio:"--c-studio",ufficio:"--c-ufficio",diario:"--c-diario"};
+const COLOR_VAR={sport:"--c-sport",studio:"--c-studio",ufficio:"--c-ufficio",diario:"--c-diario",dafare:"--c-todo"};
 
 function donutChartHTML(segments,{size=148,thickness=22,centerLabel="",centerSub=""}={}){
   const total=segments.reduce((s,x)=>s+x.value,0)||1;
@@ -938,6 +1083,7 @@ function renderDashboard(){
   const monthEntries=Stats.entriesInRange(entries,month.fromISO,month.toISO);
 
   return `
+    ${todoDashboardCardHTML()}
     <div class="stat-row">
       ${statTile("📅","Oggi",todayCount,"sport","attività registrate")}
       ${statTile("🔥","Streak attuale",currentStreak,"studio",currentStreak===1?"giorno consecutivo":"giorni consecutivi")}
@@ -1078,6 +1224,102 @@ function renderDiary(){
     <div class="card"><div class="card-header"><h3>Pensieri recenti</h3></div>${recentEntries.length?listHTML:emptyState("Nessun pensiero scritto finora. Clicca su un giorno nel calendario per iniziare.")}</div>`;
 }
 
+const WEEKDAY_SHORT=["lun","mar","mer","gio","ven","sab","dom"];
+function describeRecurrenceIT(r){
+  if(!r)return "";
+  const n=r.interval||1;
+  const base={daily:n===1?"ogni giorno":`ogni ${n} giorni`,weekly:n===1?"ogni settimana":`ogni ${n} settimane`,monthly:n===1?"ogni mese":`ogni ${n} mesi`,yearly:n===1?"ogni anno":`ogni ${n} anni`}[r.freq]||"ripetuta";
+  const days=(r.weekdays||[]).map(d=>WEEKDAY_SHORT[d-1]).join(", ");
+  return base+(days?` (${days})`:"")+(r.until?` fino al ${formatDateIT(r.until)}`:"");
+}
+function todoRowHTML(item,{compact=false}={}){
+  const t=item.todo, done=!!item.done, occ=item.occurrence||"";
+  const chips=[];
+  if(item.dal) chips.push(`<span class="chip chip-late">in ritardo dal ${formatDateIT(item.dal)}${item.saltate>1?` · saltata ${item.saltate} volte`:""}</span>`);
+  else if(item.saltate) chips.push(`<span class="chip chip-late">saltata ${item.saltate} ${item.saltate===1?"volta":"volte"}</span>`);
+  if(item.late) chips.push(`<span class="chip chip-late">non fatta</span>`);
+  if(t.due_time) chips.push(`<span class="chip chip-time">🕒 ${t.due_time.slice(0,5)}</span>`);
+  if(t.recurrence) chips.push(`<span class="chip" title="${escapeHTML(describeRecurrenceIT(t.recurrence))}">🔁${compact?"":" "+escapeHTML(describeRecurrenceIT(t.recurrence))}</span>`);
+  return `<div class="todo-row ${done?"done":""}">
+    <button type="button" class="todo-check ${done?"done":""}" data-action="${done?"todo-undo":"todo-done"}" data-id="${t.id}" data-occ="${occ}" title="${done?"Segna di nuovo come da fare":"Segna come fatta"}" aria-label="${done?"Segna di nuovo come da fare":"Segna come fatta"}: ${escapeHTML(t.title)}">${done?"✓":""}</button>
+    <div class="rmain" data-action="todo-edit" data-id="${t.id}" style="cursor:pointer">
+      <div class="rtitle">${escapeHTML(t.title)}</div>
+      ${chips.length?`<div class="todo-meta">${chips.join("")}</div>`:""}
+      ${t.notes&&!compact?`<div class="rdesc">${escapeHTML(t.notes)}</div>`:""}
+    </div>
+    <div class="ractions"><button type="button" class="icon-btn" data-action="todo-edit" data-id="${t.id}" title="Modifica">✏️</button></div>
+  </div>`;
+}
+function todosForDay(iso){
+  const ticks=new Set(Data.TODO_DONE.map(d=>d.todo_id+"|"+d.occurrence));
+  const today=todayISO(), out=[];
+  for(const t of Data.TODOS){
+    if(!TodoLogic.occursOn(t,iso))continue;
+    const done=t.recurrence?ticks.has(t.id+"|"+iso):!!t.done_at;
+    out.push({todo:t,occurrence:t.recurrence?iso:null,done,late:!done&&iso<today});
+  }
+  return out.sort(TodoLogic.byTime);
+}
+function doneTodayItems(){
+  const today=todayISO(), out=[];
+  for(const t of Data.TODOS) if(!t.recurrence&&t.done_at&&isoOf(new Date(t.done_at))===today) out.push({todo:t,occurrence:null,done:true});
+  for(const d of Data.TODO_DONE){
+    if(!d.done_at||isoOf(new Date(d.done_at))!==today)continue;
+    const t=Data.TODOS.find(x=>x.id===d.todo_id); if(t) out.push({todo:t,occurrence:d.occurrence,done:true});
+  }
+  return out;
+}
+function todoListCard(title,items,{empty,late=false,addDate}={}){
+  return `<div class="card ${late?"late":""}"><div class="card-header"><h3>${title}</h3>${addDate!==undefined?`<button class="btn btn-outline btn-sm" style="--accent:var(--c-todo)" data-action="todo-new" data-date="${addDate}">+ Aggiungi</button>`:""}</div>
+    ${items.length?`<div class="rlist">${items.map(i=>todoRowHTML(i)).join("")}</div>`:emptyState(empty)}</div>`;
+}
+function renderTodos(){
+  const intro=`<div class="card intro" style="--accent:var(--c-todo)"><div>Le tue cose da fare: in un giorno preciso, ricorrenti o «quando posso». Quelle non spuntate restano in evidenza finché non le segni come fatte.</div></div>`;
+  if(!Data.todosAvailable) return intro+`<div class="card">${emptyState("La sezione Da fare sarà disponibile appena il database verrà aggiornato.")}</div>`;
+  const today=todayISO();
+  const s=TodoLogic.summary(Data.TODOS,Data.TODO_DONE,today);
+  const tab=state.todoTab;
+  const seg=`<div class="seg" role="tablist">${[["oggi","Oggi"],["settimana","Settimana"],["quando","Quando posso"]].map(([id,l])=>`<button type="button" role="tab" aria-selected="${tab===id}" class="${tab===id?"active":""}" data-action="todo-tab" data-tab="${id}">${l}</button>`).join("")}</div>`;
+  const toolbar=`<div class="todo-toolbar">${seg}<button class="btn btn-primary" style="background:var(--c-todo)" data-action="todo-new" data-date="${tab==="quando"?"":today}">+ Nuova cosa da fare</button></div>`;
+  let body="";
+  if(tab==="oggi"){
+    const doneToday=doneTodayItems();
+    body=`<div class="stat-row">
+        ${statTile("⏰","In ritardo",s.in_ritardo.length,"dafare","da recuperare")}
+        ${statTile("📌","Oggi",s.oggi.length,"dafare","ancora da fare")}
+        ${statTile("🗂️","Quando posso",s.quando_posso.length,"dafare","senza data")}
+        ${statTile("✅","Fatte oggi",doneToday.length,"dafare","spuntate")}
+      </div>
+      ${s.in_ritardo.length?todoListCard("⏰ In ritardo",s.in_ritardo,{late:true}):""}
+      ${todoListCard("📌 Oggi",s.oggi,{empty:"Niente in programma per oggi.",addDate:today})}
+      ${todoListCard("🗂️ Quando posso",s.quando_posso,{empty:"Nessuna cosa senza data.",addDate:""})}
+      ${doneToday.length?todoListCard("✅ Fatte oggi",doneToday):""}`;
+  }else if(tab==="settimana"){
+    const from=state.todoWeekFrom;
+    const to=TodoLogic.addDaysISO(from,6);
+    const label=weekLabel(new Date(from+"T12:00:00"),new Date(to+"T12:00:00"));
+    const days=[...Array(7)].map((_,i)=>TodoLogic.addDaysISO(from,i)).map(iso=>{
+      const items=todosForDay(iso);
+      const head=new Date(iso+"T12:00:00").toLocaleDateString("it-IT",{weekday:"short",day:"numeric",month:"short"});
+      return `<div class="todo-day ${iso===today?"today":""}"><div class="todo-day-head"><span>${head}</span><button class="icon-btn" data-action="todo-new" data-date="${iso}" title="Aggiungi in questo giorno">＋</button></div>
+        ${items.length?items.map(i=>todoRowHTML(i,{compact:true})).join(""):`<span class="hint">—</span>`}</div>`;
+    }).join("");
+    body=`<div class="card"><div class="card-header"><h3>Settimana</h3>${monthNavHTML({prevAction:"todo-prev-week",nextAction:"todo-next-week",label})}</div>
+      <div class="todo-week">${days}</div>
+      ${from!==weekRange(today).fromISO?`<button class="btn btn-ghost btn-sm" data-action="todo-this-week" style="margin-top:10px">Torna a questa settimana</button>`:""}</div>`;
+  }else{
+    body=todoListCard("🗂️ Quando posso",s.quando_posso,{empty:"Nessuna cosa senza data. Aggiungi qui ciò che vuoi fare senza una scadenza precisa.",addDate:""});
+  }
+  return intro+toolbar+body;
+}
+function todoDashboardCardHTML(){
+  if(!Data.todosAvailable)return "";
+  const s=TodoLogic.summary(Data.TODOS,Data.TODO_DONE,todayISO());
+  const items=[...s.in_ritardo,...s.oggi];
+  return `<div class="card"><div class="card-header"><h3>✅ Da fare oggi</h3><button class="btn btn-outline btn-sm" style="--accent:var(--c-todo)" data-route="dafare">Apri</button></div>
+    ${items.length?`<div class="rlist">${items.slice(0,5).map(i=>todoRowHTML(i,{compact:true})).join("")}</div>${items.length>5?`<div class="hint">…e altre ${items.length-5} nella sezione Da fare.</div>`:""}`:emptyState("Niente in programma per oggi.")}</div>`;
+}
+
 function renderHistory(filters={}){
   const{categoryId="all",activityId="all"}=filters;
   let entries=[...Data.ENTRIES];
@@ -1129,7 +1371,9 @@ const state={
   historyFilters:{categoryId:"all",activityId:"all"},
   heatmapYear:new Date().getFullYear(),
   officeMonth:{year:new Date().getFullYear(),month:new Date().getMonth()},
-  diarioMonth:{year:new Date().getFullYear(),month:new Date().getMonth()}
+  diarioMonth:{year:new Date().getFullYear(),month:new Date().getMonth()},
+  todoTab:"oggi",
+  todoWeekFrom:weekRange(todayISO()).fromISO
 };
 const ROUTE_TITLES=Object.fromEntries(ROUTES.map(r=>[r.id,r.group?`${r.icon} ${r.label}`:r.label]));
 
@@ -1165,6 +1409,7 @@ function render(){
   if(!Data.ready){ root.innerHTML=emptyState("Caricamento dei tuoi dati…"); return; }
   switch(state.route){
     case "dashboard": root.innerHTML=renderDashboard(); break;
+    case "dafare": root.innerHTML=renderTodos(); break;
     case "sport": root.innerHTML=renderCategoryPage("sport"); break;
     case "studio": root.innerHTML=renderCategoryPage("studio"); break;
     case "ufficio": root.innerHTML=renderOffice(); break;
@@ -1252,6 +1497,77 @@ function openAddActivityModal(categoryId){
     if(!name)return;
     Data.addActivity(categoryId,name);
     closeModal();
+  });
+}
+
+function openTodoModal({id,date}={}){
+  const t=id?Data.TODOS.find(x=>x.id===id):null;
+  if(id&&!t)return;
+  const r=t&&t.recurrence||null;
+  const hasDate=t?!!t.due_date:date!=="";
+  const weekdays=r&&r.weekdays||[];
+  const html=`
+    <div class="modal-head"><h3>${t?"Modifica cosa da fare":"Nuova cosa da fare"}</h3><button class="icon-btn" data-close>✕</button></div>
+    <form id="todo-form" class="modal-form">
+      <div class="row"><label for="todo-title">Cosa devi fare?</label><textarea id="todo-title" rows="2" maxlength="300" required placeholder="Es. Chiamare il commercialista">${escapeHTML(t?t.title:"")}</textarea><span class="hint">Puoi anche dettare: tocca il microfono della tastiera.</span></div>
+      <div class="row"><label for="todo-when">Quando</label><select id="todo-when"><option value="day" ${hasDate?"selected":""}>In un giorno preciso</option><option value="someday" ${hasDate?"":"selected"}>Quando posso (senza data)</option></select></div>
+      <div id="todo-day-fields" class="modal-form">
+        <div class="row-split">
+          <div class="row"><label for="todo-date">${r?"Dal giorno":"Giorno"}</label><input type="date" id="todo-date" value="${t&&t.due_date?t.due_date:(date||todayISO())}"></div>
+          <div class="row"><label for="todo-time">Ora (facoltativa)</label><input type="time" id="todo-time" value="${t&&t.due_time?t.due_time.slice(0,5):""}"></div>
+        </div>
+        <div class="row"><label for="todo-freq">Si ripete?</label><select id="todo-freq">
+          ${[["","No, una volta sola"],["daily","Ogni giorno"],["weekly","Ogni settimana"],["monthly","Ogni mese"],["yearly","Ogni anno"]].map(([v,l])=>`<option value="${v}" ${(r?r.freq:"")===v?"selected":""}>${l}</option>`).join("")}
+        </select></div>
+        <div id="todo-rec-fields" class="modal-form">
+          <div class="row-split">
+            <div class="row"><label for="todo-interval" id="todo-interval-label">Ogni quanti</label><input type="number" id="todo-interval" min="1" max="99" step="1" value="${r&&r.interval||1}"></div>
+            <div class="row"><label for="todo-until">Fino al (facoltativo)</label><input type="date" id="todo-until" value="${r&&r.until||""}"></div>
+          </div>
+          <div class="row" id="todo-weekdays-row"><label>In quali giorni</label><div class="weekday-picks">${["Lun","Mar","Mer","Gio","Ven","Sab","Dom"].map((l,i)=>`<label><input type="checkbox" value="${i+1}" ${weekdays.includes(i+1)?"checked":""}>${l}</label>`).join("")}</div><span class="hint">Se non scegli nessun giorno vale il giorno della settimana della data iniziale.</span></div>
+        </div>
+      </div>
+      <div class="row"><label for="todo-notes">Note (facoltative)</label><textarea id="todo-notes" rows="3" placeholder="Dettagli, persone, luogo…">${escapeHTML(t?t.notes:"")}</textarea></div>
+      <div class="modal-actions">${t?`<button type="button" class="btn btn-danger" id="todo-delete">Elimina</button>`:"<span></span>"}<div><button type="button" class="btn btn-ghost" data-close>Annulla</button><button type="submit" class="btn btn-primary">Salva</button></div></div>
+    </form>`;
+  openModal(html);
+  modalEl.querySelectorAll("[data-close]").forEach(b=>b.addEventListener("click",closeModal));
+  const $=sel=>document.getElementById(sel);
+  function sync(){
+    const f=$("todo-freq").value;
+    $("todo-day-fields").hidden=$("todo-when").value!=="day";
+    $("todo-rec-fields").hidden=!f;
+    $("todo-weekdays-row").hidden=f!=="weekly";
+    $("todo-interval-label").textContent={daily:"Ogni quanti giorni",weekly:"Ogni quante settimane",monthly:"Ogni quanti mesi",yearly:"Ogni quanti anni"}[f]||"Ogni quanti";
+  }
+  $("todo-when").addEventListener("change",sync); $("todo-freq").addEventListener("change",sync); sync();
+  if(t) $("todo-delete").addEventListener("click",async()=>{
+    if(confirm(t.recurrence?"Eliminare questa cosa da fare e tutte le sue ripetizioni?":"Eliminare questa cosa da fare?")){ closeModal(); await Data.deleteTodo(t.id); }
+  });
+  $("todo-form").addEventListener("submit",async e=>{
+    e.preventDefault();
+    const title=$("todo-title").value.trim();
+    if(!title){ alert("Scrivi cosa devi fare."); return; }
+    const payload={title,notes:$("todo-notes").value.trim(),due_date:null,due_time:null,recurrence:null};
+    if($("todo-when").value==="day"){
+      payload.due_date=$("todo-date").value;
+      if(!payload.due_date){ alert("Scegli il giorno, oppure «Quando posso»."); return; }
+      payload.due_time=$("todo-time").value||null;
+      const f=$("todo-freq").value;
+      if(f){
+        const interval=Math.round(Number($("todo-interval").value));
+        if(!Number.isFinite(interval)||interval<1||interval>99){ alert("La ripetizione deve essere un numero da 1 a 99."); return; }
+        const rec={freq:f,interval};
+        if(f==="weekly"){ const days=[...modalEl.querySelectorAll("#todo-weekdays-row input:checked")].map(i=>Number(i.value)); if(days.length) rec.weekdays=days; }
+        const until=$("todo-until").value;
+        if(until){ if(until<payload.due_date){ alert("La data di fine viene prima dell'inizio."); return; } rec.until=until; }
+        payload.recurrence=rec;
+      }
+    }
+    // Una ricorrente non usa done_at: le spunte sono per singolo giorno.
+    if(t&&payload.recurrence) payload.done_at=null;
+    closeModal();
+    if(t) await Data.updateTodo(t.id,payload); else await Data.addTodo(payload);
   });
 }
 
@@ -1383,7 +1699,7 @@ function openMoreSheet(){
 }
 
 function exportBackup(){
-  const payload={categories:Data.CATEGORIES,entries:Data.ENTRIES,office:{days:Data.OFFICE_DAYS},diario:{days:Data.DIARIO_DAYS}};
+  const payload={categories:Data.CATEGORIES,entries:Data.ENTRIES,office:{days:Data.OFFICE_DAYS},diario:{days:Data.DIARIO_DAYS},todos:Data.TODOS,todoDone:Data.TODO_DONE};
   const blob=new Blob([JSON.stringify(payload,null,2)],{type:"application/json"});
   const url=URL.createObjectURL(blob);
   const a=document.createElement("a");
@@ -1419,6 +1735,17 @@ document.addEventListener("click",e=>{
   else if(action==="diario-prev-month"){ const s=state.diarioMonth; s.month--; if(s.month<0){s.month=11;s.year--;} render(); }
   else if(action==="diario-next-month"){ const s=state.diarioMonth; const now=new Date(); if(!(s.year===now.getFullYear()&&s.month===now.getMonth())){ s.month++; if(s.month>11){s.month=0;s.year++;} render(); } }
   else if(action==="open-more-sheet") openMoreSheet();
+  else if(action==="todo-tab"){ state.todoTab=btn.dataset.tab; render(); }
+  else if(action==="todo-new") openTodoModal({date:btn.dataset.date});
+  else if(action==="todo-edit") openTodoModal({id:btn.dataset.id});
+  else if(action==="todo-done"||action==="todo-undo"){
+    btn.disabled=true;
+    const occ=btn.dataset.occ||null;
+    (action==="todo-done"?Data.completeTodo(btn.dataset.id,occ):Data.uncompleteTodo(btn.dataset.id,occ)).finally(()=>{ btn.disabled=false; });
+  }
+  else if(action==="todo-prev-week"){ state.todoWeekFrom=TodoLogic.addDaysISO(state.todoWeekFrom,-7); render(); }
+  else if(action==="todo-next-week"){ state.todoWeekFrom=TodoLogic.addDaysISO(state.todoWeekFrom,7); render(); }
+  else if(action==="todo-this-week"){ state.todoWeekFrom=weekRange(todayISO()).fromISO; render(); }
 });
 document.addEventListener("change",e=>{
   if(e.target.id==="filter-category"){ state.historyFilters.categoryId=e.target.value; state.historyFilters.activityId="all"; render(); }
