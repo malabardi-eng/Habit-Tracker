@@ -573,9 +573,29 @@ button.attach-name:hover{text-decoration:underline;}
   'use strict';
   window.startPersonalAccess = async function (url, key) {
     if (!window.supabase) throw new Error('Connessione alla libreria di accesso non riuscita. Ricarica la pagina.');
+    // Dopo lo stop del Mac o un cambio di rete il browser può riusare una connessione morta:
+    // la richiesta di accesso resterebbe in attesa per sempre («Verifico…»). Le chiamate di accesso
+    // hanno quindi un limite di 15 secondi; i dati e gli allegati no (possono essere grandi).
+    const AUTH_TIMEOUT = 15000;
+    function authFetch(input, init) {
+      const target = typeof input === 'string' ? input : input.url;
+      if (target.indexOf('/auth/v1/') < 0) return window.fetch(input, init);
+      const ctrl = new AbortController(), opts = Object.assign({}, init);
+      if (opts.signal) opts.signal.addEventListener('abort', () => ctrl.abort());
+      opts.signal = ctrl.signal;
+      const timer = setTimeout(() => ctrl.abort(), AUTH_TIMEOUT);
+      return window.fetch(input, opts).finally(() => clearTimeout(timer));
+    }
+    function withTimeout(promise) {
+      let timer;
+      return Promise.race([promise, new Promise((_, reject) => {
+        timer = setTimeout(() => reject(new Error('tempo scaduto')), AUTH_TIMEOUT + 5000);
+      })]).finally(() => clearTimeout(timer));
+    }
     const client = window.supabase.createClient(url, key, {
       auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: false,
-        storageKey: 'second-brain-verifica-accesso-v1' }
+        storageKey: 'second-brain-verifica-accesso-v1' },
+      global: { fetch: authFetch }
     });
     const access = createPersonalAccess(client, {
       url, key, allowMutations: true, onAuthFailure: () => { if(admitted) { hideData(); window.location.reload(); } }, ownerId: 'c31718b9-1c82-48bc-93fb-5a313cd5dd6c', fetch: window.fetch.bind(window)
@@ -599,26 +619,46 @@ button.attach-name:hover{text-decoration:underline;}
       await client.auth.signOut({ scope: 'local' });
       window.location.reload();
     };
-    try { await access.token(); }
+    // Spiega perché l'accesso non è riuscito, invece di un messaggio unico per tutti i casi.
+    function reason(error) {
+      const code = error && (error.code || error.error_code), status = error && error.status;
+      if (code === 'invalid_credentials') return 'Email o password non corrette. Riprova.';
+      if (code === 'email_not_confirmed') return 'Il tuo account non è ancora stato confermato: controlla la email di conferma.';
+      if (status === 429 || code === 'over_request_rate_limit') return 'Troppi tentativi ravvicinati. Aspetta qualche minuto e riprova.';
+      if (error && error.message === 'Accesso personale non verificato.') return 'Accesso non verificato. Ricarica la pagina e riprova; se succede ancora, l’account usato non è quello personale autorizzato.';
+      return 'Il collegamento non risponde. Controlla la connessione e premi di nuovo «Accedi».';
+    }
+    function isNetwork(error) {
+      return !error || error.name === 'AuthRetryableFetchError' || error.name === 'AbortError' ||
+        error.message === 'tempo scaduto' || error.message === 'Accesso personale non verificato.' || error.status === 0 || error instanceof TypeError;
+    }
+    async function signIn(email, password) {
+      const result = await withTimeout(client.auth.signInWithPassword({ email, password }));
+      if (result.error) throw result.error;
+      await withTimeout(access.token());
+    }
+    try { await withTimeout(access.token()); }
     catch (_) {
       await new Promise(resolve => {
         form.onsubmit = async function (event) {
           event.preventDefault();
           const button = form.querySelector('button');
-          const password = document.getElementById('accesso-password');
+          const passwordField = document.getElementById('accesso-password');
+          const email = document.getElementById('accesso-email').value.trim(), password = passwordField.value;
+          passwordField.value = '';
           button.disabled = true;
           message.textContent = 'Verifico il tuo accesso…';
           try {
-            const result = await client.auth.signInWithPassword({
-              email: document.getElementById('accesso-email').value.trim(), password: password.value
-            });
-            password.value = '';
-            if (result.error) throw result.error;
-            await access.token();
+            try { await signIn(email, password); }
+            catch (error) {
+              // Una connessione morta si risolve quasi sempre al secondo tentativo, su una connessione nuova.
+              if (!isNetwork(error)) throw error;
+              message.textContent = 'Il collegamento è lento, riprovo…';
+              await signIn(email, password);
+            }
             resolve();
-          } catch (_) {
-            password.value = '';
-            message.textContent = 'Accesso non riuscito. Controlla la password e che il tuo account sia stato attivato.';
+          } catch (error) {
+            message.textContent = reason(error);
           } finally { button.disabled = false; }
         };
       });
