@@ -182,6 +182,9 @@ h1,h2,h3{font-family:var(--font-display);text-wrap:balance;margin:0;}
 .rdate{font-weight:400;color:var(--ink-faint);font-size:.76rem;margin-left:7px;font-family:var(--font-mono);}
 .rdur{font-weight:500;color:var(--c-sport);font-size:.74rem;margin-left:7px;background:var(--c-sport-soft);padding:1px 8px;border-radius:999px;font-family:var(--font-mono);}
 .rdesc{color:var(--ink-soft);font-size:.82rem;margin-top:2px;white-space:pre-wrap;}
+.text-link{color:var(--c-sport);text-decoration:underline;overflow-wrap:anywhere;}
+.text-link:hover{opacity:.8;}
+.entry-links{display:flex;flex-direction:column;gap:4px;font-size:.8rem;margin-top:2px;}
 .ractions{display:flex;gap:2px;flex-shrink:0;}
 
 /* period pills */
@@ -592,6 +595,16 @@ function prevWeekRange(ref=todayISO()){const{fromISO}=weekRange(ref);const pm=ad
 function monthRange(ref=todayISO()){const r=new Date(ref);const f=new Date(r.getFullYear(),r.getMonth(),1);const l=new Date(r.getFullYear(),r.getMonth()+1,0);const lab=r.toLocaleDateString("it-IT",{month:"long",year:"numeric"});return{fromISO:isoOf(f),toISO:isoOf(l),label:lab.charAt(0).toUpperCase()+lab.slice(1)};}
 function monthLabelOf(year,month){const s=new Date(year,month,1).toLocaleDateString("it-IT",{month:"long",year:"numeric"});return s.charAt(0).toUpperCase()+s.slice(1);}
 function escapeHTML(str){const d=document.createElement("div");d.textContent=str==null?"":String(str);return d.innerHTML.replace(/"/g,"&quot;").replace(/'/g,"&#39;");}
+// Testo scritto dall'utente → HTML sicuro con i link http/https cliccabili (si aprono in una nuova scheda).
+function linkifyHTML(str){
+  const text=str==null?"":String(str), re=/https?:\/\/[^\s<>"']+/g; let out="",last=0,m;
+  while((m=re.exec(text))){
+    const url=m[0].replace(/[.,;:!?)\]»]+$/,"");
+    out+=escapeHTML(text.slice(last,m.index))+`<a class="text-link" href="${escapeHTML(url)}" target="_blank" rel="noopener noreferrer">${escapeHTML(url)}</a>`;
+    last=m.index+url.length; re.lastIndex=last;
+  }
+  return out+escapeHTML(text.slice(last));
+}
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,9);}
 function slugify(str){return str.toLowerCase().trim().normalize("NFD").replace(/[̀-ͯ]/g,"").replace(/[^a-z0-9]+/g,"_").replace(/^_+|_+$/g,"")||uid();}
 function normalizeDuration(v){if(v===undefined||v===null||v==="")return null;const n=Math.round(Number(v));if(!Number.isFinite(n)||n<=0)return null;return n;}
@@ -1230,7 +1243,7 @@ function recentListHTML(entries){
       <span class="badge" style="--accent-soft:var(${COLOR_VAR[cat.color]}-soft)">${cat.icon}</span>
       <div class="rmain">
         <div class="rtitle">${act?escapeHTML(act.name):"(attività rimossa)"} <span class="rdate">${formatDateIT(e.date)}</span>${e.durationMin?`<span class="rdur">⏳ ${minutesToHM(e.durationMin)}</span>`:""}${attBadge(Data.attachmentsFor(null,{entryId:e.id}).length)}</div>
-        ${e.description?`<div class="rdesc">${escapeHTML(e.description)}</div>`:""}
+        ${e.description?`<div class="rdesc">${linkifyHTML(e.description)}</div>`:""}
       </div>
       <div class="ractions">
         <button class="icon-btn" data-action="edit-entry" data-id="${e.id}" title="Modifica">✏️</button>
@@ -1390,7 +1403,7 @@ function renderOffice(){
   const notesHTML=`<div class="rlist">${recentNotes.map(([date,day])=>{
     const mins=Stats.officeDayMinutes(day);
     const locs=officeDayLocations(day).map(id=>workLocationOf(id)).map(l=>`${l.icon} ${l.label}`).join(" · ");
-    return `<div class="rrow"><span class="badge" style="--accent-soft:var(--c-ufficio-soft)">🏢</span><div class="rmain"><div class="rtitle">${formatDateIT(date)}${mins?`<span class="rdur">⏳ ${minutesToHM(mins)}</span>`:""}${attBadge(Data.attachmentsFor("ufficio",{day:date}).length)}</div>${locs?`<div class="rdesc" style="color:var(--c-ufficio);font-weight:600;">${locs}</div>`:""}<div class="rdesc">${escapeHTML(day.notes)}</div></div><div class="ractions"><button class="icon-btn" data-action="log-office-day" data-date="${date}" title="Modifica">✏️</button></div></div>`;
+    return `<div class="rrow"><span class="badge" style="--accent-soft:var(--c-ufficio-soft)">🏢</span><div class="rmain"><div class="rtitle">${formatDateIT(date)}${mins?`<span class="rdur">⏳ ${minutesToHM(mins)}</span>`:""}${attBadge(Data.attachmentsFor("ufficio",{day:date}).length)}</div>${locs?`<div class="rdesc" style="color:var(--c-ufficio);font-weight:600;">${locs}</div>`:""}<div class="rdesc">${linkifyHTML(day.notes)}</div></div><div class="ractions"><button class="icon-btn" data-action="log-office-day" data-date="${date}" title="Modifica">✏️</button></div></div>`;
   }).join("")}</div>`;
   return `
     <div class="card intro" style="--accent:var(--c-ufficio)"><div>Registra i tuoi giorni di lavoro, in ufficio o da remoto: per ogni fascia oraria scegli da dove hai lavorato, e un riepilogo di cosa hai fatto.</div></div>
@@ -1417,9 +1430,10 @@ function renderDiary(){
   }});
   const recentEntries=Object.entries(days).sort((a,b)=>a[0]<b[0]?1:-1).slice(0,8);
   const listHTML=`<div class="rlist">${recentEntries.map(([date,day])=>{
-    const excerpt=day.text?(day.text.length>140?day.text.slice(0,140)+"…":day.text):"";
+    let excerpt=day.text?(day.text.length>140?day.text.slice(0,140)+"…":day.text):"";
+    if(day.text&&day.text.length>140){ const cut=/https?:\/\/\S*…$/.exec(excerpt); if(cut) excerpt=excerpt.slice(0,cut.index)+"…"; }
     const photoCount=day.photoIds?day.photoIds.length:0;
-    return `<div class="rrow"><span class="badge" style="--accent-soft:var(--c-diario-soft)">📔</span><div class="rmain"><div class="rtitle">${formatDateIT(date)}${photoCount?`<span class="rdur">📷 ${photoCount}</span>`:""}${attBadge(Data.attachmentsFor("diario",{day:date}).length)}</div><div class="rdesc">${escapeHTML(excerpt)||"<em>Solo foto, nessun testo.</em>"}</div></div><div class="ractions"><button class="icon-btn" data-action="log-diary-day" data-date="${date}" title="Apri">✏️</button></div></div>`;
+    return `<div class="rrow"><span class="badge" style="--accent-soft:var(--c-diario-soft)">📔</span><div class="rmain"><div class="rtitle">${formatDateIT(date)}${photoCount?`<span class="rdur">📷 ${photoCount}</span>`:""}${attBadge(Data.attachmentsFor("diario",{day:date}).length)}</div><div class="rdesc">${linkifyHTML(excerpt)||"<em>Solo foto, nessun testo.</em>"}</div></div><div class="ractions"><button class="icon-btn" data-action="log-diary-day" data-date="${date}" title="Apri">✏️</button></div></div>`;
   }).join("")}</div>`;
   return `
     <div class="card intro" style="--accent:var(--c-diario)"><div>Il tuo diario personale: clicca su un giorno per scrivere pensieri, ricordi o riflessioni, e aggiungere qualche foto.</div></div>
@@ -1449,7 +1463,7 @@ function todoRowHTML(item,{compact=false}={}){
     <div class="rmain" data-action="todo-edit" data-id="${t.id}" style="cursor:pointer">
       <div class="rtitle">${escapeHTML(t.title)}</div>
       ${chips.length?`<div class="todo-meta">${chips.join("")}</div>`:""}
-      ${t.notes&&!compact?`<div class="rdesc">${escapeHTML(t.notes)}</div>`:""}
+      ${t.notes&&!compact?`<div class="rdesc">${linkifyHTML(t.notes)}</div>`:""}
     </div>
     <div class="ractions"><button type="button" class="icon-btn" data-action="todo-edit" data-id="${t.id}" title="Modifica">✏️</button></div>
   </div>`;
@@ -1608,7 +1622,7 @@ function agendaDayHTML(iso,today){
   }).join("");
   const fillers=Math.max(0,2-items.length);
   const legacy=Agenda.value("d",iso);
-  const legacyHTML=legacy?`<div class="ag-legacy"><div class="rdesc">${escapeHTML(legacy)}</div><button type="button" class="btn btn-outline btn-sm" style="--accent:var(--c-todo)" data-action="agenda-convert" data-date="${iso}">↪ Trasforma in righe con spunta</button></div>`:"";
+  const legacyHTML=legacy?`<div class="ag-legacy"><div class="rdesc">${linkifyHTML(legacy)}</div><button type="button" class="btn btn-outline btn-sm" style="--accent:var(--c-todo)" data-action="agenda-convert" data-date="${iso}">↪ Trasforma in righe con spunta</button></div>`:"";
   return `<div class="nday ${iso===today?"today":""}">
     <label class="nday-label" for="ag-new-${iso}">${name.charAt(0).toUpperCase()+name.slice(1)}<b>${d.getDate()}</b></label>
     ${legacyHTML}
@@ -1895,7 +1909,7 @@ function openEntryModal({categoryId,activityId,entryId}){
         <div class="row"><label>Data</label><input type="date" id="entry-date" value="${dateVal}" max="${todayISO()}"></div>
         <div class="row"><label>Minuti (facoltativo)</label><input type="number" id="entry-duration" min="0" step="5" placeholder="Es. 30" value="${durationVal}"></div>
       </div>
-      <div class="row"><label>Cosa hai fatto? (breve descrizione)</label><textarea id="entry-desc" rows="3" placeholder="Es. 5km al parco, ritmo costante...">${escapeHTML(descVal)}</textarea></div>
+      <div class="row"><label>Cosa hai fatto? (breve descrizione)</label><textarea id="entry-desc" rows="3" placeholder="Es. 5km al parco, ritmo costante...">${escapeHTML(descVal)}</textarea>${entryLinksHTML(descVal)}</div>
       ${attachmentFieldHTML()}
       <div class="modal-actions">
         ${entry?`<button type="button" class="btn btn-danger" id="entry-delete">Elimina</button>`:"<span></span>"}
@@ -1936,6 +1950,10 @@ function openAddActivityModal(categoryId){
   });
 }
 
+function entryLinksHTML(text){
+  const links=(String(text||"").match(/https?:\/\/[^\s<>"']+/g)||[]).map(u=>u.replace(/[.,;:!?)\]»]+$/,""));
+  return links.length?`<div class="entry-links">${links.map(u=>`<a class="text-link" href="${escapeHTML(u)}" target="_blank" rel="noopener noreferrer">🔗 ${escapeHTML(u)}</a>`).join("")}</div>`:"";
+}
 function openTodoModal({id,date}={}){
   const t=id?Data.TODOS.find(x=>x.id===id):null;
   if(id&&!t)return;
@@ -2172,6 +2190,7 @@ function exportBackup(){
    GLOBAL EVENT DELEGATION
    ========================================================= */
 document.addEventListener("click",e=>{
+  if(e.target.closest("a.text-link")) return;
   const routeBtn=e.target.closest("[data-route]");
   if(routeBtn){ navigate(routeBtn.dataset.route); if(routeBtn.hasAttribute("data-close")) closeModal(); return; }
 
