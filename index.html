@@ -312,6 +312,48 @@ button.attach-name:hover{text-decoration:underline;}
 .weekday-picks label{display:flex;align-items:center;gap:4px;font-size:.8rem;padding:5px 9px;border:1px solid var(--line);border-radius:999px;cursor:pointer;font-weight:500;color:var(--ink);}
 .hint{font-size:.72rem;color:var(--ink-faint);}
 
+/* agenda settimanale (Moleskine: settimana a sinistra, note a destra) */
+:root{--paper:#FBF8F0;--paper-line:#E7E0CF;--paper-ink:#2A2925;--paper-soft:#8C8577;--paper-edge:#E2DACA;--spine:#2B2B2E;}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--paper:#1B2130;--paper-line:rgba(255,255,255,.08);--paper-ink:#E6E3DA;--paper-soft:#8E96A8;--paper-edge:rgba(255,255,255,.06);--spine:#05080F;}}
+:root[data-theme="dark"]{--paper:#1B2130;--paper-line:rgba(255,255,255,.08);--paper-ink:#E6E3DA;--paper-soft:#8E96A8;--paper-edge:rgba(255,255,255,.06);--spine:#05080F;}
+.agenda-toolbar{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;}
+.agenda-toolbar>div{display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
+.agenda-status{font-size:.74rem;color:var(--ink-faint);font-family:var(--font-mono);min-height:1em;}
+.agenda-status.error{color:var(--c-danger);}
+.agenda-seg{display:none;}
+.notebook{--lh:26px;display:grid;grid-template-columns:1fr 14px 1fr;background:var(--paper);border-radius:6px 6px 6px 6px;box-shadow:var(--shadow),0 0 0 1px var(--paper-edge);color:var(--paper-ink);overflow:hidden;}
+.notebook-spine{background:linear-gradient(90deg,transparent,rgba(0,0,0,.08) 30%,var(--spine) 30%,var(--spine) 70%,rgba(0,0,0,.08) 70%,transparent);}
+.npage{display:flex;flex-direction:column;padding:20px 22px 16px;min-width:0;}
+.npage-head{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;min-height:44px;border-bottom:1px solid var(--paper-line);padding-bottom:8px;}
+.npage-months{font-family:var(--font-display);font-size:.8rem;letter-spacing:.14em;text-transform:uppercase;line-height:1.45;font-weight:600;}
+.npage-months span{display:block;color:var(--paper-soft);font-weight:600;}
+.npage-months span:first-child{color:var(--paper-ink);}
+.npage-wnum{font-family:var(--font-mono);font-size:.74rem;color:var(--paper-soft);letter-spacing:.04em;}
+.nday{display:flex;flex-direction:column;border-bottom:1px solid var(--paper-line);padding-top:8px;min-width:0;}
+.nday-pair{display:grid;grid-template-columns:1fr 1fr;gap:18px;}
+.nday-pair .nday{border-bottom:none;}
+.nday-label{display:flex;flex-direction:column;font-size:.72rem;color:var(--paper-soft);line-height:1.25;}
+.nday-label b{font-family:var(--font-mono);font-size:.82rem;color:var(--paper-ink);font-weight:600;}
+.nday.today .nday-label,.nday.today .nday-label b{color:var(--c-sport);}
+.nday-todos{display:flex;flex-direction:column;gap:1px;margin-top:3px;}
+.nday-todo{font-size:.72rem;color:var(--paper-soft);overflow-wrap:anywhere;}
+.nday-todo.done{text-decoration:line-through;opacity:.7;}
+.nday-todo.late{color:var(--c-danger);}
+.ruled{display:block;width:100%;border:none;background-color:transparent;resize:none;color:var(--paper-ink);font-size:.88rem;line-height:var(--lh);padding:0 2px;margin:0;min-height:calc(var(--lh) * 3);overflow:hidden;
+  background-image:repeating-linear-gradient(to bottom,transparent 0,transparent calc(var(--lh) - 1px),var(--paper-line) calc(var(--lh) - 1px),var(--paper-line) var(--lh));background-attachment:local;}
+.ruled:focus{outline:none;}
+.ruled::placeholder{color:var(--paper-soft);opacity:.55;}
+.nday:focus-within .nday-label{color:var(--c-sport);}
+.npage-notes .ruled{flex:1;min-height:calc(var(--lh) * 18);margin-top:8px;overflow-y:auto;}
+.npage-foot{font-family:var(--font-mono);font-size:.68rem;color:var(--paper-soft);text-align:right;margin-top:6px;}
+@media (max-width:860px){
+  .agenda-seg{display:inline-flex;}
+  .notebook{grid-template-columns:1fr;}
+  .notebook-spine{display:none;}
+  .npage{padding:16px 16px 12px;}
+  .notebook[data-page="settimana"] .npage-notes,.notebook[data-page="note"] .npage-week{display:none;}
+}
+
 /* modal */
 .overlay{position:fixed;inset:0;background:rgba(8,14,26,.5);display:flex;align-items:center;justify-content:center;z-index:60;padding:18px;}
 .overlay.hidden{display:none;}
@@ -420,7 +462,7 @@ button.attach-name:hover{text-decoration:underline;}
     return {
       token,
       async request(path, opts = {}) {
-        if (!/^\/(finanze_(categorie|impostazioni|metodi|movimenti)|habit_(activities|entries|office_days|diario_days|diario_photos|todos|todo_done|attachments))(\?|$)/.test(path)) throw new Error('Percorso non valido.');
+        if (!/^\/(finanze_(categorie|impostazioni|metodi|movimenti)|habit_(activities|entries|office_days|diario_days|diario_photos|todos|todo_done|attachments|agenda_days|agenda_weeks))(\?|$)/.test(path)) throw new Error('Percorso non valido.');
         const method=(opts.method || 'GET').toUpperCase();
         if (!['GET','POST','PATCH','DELETE'].includes(method)) throw new Error('Metodo non consentito.');
         if (method !== 'GET' && !config.allowMutations) {
@@ -672,6 +714,7 @@ const DEFAULT_CATEGORIES={
 const ROUTES=[
   {id:"dashboard",label:"Dashboard",icon:"📊",group:null},
   {id:"dafare",label:"Da fare",icon:"✅",group:"Organizza"},
+  {id:"agenda",label:"Agenda",icon:"📒",group:"Organizza"},
   {id:"sport",label:"Sport",icon:"🏃",group:"Attività"},
   {id:"studio",label:"Studio",icon:"📚",group:"Attività"},
   {id:"ufficio",label:"Ufficio",icon:"🏢",group:"Lavoro"},
@@ -738,6 +781,9 @@ const Data={
   todosAvailable:false,
   ATTACHMENTS:[],
   attachmentsAvailable:false,
+  AGENDA_DAYS:{},
+  AGENDA_WEEKS:{},
+  agendaAvailable:false,
 
   async init(){
     await this.loadAll();
@@ -747,6 +793,7 @@ const Data={
 
   async loadAll(){
     updateSyncUI("busy");
+    const loadStarted=Date.now();
     try{
       const[acts,entries,office,diario]=await Promise.all([
         readAllRows("/habit_activities?select=category_id,id,name,custom","category_id,id"),
@@ -769,6 +816,20 @@ const Data={
       // Allegati: disponibili solo dopo allegati-PROPOSTA.sql; senza, l'app resta com'era.
       try{ this.ATTACHMENTS=await readAllRows("/habit_attachments?select=*","created_at,id"); this.attachmentsAvailable=true; }
       catch(_){ this.ATTACHMENTS=[]; this.attachmentsAvailable=false; }
+      // Agenda: disponibile solo dopo agenda-PROPOSTA.sql.
+      try{
+        const[aDays,aWeeks]=await Promise.all([
+          readAllRows("/habit_agenda_days?select=date,text","date"),
+          readAllRows("/habit_agenda_weeks?select=week_start,notes","week_start")
+        ]);
+        const days=Object.fromEntries(aDays.map(r=>[r.date,r.text])), weeks=Object.fromEntries(aWeeks.map(r=>[r.week_start,r.notes]));
+        // Ciò che è stato salvato mentre i dati arrivavano è più recente: lo tengo.
+        for(const[k,t] of Object.entries(Agenda.writtenAt)) if(t>=loadStarted){
+          const[kind,id]=k.split(":"); const from=kind==="d"?this.AGENDA_DAYS:this.AGENDA_WEEKS, to=kind==="d"?days:weeks;
+          if(id in from) to[id]=from[id]; else delete to[id];
+        }
+        this.AGENDA_DAYS=days; this.AGENDA_WEEKS=weeks; this.agendaAvailable=true;
+      }catch(_){ this.agendaAvailable=false; }
       this.online=true;
       // Verification build: do not persist personal data in the old cache.
     }catch(e){
@@ -956,6 +1017,19 @@ const Data={
       try{ await sbFetch(`/habit_todo_done?todo_id=eq.${encodeURIComponent(id)}&occurrence=eq.${encodeURIComponent(occurrence)}`,{method:"DELETE"}); this.TODO_DONE=this.TODO_DONE.filter(d=>!(d.todo_id===id&&d.occurrence===occurrence)); render(); }
       catch(e){ alert("Non sono riuscito ad annullare la spunta: "+e.message); }
     }else await this.updateTodo(id,{done_at:null});
+  },
+
+  // Agenda: kind "d" = testo di un giorno, "w" = note della settimana (chiave: il lunedì).
+  // Un testo vuoto cancella la riga. Non chiama render(): chi scrive non deve perdere il cursore.
+  async saveAgenda(kind,id,text){
+    const[table,col,field,map]=kind==="d"?["habit_agenda_days","date","text",this.AGENDA_DAYS]:["habit_agenda_weeks","week_start","notes",this.AGENDA_WEEKS];
+    if(!text.trim()){
+      await sbFetch(`/${table}?${col}=eq.${encodeURIComponent(id)}`,{method:"DELETE"});
+      delete map[id];
+    }else{
+      await sbFetch(`/${table}?on_conflict=${col}`,{method:"POST",body:{[col]:id,[field]:text,updated_at:new Date().toISOString()},prefer:"resolution=merge-duplicates"});
+      map[id]=text;
+    }
   },
 
   attachmentsFor(section,{entryId,day}={}){
@@ -1440,6 +1514,101 @@ function todoDashboardCardHTML(){
     ${items.length?`<div class="rlist">${items.slice(0,5).map(i=>todoRowHTML(i,{compact:true})).join("")}</div>${items.length>5?`<div class="hint">…e altre ${items.length-5} nella sezione Da fare.</div>`:""}`:emptyState("Niente in programma per oggi.")}</div>`;
 }
 
+/* ---- Agenda settimanale ---- */
+// Si scrive direttamente sulla pagina, come sulla carta: il testo si salva da solo
+// poco dopo che smetti di scrivere e quando esci dal riquadro.
+const Agenda={
+  drafts:{},      // "d:AAAA-MM-GG" / "w:lunedì" → testo non ancora salvato
+  timers:{},
+  queue:{},       // un salvataggio alla volta per riquadro, nell'ordine in cui scrivi
+  writtenAt:{},
+  failed:new Set(),
+  value(kind,id){
+    const k=kind+":"+id;
+    if(k in this.drafts) return this.drafts[k];
+    return (kind==="d"?Data.AGENDA_DAYS[id]:Data.AGENDA_WEEKS[id])||"";
+  },
+  edit(k,text){
+    this.drafts[k]=text;
+    clearTimeout(this.timers[k]);
+    this.timers[k]=setTimeout(()=>this.flush(k),900);
+    this.showStatus();
+  },
+  flush(k){
+    clearTimeout(this.timers[k]); delete this.timers[k];
+    if(!(k in this.drafts)) return this.queue[k]||Promise.resolve();
+    const text=this.drafts[k]; const[kind,id]=k.split(":");
+    this.queue[k]=(this.queue[k]||Promise.resolve()).then(async()=>{
+      this.saving=(this.saving||0)+1; this.showStatus();
+      try{
+        await Data.saveAgenda(kind,id,text);
+        this.writtenAt[k]=Date.now(); this.failed.delete(k);
+        if(this.drafts[k]===text) delete this.drafts[k];
+      }catch(_){ this.failed.add(k); }
+      finally{ this.saving--; this.showStatus(); }
+    });
+    return this.queue[k];
+  },
+  flushAll(){ return Promise.all(Object.keys(this.drafts).map(k=>this.flush(k))); },
+  statusText(){
+    if(this.failed.size) return["⚠️ Non salvato: controlla la connessione, riprovo appena scrivi o esci dal riquadro",true];
+    if(this.saving||Object.keys(this.timers).length) return["Salvataggio…",false];
+    return[Object.keys(this.writtenAt).length?"✓ Salvato":"Si salva da solo mentre scrivi",false];
+  },
+  showStatus(){
+    const el=document.getElementById("agenda-status"); if(!el)return;
+    const[t,err]=this.statusText(); el.textContent=t; el.classList.toggle("error",err);
+  }
+};
+function isoWeekNumber(iso){
+  const d=new Date(iso+"T12:00:00"); d.setDate(d.getDate()+3-(d.getDay()+6)%7);
+  const jan4=new Date(d.getFullYear(),0,4,12);
+  return 1+Math.round(((d-jan4)/86400000-3+(jan4.getDay()+6)%7)/7);
+}
+function autosizeRuled(el){ el.style.height="auto"; el.style.height=el.scrollHeight+"px"; }
+function agendaDayHTML(iso,today){
+  const d=new Date(iso+"T12:00:00");
+  const name=d.toLocaleDateString("it-IT",{weekday:"long"});
+  const todos=Data.todosAvailable?todosForDay(iso):[];
+  const todosHTML=todos.length?`<div class="nday-todos" title="Dalla sezione Da fare: si spuntano e si modificano lì">${todos.map(i=>`<div class="nday-todo ${i.done?"done":""} ${i.late?"late":""}">${i.done?"✓":"○"} ${i.todo.due_time?i.todo.due_time.slice(0,5)+" ":""}${escapeHTML(i.todo.title)}</div>`).join("")}</div>`:"";
+  return `<div class="nday ${iso===today?"today":""}">
+    <label class="nday-label" for="ag-d-${iso}">${name.charAt(0).toUpperCase()+name.slice(1)}<b>${d.getDate()}</b></label>
+    ${todosHTML}
+    <textarea class="ruled" id="ag-d-${iso}" data-agenda="d:${iso}" maxlength="5000" rows="3" aria-label="Appuntamenti di ${name} ${formatDateIT(iso)}">${escapeHTML(Agenda.value("d",iso))}</textarea>
+  </div>`;
+}
+function renderAgenda(){
+  const intro=`<div class="card intro" style="--accent:var(--c-todo)"><div>La tua agenda settimanale: a sinistra gli appuntamenti di ogni giorno, a destra le note della settimana. Scrivi direttamente sulla pagina, si salva da solo. In grigio le cose della sezione Da fare.</div></div>`;
+  if(!Data.agendaAvailable) return intro+`<div class="card">${emptyState("L'agenda sarà disponibile appena il database verrà aggiornato.")}</div>`;
+  const today=todayISO(), from=state.agendaWeekFrom;
+  const days=[...Array(7)].map((_,i)=>TodoLogic.addDaysISO(from,i));
+  const months=[...new Set(days.map(iso=>new Date(iso+"T12:00:00").toLocaleDateString("it-IT",{month:"long"})))];
+  const year=new Date(days[6]+"T12:00:00").getFullYear();
+  const label=weekLabel(new Date(from+"T12:00:00"),new Date(days[6]+"T12:00:00"));
+  const isThisWeek=from===weekRange(today).fromISO;
+  const page=state.agendaPage;
+  const[status,statusErr]=Agenda.statusText();
+  return intro+`
+    <div class="agenda-toolbar">
+      <div>${monthNavHTML({prevAction:"agenda-prev-week",nextAction:"agenda-next-week",label})}${isThisWeek?"":`<button class="btn btn-ghost btn-sm" data-action="agenda-this-week">Questa settimana</button>`}</div>
+      <div><span class="agenda-status ${statusErr?"error":""}" id="agenda-status" role="status">${status}</span>
+      <div class="seg agenda-seg" role="tablist">${[["settimana","Settimana"],["note","Note"]].map(([id,l])=>`<button type="button" role="tab" aria-selected="${page===id}" class="${page===id?"active":""}" data-action="agenda-page" data-page="${id}">${l}</button>`).join("")}</div></div>
+    </div>
+    <div class="notebook" data-page="${page}">
+      <section class="npage npage-week" aria-label="Settimana">
+        <div class="npage-head"><div class="npage-months">${months.map(m=>`<span>${m}</span>`).join("")}</div><div class="npage-wnum">settimana ${isoWeekNumber(from)} · ${year}</div></div>
+        ${days.slice(0,5).map(iso=>agendaDayHTML(iso,today)).join("")}
+        <div class="nday-pair">${days.slice(5).map(iso=>agendaDayHTML(iso,today)).join("")}</div>
+      </section>
+      <div class="notebook-spine" aria-hidden="true"></div>
+      <section class="npage npage-notes" aria-label="Note della settimana">
+        <div class="npage-head"><div class="npage-months"><span>Note</span></div><div class="npage-wnum">${label}</div></div>
+        <textarea class="ruled" data-agenda="w:${from}" maxlength="20000" aria-label="Note della settimana ${label}" placeholder="Note della settimana…">${escapeHTML(Agenda.value("w",from))}</textarea>
+        <div class="npage-foot">settimana ${isoWeekNumber(from)}</div>
+      </section>
+    </div>`;
+}
+
 function renderHistory(filters={}){
   const{categoryId="all",activityId="all"}=filters;
   let entries=[...Data.ENTRIES];
@@ -1518,7 +1687,9 @@ const state={
   officeMonth:{year:new Date().getFullYear(),month:new Date().getMonth()},
   diarioMonth:{year:new Date().getFullYear(),month:new Date().getMonth()},
   todoTab:"oggi",
-  todoWeekFrom:weekRange(todayISO()).fromISO
+  todoWeekFrom:weekRange(todayISO()).fromISO,
+  agendaWeekFrom:weekRange(todayISO()).fromISO,
+  agendaPage:"settimana"
 };
 const ROUTE_TITLES=Object.fromEntries(ROUTES.map(r=>[r.id,r.group?`${r.icon} ${r.label}`:r.label]));
 
@@ -1536,7 +1707,7 @@ function renderTabbar(){
     const r=ROUTES.find(x=>x.id===id);
     return `<button class="tab-item ${state.route===id?"active":""}" data-route="${id}"><span class="tab-icon">${r.icon}</span>${r.label}</button>`;
   }).join("");
-  const moreActive=state.route==="storico"||state.route==="allegati"||state.route==="impostazioni";
+  const moreActive=state.route==="agenda"||state.route==="storico"||state.route==="allegati"||state.route==="impostazioni";
   document.getElementById("tabbar").innerHTML=tabs+`<button class="tab-item ${moreActive?"active":""}" data-action="open-more-sheet"><span class="tab-icon">•••</span>Altro</button>`;
 }
 
@@ -1555,6 +1726,7 @@ function render(){
   switch(state.route){
     case "dashboard": root.innerHTML=renderDashboard(); break;
     case "dafare": root.innerHTML=renderTodos(); break;
+    case "agenda": root.innerHTML=renderAgenda(); root.querySelectorAll(".npage-week .ruled").forEach(autosizeRuled); break;
     case "sport": root.innerHTML=renderCategoryPage("sport"); break;
     case "studio": root.innerHTML=renderCategoryPage("studio"); break;
     case "ufficio": root.innerHTML=renderOffice(); break;
@@ -1935,6 +2107,7 @@ async function openDiaryDayModal(date){
 function openMoreSheet(){
   const html=`
     <div class="modal-head"><h3>Altro</h3><button class="icon-btn" data-close>✕</button></div>
+    <button type="button" class="sheet-item" data-route="agenda" data-close><span class="sheet-icon">📒</span>Agenda</button>
     <button type="button" class="sheet-item" data-route="storico" data-close><span class="sheet-icon">🗓️</span>Storico</button>
     <button type="button" class="sheet-item" data-route="allegati" data-close><span class="sheet-icon">📎</span>Allegati</button>
     <button type="button" class="sheet-item" data-route="impostazioni" data-close><span class="sheet-icon">⚙️</span>Impostazioni</button>`;
@@ -1943,7 +2116,7 @@ function openMoreSheet(){
 }
 
 function exportBackup(){
-  const payload={categories:Data.CATEGORIES,entries:Data.ENTRIES,office:{days:Data.OFFICE_DAYS},diario:{days:Data.DIARIO_DAYS},todos:Data.TODOS,todoDone:Data.TODO_DONE,attachments:Data.ATTACHMENTS};
+  const payload={categories:Data.CATEGORIES,entries:Data.ENTRIES,office:{days:Data.OFFICE_DAYS},diario:{days:Data.DIARIO_DAYS},todos:Data.TODOS,todoDone:Data.TODO_DONE,attachments:Data.ATTACHMENTS,agenda:{days:Data.AGENDA_DAYS,weeks:Data.AGENDA_WEEKS}};
   const blob=new Blob([JSON.stringify(payload,null,2)],{type:"application/json"});
   const url=URL.createObjectURL(blob);
   const a=document.createElement("a");
@@ -1995,7 +2168,20 @@ document.addEventListener("click",e=>{
   else if(action==="todo-prev-week"){ state.todoWeekFrom=TodoLogic.addDaysISO(state.todoWeekFrom,-7); render(); }
   else if(action==="todo-next-week"){ state.todoWeekFrom=TodoLogic.addDaysISO(state.todoWeekFrom,7); render(); }
   else if(action==="todo-this-week"){ state.todoWeekFrom=weekRange(todayISO()).fromISO; render(); }
+  else if(action==="agenda-prev-week"){ state.agendaWeekFrom=TodoLogic.addDaysISO(state.agendaWeekFrom,-7); render(); }
+  else if(action==="agenda-next-week"){ state.agendaWeekFrom=TodoLogic.addDaysISO(state.agendaWeekFrom,7); render(); }
+  else if(action==="agenda-this-week"){ state.agendaWeekFrom=weekRange(todayISO()).fromISO; render(); }
+  else if(action==="agenda-page"){ state.agendaPage=btn.dataset.page; render(); }
 });
+document.addEventListener("input",e=>{
+  const k=e.target.dataset&&e.target.dataset.agenda; if(!k)return;
+  if(k.startsWith("d:")) autosizeRuled(e.target);
+  Agenda.edit(k,e.target.value);
+});
+// Uscendo dal riquadro (o cambiando scheda/finestra) il testo si salva subito.
+document.addEventListener("focusout",e=>{ const k=e.target.dataset&&e.target.dataset.agenda; if(k) Agenda.flush(k); });
+document.addEventListener("visibilitychange",()=>{ if(document.visibilityState==="hidden") Agenda.flushAll(); });
+window.addEventListener("beforeunload",e=>{ if(Object.keys(Agenda.drafts).length){ Agenda.flushAll(); e.preventDefault(); e.returnValue=""; } });
 document.addEventListener("change",e=>{
   if(e.target.id==="filter-category"){ state.historyFilters.categoryId=e.target.value; state.historyFilters.activityId="all"; render(); }
   else if(e.target.id==="filter-activity"){ state.historyFilters.activityId=e.target.value; render(); }
