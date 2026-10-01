@@ -2455,8 +2455,16 @@ document.addEventListener("focusout",e=>{
   if(ds.agenda) Agenda.flush(ds.agenda);
   if(ds.agendaNew) commitAgendaLine(e.target,{refocus:false});
 });
-document.addEventListener("visibilitychange",()=>{ if(document.visibilityState==="hidden") Agenda.flushAll(); });
-window.addEventListener("beforeunload",e=>{ if(Object.keys(Agenda.drafts).length){ Agenda.flushAll(); e.preventDefault(); e.returnValue=""; } });
+// Righe dell'agenda scritte ma non ancora confermate con Invio: senza questo andrebbero perse chiudendo
+// l'app o cambiando finestra (al ritorno la pagina si ricarica e le cancellerebbe).
+function pendingAgendaLines(){ return[...document.querySelectorAll("input[data-agenda-new]")].filter(i=>i.value.trim()&&!i.dataset.busy); }
+function commitPendingAgendaLines(){ for(const i of pendingAgendaLines()) commitAgendaLine(i,{refocus:false}); }
+document.addEventListener("visibilitychange",()=>{ if(document.visibilityState==="hidden"){ Agenda.flushAll(); commitPendingAgendaLines(); } });
+window.addEventListener("pagehide",()=>{ Agenda.flushAll(); commitPendingAgendaLines(); });
+window.addEventListener("beforeunload",e=>{
+  const lines=pendingAgendaLines().length;
+  if(Object.keys(Agenda.drafts).length||lines){ Agenda.flushAll(); commitPendingAgendaLines(); e.preventDefault(); e.returnValue=""; }
+});
 document.addEventListener("change",e=>{
   if(e.target.id==="filter-category"){ state.historyFilters.categoryId=e.target.value; state.historyFilters.activityId="all"; render(); }
   else if(e.target.id==="filter-activity"){ state.historyFilters.activityId=e.target.value; render(); }
