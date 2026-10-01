@@ -367,6 +367,60 @@ button.attach-name:hover{text-decoration:underline;}
   .notebook[data-page="settimana"] .npage-notes,.notebook[data-page="note"] .npage-week{display:none;}
 }
 
+/* agenda: vista mese e anno, come nei calendari del telefono */
+.cal-paper{background:var(--paper);color:var(--paper-ink);border-radius:6px;box-shadow:var(--shadow),0 0 0 1px var(--paper-edge);padding:18px 20px 16px;}
+.cal-paper-head{display:flex;justify-content:space-between;align-items:baseline;gap:10px;border-bottom:1px solid var(--paper-line);padding-bottom:8px;margin-bottom:8px;}
+.cal-paper-title{font-family:var(--font-display);font-size:.9rem;letter-spacing:.14em;text-transform:uppercase;font-weight:600;}
+.mcal-head{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));font-family:var(--font-mono);font-size:.7rem;color:var(--paper-soft);text-align:center;padding-bottom:6px;}
+.mcal-grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));border-top:1px solid var(--paper-line);border-left:1px solid var(--paper-line);}
+.mcell{display:flex;flex-direction:column;align-items:stretch;gap:2px;min-width:0;min-height:108px;padding:5px 5px 6px;background:none;border:none;border-right:1px solid var(--paper-line);border-bottom:1px solid var(--paper-line);text-align:left;color:var(--paper-ink);cursor:pointer;font:inherit;}
+.mcell:hover{background:var(--c-todo-soft);}
+.mcell:focus-visible{outline:2px solid var(--c-todo);outline-offset:-2px;}
+.mcell.out{opacity:.38;}
+.mnum{align-self:center;font-family:var(--font-mono);font-size:.8rem;font-weight:600;width:24px;height:24px;line-height:24px;text-align:center;border-radius:50%;margin-bottom:2px;flex-shrink:0;}
+.mcell.weekend .mnum{color:var(--paper-soft);}
+.mcell.today .mnum{background:var(--c-todo);color:#fff;}
+.mev{display:block;font-size:.72rem;line-height:1.3;padding:1px 5px;border-radius:4px;background:var(--c-todo-soft);color:var(--paper-ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.mev b{font-family:var(--font-mono);font-weight:600;font-size:.68rem;margin-right:3px;}
+.mev.done{text-decoration:line-through;color:var(--paper-soft);background:transparent;}
+.mev.late{color:var(--c-danger);}
+.mev.text{background:transparent;font-style:italic;color:var(--paper-soft);padding-left:2px;}
+.mmore{font-size:.68rem;color:var(--paper-soft);padding-left:4px;}
+.mmore.m{display:none;}
+.mnotes{margin-top:14px;}
+.mnotes h4{font-family:var(--font-display);font-size:.78rem;letter-spacing:.12em;text-transform:uppercase;color:var(--paper-soft);margin:0 0 4px;}
+.mnote{display:flex;gap:10px;width:100%;padding:7px 2px;background:none;border:none;border-bottom:1px solid var(--paper-line);text-align:left;color:var(--paper-ink);cursor:pointer;font:inherit;font-size:.84rem;}
+.mnote:hover{background:var(--c-todo-soft);}
+.mnote span:first-child{font-family:var(--font-mono);font-size:.74rem;color:var(--paper-soft);white-space:nowrap;padding-top:1px;}
+.mnote span:last-child{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;}
+.ycal{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:18px 22px;align-items:start;}
+.ymonth{display:block;background:none;border:none;border-radius:var(--r-sm);padding:6px;text-align:left;color:var(--paper-ink);cursor:pointer;font:inherit;min-width:0;}
+.ymonth:hover{background:var(--c-todo-soft);}
+.ymonth:focus-visible{outline:2px solid var(--c-todo);}
+.ymonth-name{font-family:var(--font-display);font-weight:600;font-size:.95rem;margin-bottom:4px;text-transform:capitalize;}
+.ymonth.current .ymonth-name{color:var(--c-todo);}
+.ymonth-grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));row-gap:1px;}
+.ymonth-grid span{position:relative;font-family:var(--font-mono);font-size:.66rem;text-align:center;line-height:20px;height:24px;}
+.ymonth-grid i{position:relative;font-style:normal;}
+.ymonth-grid .wd{color:var(--paper-soft);font-size:.58rem;height:16px;line-height:16px;}
+.ymonth-grid .has::after{content:"";position:absolute;left:50%;bottom:0;width:4px;height:4px;margin-left:-2px;border-radius:50%;background:var(--c-todo);}
+.ymonth-grid .today{color:#fff;font-weight:700;}
+.ymonth-grid .today::before{content:"";position:absolute;left:50%;top:0;width:20px;height:20px;margin-left:-10px;border-radius:50%;background:var(--c-todo);}
+.ylegend{display:flex;align-items:center;gap:6px;font-size:.72rem;color:var(--paper-soft);margin-top:12px;}
+.ylegend::before{content:"";width:5px;height:5px;border-radius:50%;background:var(--c-todo);}
+@media (max-width:1000px){.ycal{grid-template-columns:repeat(3,minmax(0,1fr));}}
+@media (max-width:600px){
+  .cal-paper{padding:12px 8px 10px;}
+  .mcell{min-height:72px;padding:3px 2px 4px;}
+  .mnum{width:22px;height:22px;line-height:22px;font-size:.74rem;}
+  .mev{font-size:.6rem;padding:0 3px;border-radius:3px;}
+  .mev b{display:none;}
+  .mev:nth-of-type(3){display:none;}
+  .mmore.d{display:none;}
+  .mmore.m{display:block;font-size:.6rem;padding-left:2px;}
+  .ycal{grid-template-columns:repeat(2,minmax(0,1fr));gap:12px 10px;}
+}
+
 /* modal */
 .overlay{position:fixed;inset:0;background:rgba(8,14,26,.5);display:flex;align-items:center;justify-content:center;z-index:60;padding:18px;}
 .overlay.hidden{display:none;}
@@ -1623,7 +1677,7 @@ function agendaDayHTML(iso,today){
   const fillers=Math.max(0,2-items.length);
   const legacy=Agenda.value("d",iso);
   const legacyHTML=legacy?`<div class="ag-legacy"><div class="rdesc">${linkifyHTML(legacy)}</div><button type="button" class="btn btn-outline btn-sm" style="--accent:var(--c-todo)" data-action="agenda-convert" data-date="${iso}">↪ Trasforma in righe con spunta</button></div>`:"";
-  return `<div class="nday ${iso===today?"today":""}">
+  return `<div class="nday ${iso===today?"today":""}" id="nday-${iso}">
     <label class="nday-label" for="ag-new-${iso}">${name.charAt(0).toUpperCase()+name.slice(1)}<b>${d.getDate()}</b></label>
     ${legacyHTML}
     <div class="ag-lines">${rows}
@@ -1632,9 +1686,75 @@ function agendaDayHTML(iso,today){
     </div>
   </div>`;
 }
+// Contenuto di un giorno per mese e anno: appuntamenti in ordine di orario, poi l'eventuale testo libero vecchio.
+function agendaDayEvents(iso){
+  const ev=agendaItemsForDay(iso).map(i=>({time:i.todo.due_time?i.todo.due_time.slice(0,5):"",title:i.todo.title,done:!!i.done,late:!!i.late}));
+  for(const l of Agenda.value("d",iso).split("\n").map(l=>l.trim()).filter(Boolean)) ev.push({time:"",title:l,text:true});
+  return ev;
+}
+function agendaViewsHTML(){
+  return `<div class="seg" role="tablist" aria-label="Vista dell'agenda">${[["settimana","Settimana"],["mese","Mese"],["anno","Anno"]].map(([id,l])=>`<button type="button" role="tab" aria-selected="${state.agendaView===id}" class="${state.agendaView===id?"active":""}" data-action="agenda-view" data-view="${id}">${l}</button>`).join("")}</div>`;
+}
+// Mese: griglia da lunedì a domenica con le prime voci di ogni giorno; tocca un giorno per aprire la sua settimana.
+function renderAgendaMonth(){
+  const{year,month}=state.agendaMonth, today=todayISO();
+  const first=isoOf(new Date(year,month,1)), last=isoOf(new Date(year,month+1,0));
+  const cells=[], weeks=[];
+  for(let iso=weekRange(first).fromISO, end=weekRange(last).toISO;iso<=end;iso=TodoLogic.addDaysISO(iso,1)){
+    const d=new Date(iso+"T12:00:00"), dow=(d.getDay()+6)%7;
+    if(dow===0) weeks.push(iso);
+    const ev=agendaDayEvents(iso);
+    const evHTML=ev.slice(0,3).map(e=>`<span class="mev ${e.done?"done":""} ${e.late?"late":""} ${e.text?"text":""}">${e.time?`<b>${e.time}</b>`:""}${escapeHTML(e.title)}</span>`).join("");
+    const long=d.toLocaleDateString("it-IT",{weekday:"long",day:"numeric",month:"long"});
+    cells.push(`<button type="button" class="mcell ${iso.slice(0,7)!==first.slice(0,7)?"out":""} ${iso===today?"today":""} ${dow>=5?"weekend":""}" data-action="agenda-open-day" data-date="${iso}" aria-label="${long}${ev.length?`, ${ev.length} ${ev.length===1?"voce":"voci"}`:""}">`+
+      `<strong class="mnum">${d.getDate()}</strong>${evHTML}${ev.length>3?`<span class="mmore d">+${ev.length-3} altre</span>`:""}${ev.length>2?`<span class="mmore m">+${ev.length-2}</span>`:""}</button>`);
+  }
+  const notes=weeks.map(mon=>[mon,Agenda.value("w",mon).split("\n").map(l=>l.trim()).filter(Boolean).join(" · ")]).filter(([,t])=>t);
+  const notesHTML=notes.length?`<div class="mnotes"><h4>Note delle settimane</h4>${notes.map(([mon,t])=>`<button type="button" class="mnote" data-action="agenda-open-notes" data-date="${mon}"><span>sett. ${isoWeekNumber(mon)} · ${weekLabel(new Date(mon+"T12:00:00"),new Date(TodoLogic.addDaysISO(mon,6)+"T12:00:00"))}</span><span>${escapeHTML(t)}</span></button>`).join("")}</div>`:"";
+  const isNow=today.slice(0,7)===first.slice(0,7);
+  return `
+    <div class="agenda-toolbar">
+      <div>${monthNavHTML({prevAction:"agenda-prev-month",nextAction:"agenda-next-month",label:monthLabelOf(year,month)})}${isNow?"":`<button class="btn btn-ghost btn-sm" data-action="agenda-this-month">Questo mese</button>`}</div>
+      <div>${agendaViewsHTML()}</div>
+    </div>
+    <section class="cal-paper" aria-label="${monthLabelOf(year,month)}">
+      <div class="cal-paper-head"><div class="cal-paper-title">${new Date(year,month,1).toLocaleDateString("it-IT",{month:"long"})}</div><div class="npage-wnum">${year}</div></div>
+      <div class="mcal-head">${["Lun","Mar","Mer","Gio","Ven","Sab","Dom"].map(l=>`<div>${l}</div>`).join("")}</div>
+      <div class="mcal-grid">${cells.join("")}</div>
+      ${notesHTML}
+    </section>`;
+}
+// Anno: i dodici mesi in piccolo, con un puntino nei giorni che hanno appuntamenti; tocca un mese per aprirlo.
+function renderAgendaYear(){
+  const year=state.agendaYear, today=todayISO();
+  const months=[...Array(12)].map((_,m)=>{
+    const first=new Date(year,m,1), n=new Date(year,m+1,0).getDate(), lead=(first.getDay()+6)%7;
+    let cells=weekdayLabelsIT().map(l=>`<span class="wd">${l}</span>`).join("")+"<span></span>".repeat(lead), count=0;
+    for(let day=1;day<=n;day++){
+      const iso=isoOf(new Date(year,m,day)), has=agendaDayEvents(iso).length>0;
+      if(has) count++;
+      cells+=`<span class="${has?"has":""} ${iso===today?"today":""}"><i>${day}</i></span>`;
+    }
+    const name=first.toLocaleDateString("it-IT",{month:"long"});
+    return `<button type="button" class="ymonth ${today.slice(0,7)===isoOf(first).slice(0,7)?"current":""}" data-action="agenda-open-month" data-month="${m}" aria-label="Apri ${name} ${year}${count?`, ${count} ${count===1?"giorno":"giorni"} con impegni`:""}"><div class="ymonth-name">${name}</div><div class="ymonth-grid">${cells}</div></button>`;
+  }).join("");
+  const isNow=year===new Date().getFullYear();
+  return `
+    <div class="agenda-toolbar">
+      <div>${monthNavHTML({prevAction:"agenda-prev-year",nextAction:"agenda-next-year",label:String(year)})}${isNow?"":`<button class="btn btn-ghost btn-sm" data-action="agenda-this-year">Quest'anno</button>`}</div>
+      <div>${agendaViewsHTML()}</div>
+    </div>
+    <section class="cal-paper" aria-label="Anno ${year}">
+      <div class="cal-paper-head"><div class="cal-paper-title">${year}</div><div class="npage-wnum">tocca un mese per aprirlo</div></div>
+      <div class="ycal">${months}</div>
+      <div class="ylegend">giorno con appuntamenti</div>
+    </section>`;
+}
 function renderAgenda(){
-  const intro=`<div class="card intro" style="--accent:var(--c-todo)"><div>La tua agenda settimanale: a sinistra gli appuntamenti di ogni giorno, a destra le note della settimana. Scrivi una riga e premi Invio: diventa un appuntamento con il suo cerchietto da spuntare, che trovi anche in Da fare. Se la riga inizia con un'ora (es. «10:00 dentista») viene messa in ordine di orario. Tocca il testo per modificarlo o eliminarlo.</div></div>`;
+  const intro=`<div class="card intro" style="--accent:var(--c-todo)"><div>La tua agenda: in «Settimana» a sinistra gli appuntamenti di ogni giorno, a destra le note della settimana; «Mese» e «Anno» mostrano il calendario come sul telefono (tocca un giorno o un mese per aprirlo). Scrivi una riga e premi Invio: diventa un appuntamento con il suo cerchietto da spuntare, che trovi anche in Da fare. Se la riga inizia con un'ora (es. «10:00 dentista») viene messa in ordine di orario. Tocca il testo per modificarlo o eliminarlo.</div></div>`;
   if(!Data.agendaAvailable) return intro+`<div class="card">${emptyState("L'agenda sarà disponibile appena il database verrà aggiornato.")}</div>`;
+  if(state.agendaView==="mese") return intro+renderAgendaMonth();
+  if(state.agendaView==="anno") return intro+renderAgendaYear();
   const today=todayISO(), from=state.agendaWeekFrom;
   const days=[...Array(7)].map((_,i)=>TodoLogic.addDaysISO(from,i));
   const months=[...new Set(days.map(iso=>new Date(iso+"T12:00:00").toLocaleDateString("it-IT",{month:"long"})))];
@@ -1647,7 +1767,8 @@ function renderAgenda(){
     <div class="agenda-toolbar">
       <div>${monthNavHTML({prevAction:"agenda-prev-week",nextAction:"agenda-next-week",label})}${isThisWeek?"":`<button class="btn btn-ghost btn-sm" data-action="agenda-this-week">Questa settimana</button>`}</div>
       <div><span class="agenda-status ${statusErr?"error":""}" id="agenda-status" role="status">${status}</span>
-      <div class="seg agenda-seg" role="tablist">${[["settimana","Settimana"],["note","Note"]].map(([id,l])=>`<button type="button" role="tab" aria-selected="${page===id}" class="${page===id?"active":""}" data-action="agenda-page" data-page="${id}">${l}</button>`).join("")}</div></div>
+      <div class="seg agenda-seg" role="tablist">${[["settimana","Giorni"],["note","Note"]].map(([id,l])=>`<button type="button" role="tab" aria-selected="${page===id}" class="${page===id?"active":""}" data-action="agenda-page" data-page="${id}">${l}</button>`).join("")}</div>
+      ${agendaViewsHTML()}</div>
     </div>
     <div class="notebook" data-page="${page}">
       <section class="npage npage-week" aria-label="Settimana">
@@ -1744,7 +1865,10 @@ const state={
   todoTab:"oggi",
   todoWeekFrom:weekRange(todayISO()).fromISO,
   agendaWeekFrom:weekRange(todayISO()).fromISO,
-  agendaPage:"settimana"
+  agendaPage:"settimana",
+  agendaView:"settimana",   // settimana | mese | anno
+  agendaMonth:{year:new Date().getFullYear(),month:new Date().getMonth()},
+  agendaYear:new Date().getFullYear()
 };
 const ROUTE_TITLES=Object.fromEntries(ROUTES.map(r=>[r.id,r.group?`${r.icon} ${r.label}`:r.label]));
 
@@ -1783,6 +1907,7 @@ function render(){
     case "dafare": root.innerHTML=renderTodos(); break;
     case "agenda": root.innerHTML=renderAgenda();
       if(Agenda.refocus){ const el=document.getElementById("ag-new-"+Agenda.refocus); Agenda.refocus=null; if(el) el.focus(); }
+      if(Agenda.scrollTo){ const el=document.getElementById(Agenda.scrollTo); Agenda.scrollTo=null; if(el) el.scrollIntoView({block:"center"}); }
       break;
     case "sport": root.innerHTML=renderCategoryPage("sport"); break;
     case "studio": root.innerHTML=renderCategoryPage("studio"); break;
@@ -2235,6 +2360,26 @@ document.addEventListener("click",e=>{
   else if(action==="agenda-this-week"){ state.agendaWeekFrom=weekRange(todayISO()).fromISO; render(); }
   else if(action==="agenda-page"){ state.agendaPage=btn.dataset.page; render(); }
   else if(action==="agenda-convert") convertAgendaText(btn.dataset.date,btn);
+  else if(action==="agenda-view"){
+    // Si parte dal periodo che stavi guardando: la settimana aperta porta al suo mese e al suo anno.
+    const v=btn.dataset.view, ref=state.agendaWeekFrom;
+    if(v==="mese"&&state.agendaView==="settimana") state.agendaMonth={year:+ref.slice(0,4),month:+ref.slice(5,7)-1};
+    if(v==="anno") state.agendaYear=state.agendaView==="mese"?state.agendaMonth.year:+ref.slice(0,4);
+    state.agendaView=v; render();
+  }
+  else if(action==="agenda-prev-month"||action==="agenda-next-month"){ const s=state.agendaMonth; s.month+=action==="agenda-prev-month"?-1:1; if(s.month<0){s.month=11;s.year--;} if(s.month>11){s.month=0;s.year++;} render(); }
+  else if(action==="agenda-this-month"){ state.agendaMonth={year:new Date().getFullYear(),month:new Date().getMonth()}; render(); }
+  else if(action==="agenda-prev-year"){ state.agendaYear--; render(); }
+  else if(action==="agenda-next-year"){ state.agendaYear++; render(); }
+  else if(action==="agenda-this-year"){ state.agendaYear=new Date().getFullYear(); render(); }
+  else if(action==="agenda-open-month"){ state.agendaMonth={year:state.agendaYear,month:+btn.dataset.month}; state.agendaView="mese"; render(); window.scrollTo(0,0); }
+  else if(action==="agenda-open-day"||action==="agenda-open-notes"){
+    const iso=btn.dataset.date;
+    state.agendaWeekFrom=weekRange(iso).fromISO; state.agendaView="settimana";
+    state.agendaPage=action==="agenda-open-notes"?"note":"settimana";
+    if(action==="agenda-open-day") Agenda.scrollTo="nday-"+iso;
+    render();
+  }
 });
 document.addEventListener("input",e=>{
   const k=e.target.dataset&&e.target.dataset.agenda; if(!k)return;
