@@ -365,6 +365,16 @@ button.attach-name:hover{text-decoration:underline;}
 .ruled::placeholder{color:var(--paper-soft);opacity:.55;}
 .nday:focus-within .nday-label{color:var(--c-sport);}
 .npage-notes .ruled{flex:1;min-height:calc(var(--lh) * 18);margin-top:8px;overflow-y:auto;}
+/* note della settimana: ogni riga si può barrare (salvata come ~~testo~~) */
+.notes-edit{position:relative;white-space:pre-wrap;overflow-wrap:anywhere;cursor:text;}
+.notes-edit>div{min-height:var(--lh);}
+.notes-edit .struck{text-decoration:line-through;text-decoration-color:var(--paper-soft);color:var(--paper-soft);}
+.notes-edit.empty::before{content:attr(data-placeholder);position:absolute;left:2px;top:0;color:var(--paper-soft);opacity:.55;pointer-events:none;}
+.notes-head-right{display:flex;flex-direction:column;align-items:flex-end;gap:6px;}
+.notes-strike{background:transparent;border:1px solid var(--paper-line);border-radius:var(--r-sm);color:var(--paper-ink);font-size:.74rem;padding:4px 9px;cursor:pointer;}
+.notes-strike s{text-decoration-thickness:1.5px;}
+.notes-strike:hover{border-color:var(--paper-soft);}
+.mnote s{opacity:.6;}
 .npage-foot{font-family:var(--font-mono);font-size:.68rem;color:var(--paper-soft);text-align:right;margin-top:6px;}
 @media (max-width:860px){
   .agenda-seg{display:inline-flex;}
@@ -1691,6 +1701,92 @@ function isoWeekNumber(iso){
   return 1+Math.round(((d-jan4)/86400000-3+(jan4.getDay()+6)%7)/7);
 }
 function autosizeRuled(el){ el.style.height="auto"; el.style.height=el.scrollHeight+"px"; }
+
+// Note della settimana: testo libero, una riga barrata si salva come «~~testo~~» (come in Markdown).
+function notesStruck(line){ const m=/^~~(.*\S.*)~~$/.exec(line); return m?m[1]:null; }
+function notesToHTML(text){
+  return text.split("\n").map(l=>{ const s=notesStruck(l); return s===null?`<div>${escapeHTML(l)||"<br>"}</div>`:`<div class="struck">${escapeHTML(s)}</div>`; }).join("");
+}
+const NOTES_BLOCK=/^(DIV|P|LI|H[1-6])$/;
+function notesNodeText(n){
+  if(n.nodeType===3) return n.nodeValue;
+  if(n.nodeName==="BR") return "\n";
+  let s="";
+  for(const c of n.childNodes){
+    const block=c.nodeType===1&&NOTES_BLOCK.test(c.nodeName);
+    if(block&&s&&!s.endsWith("\n")) s+="\n";
+    s+=notesNodeText(c);
+    if(block&&!s.endsWith("\n")) s+="\n";
+  }
+  return s;
+}
+// Dal riquadro al testo da salvare: ogni riga di primo livello è una riga; quelle con class «struck» sono barrate.
+function notesFromEditor(ed){
+  const lines=[]; let loose=null;
+  const add=(text,struck)=>{ for(const l of text.split("\n")) lines.push(struck&&l.trim()?"~~"+l+"~~":l); };
+  const endLoose=()=>{ if(loose!==null){ add(loose,false); loose=null; } };
+  for(const n of ed.childNodes){
+    if(n.nodeType===1&&NOTES_BLOCK.test(n.nodeName)){ endLoose(); add(notesNodeText(n).replace(/\n$/,""),n.classList.contains("struck")); }
+    else if(n.nodeName==="BR"){ add(loose||"",false); loose=null; }
+    else loose=(loose||"")+notesNodeText(n);
+  }
+  endLoose();
+  while(lines.length&&!lines[lines.length-1].trim()) lines.pop();
+  return lines.join("\n");
+}
+function notesLineOf(ed,node){ while(node&&node.parentNode!==ed) node=node.parentNode; return node&&node!==ed?node:null; }
+function notesCaretTo(node,atStart){ const r=document.createRange(); r.selectNodeContents(node); r.collapse(!!atStart); const s=getSelection(); s.removeAllRanges(); s.addRange(r); }
+// Testo scritto direttamente nel riquadro (succede dopo averlo svuotato): lo racchiude in una riga.
+function notesWrapLine(ed,node){
+  if(node.nodeType===1&&NOTES_BLOCK.test(node.nodeName)) return node;
+  const div=document.createElement("div"); ed.insertBefore(div,node);
+  while(div.nextSibling&&!(div.nextSibling.nodeType===1&&NOTES_BLOCK.test(div.nextSibling.nodeName))){
+    const n=div.nextSibling; if(n.nodeName==="BR"){ n.remove(); break; } div.appendChild(n);
+  }
+  if(!div.firstChild) div.innerHTML="<br>";
+  return div;
+}
+// Dopo ogni modifica: riquadro mai vuoto del tutto, nessuna riga vuota che resta barrata.
+function notesTidy(ed){
+  if(!ed.textContent&&!ed.querySelector("div")){ ed.innerHTML="<div><br></div>"; notesCaretTo(ed.firstChild,true); }
+  for(const d of ed.querySelectorAll(":scope>.struck")) if(!d.textContent.trim()) d.classList.remove("struck");
+  ed.classList.toggle("empty",!ed.textContent.trim()&&ed.querySelectorAll(":scope>div").length<=1);
+}
+function notesSave(ed){ notesTidy(ed); Agenda.edit(ed.dataset.agenda,notesFromEditor(ed)); }
+// Barra (o toglie la barra a) la riga del cursore o tutte le righe selezionate.
+function notesToggleStrike(ed){
+  const sel=getSelection();
+  let r=sel.rangeCount&&ed.contains(sel.anchorNode)?sel.getRangeAt(0):(Agenda.notesRange&&ed.contains(Agenda.notesRange.startContainer)?Agenda.notesRange:null);
+  if(!r){ ed.focus(); return; }
+  const top=(c,i)=>notesLineOf(ed,c)||(c===ed?ed.childNodes[Math.max(0,i)]||ed.lastChild:null);
+  const first=top(r.startContainer,r.startOffset), last=top(r.endContainer,r.collapsed?r.endOffset:r.endOffset-1)||first;
+  if(!first) return;
+  const lines=[]; let moved=false;
+  for(let n=first;n;n=n.nextSibling){
+    const line=notesWrapLine(ed,n); if(line!==n) moved=true;
+    lines.push(line); if(line===last||line.contains(last)) break; n=line;
+  }
+  const withText=lines.filter(d=>d.textContent.trim()); if(!withText.length) return;
+  const strike=!withText.every(d=>d.classList.contains("struck"));
+  withText.forEach(d=>d.classList.toggle("struck",strike));
+  if(moved) notesCaretTo(lines[lines.length-1],false);
+  notesSave(ed);
+}
+// Invio su una riga barrata: la riga nuova non deve essere barrata (il browser copierebbe la barra).
+function notesEnter(ed,e){
+  const sel=getSelection(); if(!sel.rangeCount)return;
+  const r=sel.getRangeAt(0), line=notesLineOf(ed,r.startContainer);
+  if(!line||!line.classList||!line.classList.contains("struck")) return;
+  e.preventDefault();
+  r.deleteContents();
+  const head=document.createRange(); head.setStart(line,0); head.setEnd(r.startContainer,r.startOffset);
+  if(!head.toString()){ const empty=document.createElement("div"); empty.innerHTML="<br>"; ed.insertBefore(empty,line); notesCaretTo(line,true); notesSave(ed); return; }
+  const tail=document.createRange(); tail.setStart(r.startContainer,r.startOffset); tail.setEnd(line,line.childNodes.length);
+  const div=document.createElement("div"); div.appendChild(tail.extractContents());
+  if(div.textContent.trim()) div.className="struck"; else div.innerHTML="<br>";
+  if(!line.textContent) line.innerHTML="<br>";
+  line.after(div); notesCaretTo(div,true); notesSave(ed);
+}
 // «10:00 dentista», «9.30 - call Marco» → ora + titolo; senza ora all'inizio resta tutto titolo.
 function parseAgendaLine(line){
   const m=/^\s*([01]?\d|2[0-3])[:.]([0-5]\d)\s*[-–—]?\s*(.*)$/.exec(line);
@@ -1756,8 +1852,8 @@ function renderAgendaMonth(){
     cells.push(`<button type="button" class="mcell ${iso.slice(0,7)!==first.slice(0,7)?"out":""} ${iso===today?"today":""} ${dow>=5?"weekend":""}" data-action="agenda-open-day" data-date="${iso}" aria-label="${long}${ev.length?`, ${ev.length} ${ev.length===1?"voce":"voci"}`:""}">`+
       `<strong class="mnum">${d.getDate()}</strong>${evHTML}${ev.length>3?`<span class="mmore d">+${ev.length-3} altre</span>`:""}${ev.length>2?`<span class="mmore m">+${ev.length-2}</span>`:""}</button>`);
   }
-  const notes=weeks.map(mon=>[mon,Agenda.value("w",mon).split("\n").map(l=>l.trim()).filter(Boolean).join(" · ")]).filter(([,t])=>t);
-  const notesHTML=notes.length?`<div class="mnotes"><h4>Note delle settimane</h4>${notes.map(([mon,t])=>`<button type="button" class="mnote" data-action="agenda-open-notes" data-date="${mon}"><span>sett. ${isoWeekNumber(mon)} · ${weekLabel(new Date(mon+"T12:00:00"),new Date(TodoLogic.addDaysISO(mon,6)+"T12:00:00"))}</span><span>${escapeHTML(t)}</span></button>`).join("")}</div>`:"";
+  const notes=weeks.map(mon=>[mon,Agenda.value("w",mon).split("\n").map(l=>l.trim()).filter(Boolean).map(l=>{ const s=notesStruck(l); return s===null?escapeHTML(l):`<s>${escapeHTML(s)}</s>`; }).join(" · ")]).filter(([,t])=>t);
+  const notesHTML=notes.length?`<div class="mnotes"><h4>Note delle settimane</h4>${notes.map(([mon,t])=>`<button type="button" class="mnote" data-action="agenda-open-notes" data-date="${mon}"><span>sett. ${isoWeekNumber(mon)} · ${weekLabel(new Date(mon+"T12:00:00"),new Date(TodoLogic.addDaysISO(mon,6)+"T12:00:00"))}</span><span>${t}</span></button>`).join("")}</div>`:"";
   const isNow=today.slice(0,7)===first.slice(0,7);
   return `
     <div class="agenda-toolbar">
@@ -1798,7 +1894,7 @@ function renderAgendaYear(){
     </section>`;
 }
 function renderAgenda(){
-  const intro=`<div class="card intro" style="--accent:var(--c-todo)"><div>La tua agenda: in «Settimana» a sinistra gli appuntamenti di ogni giorno, a destra le note della settimana; «Mese» e «Anno» mostrano il calendario come sul telefono (tocca un giorno o un mese per aprirlo). Scrivi una riga e premi Invio: diventa un appuntamento con il suo cerchietto da spuntare, che trovi anche in Da fare. Se la riga inizia con un'ora (es. «10:00 dentista») viene messa in ordine di orario. Tocca il testo per modificarlo o eliminarlo.</div></div>`;
+  const intro=`<div class="card intro" style="--accent:var(--c-todo)"><div>La tua agenda: in «Settimana» a sinistra gli appuntamenti di ogni giorno, a destra le note della settimana; «Mese» e «Anno» mostrano il calendario come sul telefono (tocca un giorno o un mese per aprirlo). Scrivi una riga e premi Invio: diventa un appuntamento con il suo cerchietto da spuntare, che trovi anche in Da fare. Se la riga inizia con un'ora (es. «10:00 dentista») viene messa in ordine di orario. Tocca il testo per modificarlo o eliminarlo. Nelle note, una riga fatta o che non ti serve più puoi barrarla con «Barra riga» (o ⌘⇧X): resta scritta, barrata.</div></div>`;
   if(!Data.agendaAvailable) return intro+`<div class="card">${emptyState("L'agenda sarà disponibile appena il database verrà aggiornato.")}</div>`;
   if(state.agendaView==="mese") return intro+renderAgendaMonth();
   if(state.agendaView==="anno") return intro+renderAgendaYear();
@@ -1810,6 +1906,7 @@ function renderAgenda(){
   const isThisWeek=from===weekRange(today).fromISO;
   const page=state.agendaPage;
   const[status,statusErr]=Agenda.statusText();
+  const notesText=Agenda.value("w",from);
   return intro+`
     <div class="agenda-toolbar">
       <div>${monthNavHTML({prevAction:"agenda-prev-week",nextAction:"agenda-next-week",label})}${isThisWeek?"":`<button class="btn btn-ghost btn-sm" data-action="agenda-this-week">Questa settimana</button>`}</div>
@@ -1825,8 +1922,8 @@ function renderAgenda(){
       </section>
       <div class="notebook-spine" aria-hidden="true"></div>
       <section class="npage npage-notes" aria-label="Note della settimana">
-        <div class="npage-head"><div class="npage-months"><span>Note</span></div><div class="npage-wnum">${label}</div></div>
-        <textarea class="ruled" data-agenda="w:${from}" maxlength="20000" aria-label="Note della settimana ${label}" placeholder="Note della settimana…">${escapeHTML(Agenda.value("w",from))}</textarea>
+        <div class="npage-head"><div class="npage-months"><span>Note</span></div><div class="notes-head-right"><div class="npage-wnum">${label}</div><button type="button" class="notes-strike" data-action="notes-strike" title="Barra la riga dove sei, o tutte quelle selezionate; ripremi per togliere la barra (⌘⇧X)"><s>Barra</s> riga</button></div></div>
+        <div class="ruled notes-edit ${notesText.trim()?"":"empty"}" contenteditable="true" role="textbox" aria-multiline="true" spellcheck="true" data-agenda="w:${from}" data-placeholder="Note della settimana…" aria-label="Note della settimana ${label}">${notesToHTML(notesText)}</div>
         <div class="npage-foot">settimana ${isoWeekNumber(from)}</div>
       </section>
     </div>`;
@@ -2497,6 +2594,7 @@ document.addEventListener("click",e=>{
   else if(action==="agenda-this-week"){ state.agendaWeekFrom=weekRange(todayISO()).fromISO; render(); }
   else if(action==="agenda-page"){ state.agendaPage=btn.dataset.page; render(); }
   else if(action==="agenda-convert") convertAgendaText(btn.dataset.date,btn);
+  else if(action==="notes-strike"){ const ed=document.querySelector(".notes-edit"); if(ed) notesToggleStrike(ed); }
   else if(action==="avvisi-attiva") Avvisi.activate();
   else if(action==="avvisi-prova") Avvisi.test();
   else if(action==="avvisi-disattiva") Avvisi.deactivate();
@@ -2523,8 +2621,29 @@ document.addEventListener("click",e=>{
 });
 document.addEventListener("input",e=>{
   const k=e.target.dataset&&e.target.dataset.agenda; if(!k)return;
-  Agenda.edit(k,e.target.value);
+  if(e.target.isContentEditable) notesSave(e.target); else Agenda.edit(k,e.target.value);
 });
+// Note della settimana: solo testo semplice, più la barra sulle righe.
+document.addEventListener("keydown",e=>{
+  const ed=e.target.closest&&e.target.closest(".notes-edit"); if(!ed||e.isComposing)return;
+  const mod=e.metaKey||e.ctrlKey;
+  if(mod&&e.shiftKey&&e.key.toLowerCase()==="x"){ e.preventDefault(); notesToggleStrike(ed); }
+  else if(mod&&!e.shiftKey&&["b","i","u"].includes(e.key.toLowerCase())) e.preventDefault();
+  else if(e.key==="Enter"&&!mod) notesEnter(ed,e);
+});
+document.addEventListener("paste",e=>{
+  const ed=e.target.closest&&e.target.closest(".notes-edit"); if(!ed)return;
+  e.preventDefault();
+  document.execCommand("insertText",false,(e.clipboardData||window.clipboardData).getData("text/plain"));
+});
+document.addEventListener("drop",e=>{ if(e.target.closest&&e.target.closest(".notes-edit")) e.preventDefault(); });
+// Sul telefono toccare il pulsante toglie il cursore dal testo: ci si ricorda dov'era.
+document.addEventListener("selectionchange",()=>{
+  const s=getSelection(); if(!s.rangeCount)return;
+  const ed=document.querySelector(".notes-edit");
+  if(ed&&ed.contains(s.anchorNode)) Agenda.notesRange=s.getRangeAt(0).cloneRange();
+});
+document.addEventListener("mousedown",e=>{ if(e.target.closest&&e.target.closest(".notes-strike")) e.preventDefault(); });
 // Nuova riga dell'agenda: Invio (o uscire dalla riga) la salva come cosa da fare di quel giorno.
 async function commitAgendaLine(input,{refocus}){
   const text=input.value.trim(); if(!text||input.dataset.busy)return;
