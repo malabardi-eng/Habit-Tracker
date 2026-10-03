@@ -384,6 +384,54 @@ button.attach-name:hover{text-decoration:underline;}
   .notebook[data-page="settimana"] .npage-notes,.notebook[data-page="note"] .npage-week{display:none;}
 }
 
+/* post-it sulle note della settimana: liberi, trascinabili dalla striscia in alto */
+.notes-body{position:relative;flex:1;display:flex;flex-direction:column;}
+.notes-tools{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end;}
+.postit-layer{position:absolute;inset:0 -6px 0 -6px;pointer-events:none;z-index:1;}
+.postit{position:absolute;left:calc((100% - var(--pi-w)) * var(--pi-x));width:var(--pi-w);height:var(--pi-w);pointer-events:auto;background:var(--pi-bg);color:#2A2925;
+  box-shadow:0 1px 1px rgba(0,0,0,.08),0 8px 14px -6px rgba(0,0,0,.35);border-radius:2px 2px 3px 14px/2px 2px 3px 6px;transform-origin:50% 0;}
+.postit::after{content:"";position:absolute;right:0;bottom:0;width:28px;height:28px;background:linear-gradient(135deg,transparent 50%,rgba(0,0,0,.07) 50%,rgba(255,255,255,.25));border-radius:0 0 3px 0;pointer-events:none;}
+.postit.dragging{box-shadow:0 2px 2px rgba(0,0,0,.08),0 18px 28px -8px rgba(0,0,0,.45);cursor:grabbing;}
+.postit.paper-quadretti{background-image:linear-gradient(rgba(40,40,60,.12) 1px,transparent 1px),linear-gradient(90deg,rgba(40,40,60,.12) 1px,transparent 1px);background-size:11px 11px;background-position:5px 5px;}
+.postit-grip{position:absolute;left:0;right:30px;top:0;height:28px;cursor:grab;touch-action:none;}
+.postit-menu{position:absolute;right:4px;top:3px;width:24px;height:22px;border:none;background:transparent;color:rgba(42,41,37,.55);font-size:1rem;line-height:1;cursor:pointer;border-radius:4px;}
+.postit-menu:hover,.postit-menu:focus-visible{background:rgba(0,0,0,.08);color:#2A2925;}
+.postit-text{position:absolute;left:10px;right:8px;top:28px;bottom:10px;border:none;background:transparent;resize:none;color:#2A2925;font-family:var(--font-hand,inherit);font-size:.86rem;line-height:22px;padding:0 2px;overflow-y:auto;}
+.postit-text:focus{outline:none;}
+.postit-text::placeholder{color:rgba(42,41,37,.4);}
+.postit.paper-righe .postit-text{background-image:repeating-linear-gradient(to bottom,transparent 0,transparent 21px,rgba(60,50,20,.2) 21px,rgba(60,50,20,.2) 22px);background-attachment:local;}
+.postit .fas{position:absolute;pointer-events:none;}
+.postit .fas-puntina{left:50%;top:-9px;width:24px;height:24px;margin-left:-12px;filter:drop-shadow(1px 3px 2px rgba(0,0,0,.35));}
+.postit .fas-nastro{left:50%;top:-10px;width:44%;height:22px;margin-left:-22%;background:var(--tape);opacity:.78;transform:rotate(-3deg);box-shadow:0 1px 2px rgba(0,0,0,.12);
+  -webkit-mask:linear-gradient(90deg,transparent 0,#000 3px,#000 calc(100% - 3px),transparent 100%);mask:linear-gradient(90deg,transparent 0,#000 3px,#000 calc(100% - 3px),transparent 100%);}
+.postit .fas-graffetta{left:16px;top:-14px;width:18px;height:46px;filter:drop-shadow(1px 1px 1px rgba(0,0,0,.25));}
+.postit .fas-molletta{left:50%;top:-16px;width:40px;height:30px;margin-left:-20px;filter:drop-shadow(1px 2px 2px rgba(0,0,0,.3));}
+.postit .fas-puntina,.postit .fas-molletta{pointer-events:auto;cursor:grab;touch-action:none;}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .postit{filter:brightness(.9) saturate(.95);}}
+:root[data-theme="dark"] .postit{filter:brightness(.9) saturate(.95);}
+/* finestra per scegliere com'è il post-it */
+.pi-picker{display:flex;flex-wrap:wrap;gap:8px;}
+.pi-picker label{position:relative;cursor:pointer;}
+.pi-picker input{position:absolute;opacity:0;pointer-events:none;}
+.sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;}
+.pi-swatch{display:block;width:34px;height:34px;border-radius:4px;box-shadow:inset 0 0 0 1px rgba(0,0,0,.12);}
+.pi-chip{display:block;padding:6px 11px;border:1px solid var(--line);border-radius:999px;font-size:.8rem;font-weight:500;color:var(--ink);}
+.pi-picker input:checked+.pi-swatch{box-shadow:0 0 0 2px var(--surface),0 0 0 4px var(--c-todo);}
+.pi-picker input:checked+.pi-chip{border-color:var(--c-todo);background:var(--c-todo);color:#fff;}
+.pi-picker input:focus-visible+span{outline:2px solid var(--c-todo);outline-offset:2px;}
+.pi-preview{position:relative;height:276px;border-radius:var(--r-sm);background:var(--paper);box-shadow:inset 0 0 0 1px var(--paper-edge);overflow:hidden;}
+.pi-preview .postit{left:50%;top:30px;transform:translateX(-50%) rotate(-2deg);}
+.pi-preview .postit-grip,.pi-preview .postit-menu{display:none;}
+/* lucchetto del diario */
+.diary-lock{display:flex;flex-direction:column;align-items:center;text-align:center;gap:10px;padding:34px 20px;}
+.diary-lock .lock-icon{font-size:2.4rem;line-height:1;}
+.diary-lock form{display:flex;flex-direction:column;gap:8px;width:100%;max-width:300px;}
+.diary-lock input{padding:11px 12px;border-radius:var(--r-sm);border:1px solid var(--line);font-size:1rem;background:var(--surface);color:var(--ink);text-align:center;}
+.diary-lock input:focus{outline:none;border-color:var(--c-diario);box-shadow:0 0 0 3px var(--c-diario-soft);}
+.diary-lock .lock-msg{min-height:1.2em;color:var(--c-danger);font-size:.84rem;}
+.diary-lock .card-text{max-width:420px;}
+.intro-actions{display:flex;align-items:center;gap:12px;justify-content:space-between;}
+
 /* agenda: vista mese e anno, come nei calendari del telefono */
 .cal-paper{background:var(--paper);color:var(--paper-ink);border-radius:6px;box-shadow:var(--shadow),0 0 0 1px var(--paper-edge);padding:18px 20px 16px;}
 .cal-paper-head{display:flex;justify-content:space-between;align-items:baseline;gap:10px;border-bottom:1px solid var(--paper-line);padding-bottom:8px;margin-bottom:8px;}
@@ -546,7 +594,7 @@ button.attach-name:hover{text-decoration:underline;}
     return {
       token,
       async request(path, opts = {}) {
-        if (!/^\/(finanze_(categorie|impostazioni|metodi|movimenti)|habit_(activities|entries|office_days|diario_days|diario_photos|todos|todo_done|attachments|agenda_days|agenda_weeks|push_subscriptions)|rpc\/habit_avviso_prova)(\?|$)/.test(path)) throw new Error('Percorso non valido.');
+        if (!/^\/(finanze_(categorie|impostazioni|metodi|movimenti)|habit_(activities|entries|office_days|diario_days|diario_photos|todos|todo_done|attachments|agenda_days|agenda_weeks|agenda_postit|impostazioni|push_subscriptions)|rpc\/habit_avviso_prova)(\?|$)/.test(path)) throw new Error('Percorso non valido.');
         const method=(opts.method || 'GET').toUpperCase();
         if (!['GET','POST','PATCH','DELETE'].includes(method)) throw new Error('Metodo non consentito.');
         if (method !== 'GET' && !config.allowMutations) {
@@ -918,6 +966,10 @@ const Data={
   AGENDA_DAYS:{},
   AGENDA_WEEKS:{},
   agendaAvailable:false,
+  POSTITS:[],
+  postitAvailable:false,
+  SETTINGS:{},
+  settingsAvailable:false,
 
   async init(){
     await this.loadAll();
@@ -964,6 +1016,17 @@ const Data={
         }
         this.AGENDA_DAYS=days; this.AGENDA_WEEKS=weeks; this.agendaAvailable=true;
       }catch(_){ this.agendaAvailable=false; }
+      // Post-it e lucchetto del diario: disponibili solo dopo diario-postit-PROPOSTA.sql.
+      // Se la lettura fallisce resta ciò che era già stato letto: il diario non si apre per un errore di rete.
+      try{
+        const[notes,settings]=await Promise.all([
+          readAllRows("/habit_agenda_postit?select=*","week_start,z,id"),
+          readAllRows("/habit_impostazioni?select=chiave,valore","chiave")
+        ]);
+        this.POSTITS=Postit.mergeLoaded(notes); this.postitAvailable=true;
+        this.SETTINGS=Object.fromEntries(settings.map(r=>[r.chiave,r.valore])); this.settingsAvailable=true;
+        DiaryLock.remember();
+      }catch(_){ if(!this.settingsAvailable){ this.postitAvailable=false; } }
       this.online=true;
       // Verification build: do not persist personal data in the old cache.
     }catch(e){
@@ -1524,7 +1587,95 @@ function renderOffice(){
     <div class="card"><div class="card-header"><h3>Note recenti</h3></div>${recentNotes.length?notesHTML:emptyState("Nessuna nota registrata. Clicca su un giorno nel calendario per aggiungerne una.")}</div>`;
 }
 
+/* ---- Lucchetto del diario ----
+   La password non viene mai salvata: nel database c'è solo la sua impronta (PBKDF2), valida su tutti i dispositivi.
+   È un lucchetto, non una cifratura: i testi restano leggibili a chi entra nel database con l'account personale. */
+function bytesToB64(buf){ return btoa(String.fromCharCode(...new Uint8Array(buf))); }
+function b64ToBytes(text){ return Uint8Array.from(atob(text),c=>c.charCodeAt(0)); }
+const DiaryLock={
+  open:false, msg:"", busy:false,
+  config(){ return Data.SETTINGS.diario_lucchetto||null; },
+  // Visto attivo almeno una volta su questo dispositivo: se poi la lettura fallisce il diario resta chiuso.
+  remember(){ try{ if(this.config()) localStorage.setItem("diario-lucchetto","1"); }catch(_){} },
+  seenBefore(){ try{ return localStorage.getItem("diario-lucchetto")==="1"; }catch(_){ return false; } },
+  // "aperto" | "chiuso" | "da-scegliere" | "non-verificabile" | "non-attivo" (database non ancora aggiornato)
+  status(){
+    if(Data.settingsAvailable) return this.config()?(this.open?"aperto":"chiuso"):"da-scegliere";
+    return this.seenBefore()?"non-verificabile":"non-attivo";
+  },
+  async digest(password,salt,iter){
+    const key=await crypto.subtle.importKey("raw",new TextEncoder().encode(password),"PBKDF2",false,["deriveBits"]);
+    return bytesToB64(await crypto.subtle.deriveBits({name:"PBKDF2",hash:"SHA-256",salt,iterations:iter},key,256));
+  },
+  async check(password){
+    const c=this.config(); if(!c) return false;
+    return await this.digest(password,b64ToBytes(c.salt),c.iter)===c.hash;
+  },
+  async setPassword(password){
+    const salt=crypto.getRandomValues(new Uint8Array(16)), iter=210000;
+    const valore={v:1,iter,salt:bytesToB64(salt),hash:await this.digest(password,salt,iter)};
+    await sbFetch("/habit_impostazioni?on_conflict=chiave",{method:"POST",body:{chiave:"diario_lucchetto",valore,updated_at:new Date().toISOString()},prefer:"resolution=merge-duplicates"});
+    Data.SETTINGS.diario_lucchetto=valore; this.remember();
+  },
+  lock(){ this.open=false; this.msg=""; }
+};
+function diaryLockHTML(){
+  const st=DiaryLock.status();
+  if(st==="aperto"||st==="non-attivo") return "";
+  const msg=`<p class="lock-msg" role="status">${escapeHTML(DiaryLock.msg)}</p>`, dis=DiaryLock.busy?"disabled":"";
+  let body;
+  if(st==="chiuso") body=`<h3>Diario privato</h3><p class="card-text">Scrivi la password del diario per aprirlo.</p>
+    <form id="diary-unlock-form" autocomplete="off"><input type="password" id="diary-pw" autocomplete="current-password" aria-label="Password del diario" placeholder="Password" required><button type="submit" class="btn btn-primary" style="--accent:var(--c-diario)" ${dis}>Apri il diario</button></form>${msg}
+    <p class="hint">Password dimenticata? Chiedi a Claude o Codex di azzerarla: i giorni scritti restano tutti.</p>`;
+  else if(st==="da-scegliere") body=`<h3>Scegli la password del diario</h3><p class="card-text">Da ora il Diario si apre solo con questa password, ogni volta che entri nella sezione. Vale su iPhone e Mac. Almeno 4 caratteri.</p>
+    <form id="diary-setup-form" autocomplete="off"><input type="password" id="diary-pw-new" autocomplete="new-password" aria-label="Nuova password del diario" placeholder="Nuova password" minlength="4" required><input type="password" id="diary-pw-again" autocomplete="new-password" aria-label="Ripeti la password" placeholder="Ripeti la password" minlength="4" required><button type="submit" class="btn btn-primary" ${dis}>Salva e apri il diario</button></form>${msg}`;
+  else body=`<h3>Diario chiuso</h3><p class="card-text">Non riesco a controllare la password del diario: verifica la connessione e riapri la sezione.</p>`;
+  return `<div class="card diary-lock"><div class="lock-icon" aria-hidden="true">🔒</div>${body}</div>`;
+}
+async function diaryLockSubmit(form){
+  if(DiaryLock.busy) return;
+  const val=id=>{ const el=document.getElementById(id); const v=el?el.value:""; if(el) el.value=""; return v; };
+  DiaryLock.busy=true; DiaryLock.msg="";
+  try{
+    if(form.id==="diary-unlock-form"){
+      if(await DiaryLock.check(val("diary-pw"))) DiaryLock.open=true;
+      else{ await new Promise(r=>setTimeout(r,700)); DiaryLock.msg="Password non corretta."; }
+    }else{
+      const a=val("diary-pw-new"), b=val("diary-pw-again");
+      if(a.length<4) DiaryLock.msg="La password deve avere almeno 4 caratteri.";
+      else if(a!==b) DiaryLock.msg="Le due password non coincidono.";
+      else{ await DiaryLock.setPassword(a); DiaryLock.open=true; }
+    }
+  }catch(e){ DiaryLock.msg="Non sono riuscito a salvare: "+e.message; }
+  finally{ DiaryLock.busy=false; render(); }
+}
+function diaryPasswordCardHTML(){
+  const st=DiaryLock.status();
+  const body=st==="non-attivo"?`<p class="card-text">Il lucchetto sarà disponibile appena il database verrà aggiornato.</p>`
+    :st==="non-verificabile"?`<p class="card-text">Non riesco a leggere l'impostazione: controlla la connessione.</p>`
+    :st==="da-scegliere"?`<p class="card-text">Nessuna password ancora: la scegli la prima volta che apri il Diario.</p>`
+    :`<form id="diary-change-form" class="modal-form" autocomplete="off">
+        <div class="row"><label for="diary-pw-old">Password attuale</label><input type="password" id="diary-pw-old" autocomplete="current-password" required></div>
+        <div class="row"><label for="diary-pw-new2">Nuova password</label><input type="password" id="diary-pw-new2" autocomplete="new-password" minlength="4" required></div>
+        <div class="row"><label for="diary-pw-again2">Ripeti la nuova password</label><input type="password" id="diary-pw-again2" autocomplete="new-password" minlength="4" required></div>
+        <div class="settings-actions"><button type="submit" class="btn btn-primary">Cambia password</button></div>
+      </form>${DiaryLock.settingsMsg?`<p class="hint" role="status">${escapeHTML(DiaryLock.settingsMsg)}</p>`:""}`;
+  return `<div class="card"><div class="card-header"><h3>🔒 Password del diario</h3></div>${body}</div>`;
+}
+async function diaryChangeSubmit(){
+  const val=id=>{ const el=document.getElementById(id); const v=el.value; el.value=""; return v; };
+  const old=val("diary-pw-old"), a=val("diary-pw-new2"), b=val("diary-pw-again2");
+  try{
+    if(!await DiaryLock.check(old)) DiaryLock.settingsMsg="La password attuale non è corretta.";
+    else if(a.length<4) DiaryLock.settingsMsg="La nuova password deve avere almeno 4 caratteri.";
+    else if(a!==b) DiaryLock.settingsMsg="Le due nuove password non coincidono.";
+    else{ await DiaryLock.setPassword(a); DiaryLock.settingsMsg="✓ Password del diario cambiata."; }
+  }catch(e){ DiaryLock.settingsMsg="Non sono riuscito a salvare: "+e.message; }
+  render();
+}
+
 function renderDiary(){
+  const lock=diaryLockHTML(); if(lock) return lock;
   const{year,month}=state.diarioMonth;
   const monthLabel=monthLabelOf(year,month);
   const days=Data.DIARIO_DAYS;
@@ -1547,7 +1698,7 @@ function renderDiary(){
     return `<div class="rrow"><span class="badge" style="--accent-soft:var(--c-diario-soft)">📔</span><div class="rmain"><div class="rtitle">${formatDateIT(date)}${photoCount?`<span class="rdur">📷 ${photoCount}</span>`:""}${attBadge(Data.attachmentsFor("diario",{day:date}).length)}</div><div class="rdesc">${linkifyHTML(excerpt)||"<em>Solo foto, nessun testo.</em>"}</div></div><div class="ractions"><button class="icon-btn" data-action="log-diary-day" data-date="${date}" title="Apri">✏️</button></div></div>`;
   }).join("")}</div>`;
   return `
-    <div class="card intro" style="--accent:var(--c-diario)"><div>Il tuo diario personale: clicca su un giorno per scrivere pensieri, ricordi o riflessioni, e aggiungere qualche foto.</div></div>
+    <div class="card intro" style="--accent:var(--c-diario)"><div class="intro-actions"><div>Il tuo diario personale: clicca su un giorno per scrivere pensieri, ricordi o riflessioni, e aggiungere qualche foto.</div>${DiaryLock.status()==="aperto"?`<button class="btn btn-outline btn-sm" style="--accent:var(--c-diario)" data-action="diary-lock" title="Si richiude anche da solo quando esci dalla sezione">🔒 Chiudi</button>`:""}</div></div>
     <div class="stat-row">${statTile("✍️","Giorni scritti",daysWritten,"diario",monthLabel)}${statTile("📷","Foto aggiunte",photosThisMonth,"diario",monthLabel)}</div>
     <div class="card"><div class="card-header"><h3>Calendario</h3>${monthNavHTML({prevAction:"diario-prev-month",nextAction:"diario-next-month",label:monthLabel,nextDisabled:isCurrentMonth})}</div>${cal}</div>
     <div class="card"><div class="card-header"><h3>Pensieri recenti</h3></div>${recentEntries.length?listHTML:emptyState("Nessun pensiero scritto finora. Clicca su un giorno nel calendario per iniziare.")}</div>`;
@@ -1686,15 +1837,173 @@ const Agenda={
   },
   flushAll(){ return Promise.all(Object.keys(this.drafts).map(k=>this.flush(k))); },
   statusText(){
-    if(this.failed.size) return["⚠️ Non salvato: controlla la connessione, riprovo appena scrivi o esci dal riquadro",true];
-    if(this.saving||Object.keys(this.timers).length) return["Salvataggio…",false];
-    return[Object.keys(this.writtenAt).length?"✓ Salvato":"Si salva da solo mentre scrivi",false];
+    if(this.failed.size||Postit.failed.size) return["⚠️ Non salvato: controlla la connessione, riprovo appena scrivi o esci dal riquadro",true];
+    if(this.saving||Postit.saving||Object.keys(this.timers).length||Object.keys(Postit.timers).length) return["Salvataggio…",false];
+    return[Object.keys(this.writtenAt).length||Postit.saved?"✓ Salvato":"Si salva da solo mentre scrivi",false];
   },
   showStatus(){
     const el=document.getElementById("agenda-status"); if(!el)return;
     const[t,err]=this.statusText(); el.textContent=t; el.classList.toggle("error",err);
   }
 };
+/* ---- Post-it sulle note della settimana ----
+   Ognuno appartiene a una settimana; si sposta trascinando la striscia in alto (o il fermaglio).
+   x: da 0 (tutto a sinistra) a 1 (tutto a destra) della pagina, y: pixel dall'alto. */
+const POSTIT_COLORS={giallo:["#FFE58A","Giallo"],rosa:["#F8B4CC","Rosa"],azzurro:["#A9D6EF","Azzurro"],verde:["#C4E3A3","Verde"],lilla:["#D6CEEE","Lilla"],arancio:["#FFC98C","Arancio"],menta:["#A8E3CD","Menta"],kraft:["#CDB88F","Kraft"]};
+const POSTIT_SIZES={s:[130,"Piccolo"],m:[170,"Medio"],l:[220,"Grande"]};
+const POSTIT_PAPERS={liscio:"Liscio",righe:"A righe",quadretti:"A quadretti"};
+const POSTIT_FASTENERS={puntina:"Puntina",nastro:"Nastro adesivo",graffetta:"Graffetta",molletta:"Molletta",nessuno:"Niente"};
+const POSTIT_PINS=["#E0393E","#2F9E5B","#2C8FD6","#F2B705","#B24BC9"];
+const Postit={
+  pending:{}, timers:{}, queue:{}, failed:new Set(), saving:0, saved:false,
+  forWeek(w){ return Data.POSTITS.filter(p=>p.week_start===w).sort((a,b)=>a.z-b.z); },
+  get(id){ return Data.POSTITS.find(p=>p.id===id); },
+  // Ciò che non è ancora arrivato al database vale più di quanto appena riletto.
+  mergeLoaded(rows){ return rows.map(r=>this.pending[r.id]?Object.assign({},r,this.pending[r.id]):r); },
+  lastStyle(){
+    try{ const s=JSON.parse(localStorage.getItem("postit-stile")||"null"); if(s&&POSTIT_COLORS[s.color]&&POSTIT_SIZES[s.size]&&POSTIT_PAPERS[s.paper]&&POSTIT_FASTENERS[s.fastener]) return s; }catch(_){}
+    return{color:"giallo",size:"m",paper:"liscio",fastener:"puntina"};
+  },
+  async create(week,style){
+    try{ localStorage.setItem("postit-stile",JSON.stringify(style)); }catch(_){}
+    const mine=this.forWeek(week), n=mine.length;
+    const body=Object.assign({week_start:week,text:"",x:Math.max(0,1-(n%4)*.18),y:14+(n%5)*34,tilt:Math.round((Math.random()*8-4)*10)/10,z:(mine.length?mine[mine.length-1].z:0)+1},style);
+    const rows=await sbFetch("/habit_agenda_postit",{method:"POST",body,prefer:"return=representation"});
+    Data.POSTITS.push(rows[0]); return rows[0];
+  },
+  change(id,patch,{now=false}={}){
+    const p=this.get(id); if(!p) return;
+    Object.assign(p,patch); this.pending[id]=Object.assign(this.pending[id]||{},patch);
+    clearTimeout(this.timers[id]); this.timers[id]=setTimeout(()=>this.flush(id),now?0:800);
+    Agenda.showStatus();
+  },
+  flush(id){
+    clearTimeout(this.timers[id]); delete this.timers[id];
+    const patch=this.pending[id]; if(!patch) return this.queue[id]||Promise.resolve();
+    delete this.pending[id];
+    this.queue[id]=(this.queue[id]||Promise.resolve()).then(async()=>{
+      this.saving++; Agenda.showStatus();
+      try{
+        await sbFetch(`/habit_agenda_postit?id=eq.${encodeURIComponent(id)}`,{method:"PATCH",body:Object.assign({},patch,{updated_at:new Date().toISOString()})});
+        this.failed.delete(id); this.saved=true;
+      }catch(_){ if(this.get(id)){ this.pending[id]=Object.assign({},patch,this.pending[id]||{}); this.failed.add(id); } }
+      finally{ this.saving--; Agenda.showStatus(); }
+    });
+    return this.queue[id];
+  },
+  flushAll(){ return Promise.all(Object.keys(this.pending).map(id=>this.flush(id))); },
+  async remove(id){
+    clearTimeout(this.timers[id]); delete this.timers[id];
+    await sbFetch(`/habit_agenda_postit?id=eq.${encodeURIComponent(id)}`,{method:"DELETE"});
+    delete this.pending[id]; this.failed.delete(id);
+    Data.POSTITS=Data.POSTITS.filter(p=>p.id!==id);
+  }
+};
+function postitFastenerHTML(p){
+  const pin=POSTIT_PINS[[...p.id].reduce((s,c)=>s+c.charCodeAt(0),0)%POSTIT_PINS.length];
+  switch(p.fastener){
+    case "puntina": return `<svg class="fas fas-puntina" data-postit-grip viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="11" r="8" fill="${pin}"/><ellipse cx="9.2" cy="8" rx="3" ry="2.2" fill="#fff" opacity=".5"/></svg>`;
+    case "nastro": return `<span class="fas fas-nastro" style="--tape:${p.color==="rosa"?"#FFE58A":p.color==="giallo"?"#F49AB8":"#F6D96B"}" aria-hidden="true"></span>`;
+    case "graffetta": return `<svg class="fas fas-graffetta" viewBox="0 0 18 46" aria-hidden="true"><path d="M12 14V36a4.5 4.5 0 0 1-9 0V8a6 6 0 0 1 12 0v26" fill="none" stroke="#8D949E" stroke-width="2" stroke-linecap="round"/></svg>`;
+    case "molletta": return `<svg class="fas fas-molletta" data-postit-grip viewBox="0 0 40 30" aria-hidden="true"><path d="M13 13 L9 2 M27 13 L31 2" stroke="#B8BEC6" stroke-width="2" fill="none" stroke-linecap="round"/><path d="M6 12h28l-3 16H9z" fill="#25272B"/><path d="M8 14h24" stroke="#4A4E55" stroke-width="1.5"/></svg>`;
+    default: return "";
+  }
+}
+function postitHTML(p,{preview=false}={}){
+  const w=POSTIT_SIZES[p.size][0];
+  return `<div class="postit paper-${p.paper}" ${preview?"":`data-postit="${p.id}"`} style="--pi-bg:${POSTIT_COLORS[p.color][0]};--pi-w:${w}px;--pi-x:${p.x};${preview?"":`top:${p.y}px;transform:rotate(${p.tilt}deg);z-index:${p.z};`}">
+    ${postitFastenerHTML(p)}
+    <div class="postit-grip" data-postit-grip title="Trascina per spostare il post-it"></div>
+    <button type="button" class="postit-menu" data-action="postit-edit" data-id="${p.id}" title="Colore, carta, fermaglio o stacca" aria-label="Modifica il post-it">⋯</button>
+    <textarea class="postit-text" ${preview?"tabindex=\"-1\" readonly":`data-postit-text="${p.id}"`} maxlength="2000" placeholder="Scrivi…" aria-label="Testo del post-it">${escapeHTML(p.text||"")}</textarea>
+  </div>`;
+}
+// Altezza della pagina delle note: abbastanza perché nessun post-it resti tagliato.
+function postitPageMinHeight(list){ return list.reduce((m,p)=>Math.max(m,p.y+POSTIT_SIZES[p.size][0]+16),0); }
+function openPostitModal(id){
+  const p=id?Postit.get(id):null;
+  if(id&&!p) return;
+  const cur=p?{color:p.color,size:p.size,paper:p.paper,fastener:p.fastener}:Postit.lastStyle();
+  const radios=(name,list,fn)=>Object.entries(list).map(([k,v])=>`<label title="${escapeHTML(Array.isArray(v)?v[1]:v)}"><input type="radio" name="${name}" value="${k}" ${cur[name]===k?"checked":""}>${fn(k,v)}</label>`).join("");
+  openModal(`
+    <div class="modal-head"><h3>${p?"Modifica il post-it":"Nuovo post-it"}</h3><button class="icon-btn" data-close>✕</button></div>
+    <form id="postit-form" class="modal-form">
+      <div class="pi-preview" id="pi-preview"></div>
+      <div class="row"><label>Colore</label><div class="pi-picker">${radios("color",POSTIT_COLORS,(k,v)=>`<span class="pi-swatch" style="background:${v[0]}"></span><span class="sr-only">${v[1]}</span>`)}</div></div>
+      <div class="row"><label>Grandezza</label><div class="pi-picker">${radios("size",POSTIT_SIZES,(k,v)=>`<span class="pi-chip">${v[1]}</span>`)}</div></div>
+      <div class="row"><label>Carta</label><div class="pi-picker">${radios("paper",POSTIT_PAPERS,(k,v)=>`<span class="pi-chip">${v}</span>`)}</div></div>
+      <div class="row"><label>Fermaglio</label><div class="pi-picker">${radios("fastener",POSTIT_FASTENERS,(k,v)=>`<span class="pi-chip">${v}</span>`)}</div></div>
+      <div class="modal-actions">${p?`<button type="button" class="btn btn-danger" id="postit-delete">Stacca il post-it</button>`:"<span></span>"}<div><button type="button" class="btn btn-ghost" data-close>Annulla</button><button type="submit" class="btn btn-primary">${p?"Salva":"Attacca il post-it"}</button></div></div>
+    </form>`);
+  modalEl.querySelectorAll("[data-close]").forEach(b=>b.addEventListener("click",closeModal));
+  const form=document.getElementById("postit-form");
+  const style=()=>Object.fromEntries(["color","size","paper","fastener"].map(n=>[n,form.querySelector(`input[name=${n}]:checked`).value]));
+  const preview=()=>{ document.getElementById("pi-preview").innerHTML=postitHTML(Object.assign({id:p?p.id:"anteprima",x:.5,text:p&&p.text?p.text:"Comprare il pane\nChiamare Luca"},style()),{preview:true}); };
+  form.addEventListener("change",preview); preview();
+  form.addEventListener("submit",async e=>{
+    e.preventDefault();
+    const btn=form.querySelector("button[type=submit]"); btn.disabled=true;
+    try{
+      if(p){ Postit.change(p.id,style(),{now:true}); try{ localStorage.setItem("postit-stile",JSON.stringify(style())); }catch(_){} }
+      else await Postit.create(state.agendaWeekFrom,style());
+      closeModal(); render();
+    }catch(err){ btn.disabled=false; alert("Non sono riuscito ad attaccare il post-it: "+err.message); }
+  });
+  if(p) document.getElementById("postit-delete").addEventListener("click",async()=>{
+    if(p.text.trim()&&!confirm("Staccare questo post-it? Il testo scritto sopra verrà cancellato.")) return;
+    try{ await Postit.remove(p.id); closeModal(); render(); }
+    catch(err){ alert("Non sono riuscito a staccare il post-it: "+err.message); }
+  });
+}
+// Trascinare: dito o mouse sulla striscia in alto (o sul fermaglio). Il post-it resta dentro la pagina.
+const PostitDrag={
+  start(e,el){
+    const layer=el.parentElement, id=el.dataset.postit, p=Postit.get(id); if(!p) return;
+    e.preventDefault();
+    const top=Math.max(...Postit.forWeek(p.week_start).map(q=>q.z));
+    if(p.z<top){ p.z=top+1; el.style.zIndex=p.z; }
+    this.cur={el,layer,id,x0:e.clientX,y0:e.clientY,left0:el.offsetLeft,top0:el.offsetTop,moved:false,pointer:e.pointerId};
+    el.classList.add("dragging");
+    try{ e.target.setPointerCapture(e.pointerId); }catch(_){}
+  },
+  move(e){
+    const c=this.cur; if(!c||e.pointerId!==c.pointer) return;
+    const dx=e.clientX-c.x0, dy=e.clientY-c.y0;
+    if(!c.moved&&Math.abs(dx)+Math.abs(dy)<3) return;
+    c.moved=true;
+    const maxLeft=Math.max(0,c.layer.clientWidth-c.el.offsetWidth);
+    const left=Math.min(maxLeft,Math.max(0,c.left0+dx)), top=Math.min(4800,Math.max(0,c.top0+dy));
+    c.el.style.left=left+"px"; c.el.style.top=top+"px";
+    const page=c.layer.parentElement, need=top+c.el.offsetHeight+16;
+    if(page.offsetHeight<need) page.style.minHeight=need+"px";
+  },
+  end(e){
+    const c=this.cur; if(!c||e.pointerId!==c.pointer) return;
+    this.cur=null; c.el.classList.remove("dragging");
+    const p=Postit.get(c.id); if(!p) return;
+    const maxLeft=c.layer.clientWidth-c.el.offsetWidth;
+    const patch={z:p.z};
+    if(c.moved){ patch.x=maxLeft>0?Math.round(Math.min(1,Math.max(0,c.el.offsetLeft/maxLeft))*1000)/1000:0; patch.y=Math.round(c.el.offsetTop); }
+    c.el.style.left=""; c.el.style.setProperty("--pi-x",patch.x??p.x);
+    Postit.change(c.id,patch,{now:true});
+  }
+};
+document.addEventListener("pointerdown",e=>{
+  if(e.button>0) return;
+  const grip=e.target.closest&&e.target.closest("[data-postit-grip]"); if(!grip) return;
+  const el=grip.closest("[data-postit]"); if(el) PostitDrag.start(e,el);
+});
+document.addEventListener("pointermove",e=>PostitDrag.move(e));
+document.addEventListener("pointerup",e=>PostitDrag.end(e));
+document.addEventListener("pointercancel",e=>PostitDrag.end(e));
+// Scrivendo su un post-it lo si porta davanti agli altri.
+document.addEventListener("focusin",e=>{
+  const id=e.target.dataset&&e.target.dataset.postitText; if(!id) return;
+  const p=Postit.get(id); if(!p) return;
+  const top=Math.max(...Postit.forWeek(p.week_start).map(q=>q.z));
+  if(p.z<top){ const el=e.target.closest("[data-postit]"); if(el) el.style.zIndex=top+1; Postit.change(id,{z:top+1}); }
+});
+
 function isoWeekNumber(iso){
   const d=new Date(iso+"T12:00:00"); d.setDate(d.getDate()+3-(d.getDay()+6)%7);
   const jan4=new Date(d.getFullYear(),0,4,12);
@@ -1894,7 +2203,7 @@ function renderAgendaYear(){
     </section>`;
 }
 function renderAgenda(){
-  const intro=`<div class="card intro" style="--accent:var(--c-todo)"><div>La tua agenda: in «Settimana» a sinistra gli appuntamenti di ogni giorno, a destra le note della settimana; «Mese» e «Anno» mostrano il calendario come sul telefono (tocca un giorno o un mese per aprirlo). Scrivi una riga e premi Invio: diventa un appuntamento con il suo cerchietto da spuntare, che trovi anche in Da fare. Se la riga inizia con un'ora (es. «10:00 dentista») viene messa in ordine di orario. Tocca il testo per modificarlo o eliminarlo. Nelle note, una riga fatta o che non ti serve più puoi barrarla con «Barra riga» (o ⌘⇧X): resta scritta, barrata.</div></div>`;
+  const intro=`<div class="card intro" style="--accent:var(--c-todo)"><div>La tua agenda: in «Settimana» a sinistra gli appuntamenti di ogni giorno, a destra le note della settimana; «Mese» e «Anno» mostrano il calendario come sul telefono (tocca un giorno o un mese per aprirlo). Scrivi una riga e premi Invio: diventa un appuntamento con il suo cerchietto da spuntare, che trovi anche in Da fare. Se la riga inizia con un'ora (es. «10:00 dentista») viene messa in ordine di orario. Tocca il testo per modificarlo o eliminarlo. Nelle note, una riga fatta o che non ti serve più puoi barrarla con «Barra riga» (o ⌘⇧X): resta scritta, barrata. Con «＋ Post-it» attacchi un foglietto colorato alla settimana: scrivici sopra e spostalo trascinando la striscia in alto; con ⋯ cambi colore, carta e fermaglio o lo stacchi.</div></div>`;
   if(!Data.agendaAvailable) return intro+`<div class="card">${emptyState("L'agenda sarà disponibile appena il database verrà aggiornato.")}</div>`;
   if(state.agendaView==="mese") return intro+renderAgendaMonth();
   if(state.agendaView==="anno") return intro+renderAgendaYear();
@@ -1907,6 +2216,8 @@ function renderAgenda(){
   const page=state.agendaPage;
   const[status,statusErr]=Agenda.statusText();
   const notesText=Agenda.value("w",from);
+  const postits=Data.postitAvailable?Postit.forWeek(from):[];
+  const minH=postitPageMinHeight(postits);
   return intro+`
     <div class="agenda-toolbar">
       <div>${monthNavHTML({prevAction:"agenda-prev-week",nextAction:"agenda-next-week",label})}${isThisWeek?"":`<button class="btn btn-ghost btn-sm" data-action="agenda-this-week">Questa settimana</button>`}</div>
@@ -1922,8 +2233,11 @@ function renderAgenda(){
       </section>
       <div class="notebook-spine" aria-hidden="true"></div>
       <section class="npage npage-notes" aria-label="Note della settimana">
-        <div class="npage-head"><div class="npage-months"><span>Note</span></div><div class="notes-head-right"><div class="npage-wnum">${label}</div><button type="button" class="notes-strike" data-action="notes-strike" title="Barra la riga dove sei, o tutte quelle selezionate; ripremi per togliere la barra (⌘⇧X)"><s>Barra</s> riga</button></div></div>
+        <div class="npage-head"><div class="npage-months"><span>Note</span></div><div class="notes-head-right"><div class="npage-wnum">${label}</div><div class="notes-tools">${Data.postitAvailable?`<button type="button" class="notes-strike" data-action="postit-new" title="Attacca un post-it a questa settimana: scegli colore, grandezza, carta e fermaglio">＋ Post-it</button>`:""}<button type="button" class="notes-strike" data-action="notes-strike" title="Barra la riga dove sei, o tutte quelle selezionate; ripremi per togliere la barra (⌘⇧X)"><s>Barra</s> riga</button></div></div></div>
+        <div class="notes-body" ${minH?`style="min-height:${minH}px"`:""}>
         <div class="ruled notes-edit ${notesText.trim()?"":"empty"}" contenteditable="true" role="textbox" aria-multiline="true" spellcheck="true" data-agenda="w:${from}" data-placeholder="Note della settimana…" aria-label="Note della settimana ${label}">${notesToHTML(notesText)}</div>
+        ${postits.length?`<div class="postit-layer">${postits.map(p=>postitHTML(p)).join("")}</div>`:""}
+        </div>
         <div class="npage-foot">settimana ${isoWeekNumber(from)}</div>
       </section>
     </div>`;
@@ -1967,6 +2281,7 @@ function renderAttachments(){
   const sorted=[...Data.ATTACHMENTS].sort((a,b)=>a.created_at<b.created_at?1:-1);
   const groups=[["Attività",["sport","studio"]],["Lavoro",["ufficio"]],["Personale",["diario"]]].map(([label,secs])=>{
     const items=sorted.filter(a=>secs.includes(a.section));
+    if(secs.includes("diario")&&!["aperto","non-attivo"].includes(DiaryLock.status())) return `<div class="card"><div class="card-header"><h3>${label}</h3><span class="card-sub">🔒 diario chiuso</span></div>${emptyState("Apri il Diario con la password per vedere i suoi allegati.")}</div>`;
     return `<div class="card"><div class="card-header"><h3>${label}</h3><span class="card-sub">${items.length} ${items.length===1?"file":"file"}</span></div>${items.length?`<div class="rlist">${items.map(row).join("")}</div>`:emptyState("Nessun allegato.")}</div>`;
   }).join("");
   return `
@@ -2071,6 +2386,7 @@ function renderSettings(){
   }).join("");
   return `
     ${avvisiCardHTML()}
+    ${diaryPasswordCardHTML()}
     ${categoriesHTML}
     <div class="card">
       <div class="card-header"><h3>I tuoi dati</h3></div>
@@ -2126,6 +2442,8 @@ function renderTabbar(){
 
 function navigate(route){
   if(!ROUTE_TITLES[route]) route="dashboard";
+  if(route!=="diario") DiaryLock.lock();
+  if(route!=="impostazioni") DiaryLock.settingsMsg="";
   state.route=route;
   render();
 }
@@ -2146,7 +2464,7 @@ function render(){
     case "sport": root.innerHTML=renderCategoryPage("sport"); break;
     case "studio": root.innerHTML=renderCategoryPage("studio"); break;
     case "ufficio": root.innerHTML=renderOffice(); break;
-    case "diario": root.innerHTML=renderDiary(); break;
+    case "diario": root.innerHTML=renderDiary(); { const pw=document.getElementById("diary-pw")||document.getElementById("diary-pw-new"); if(pw&&!DiaryLock.busy) pw.focus(); } break;
     case "storico": root.innerHTML=renderHistory(state.historyFilters); break;
     case "allegati": root.innerHTML=renderAttachments(); break;
     case "impostazioni": root.innerHTML=renderSettings(); break;
@@ -2536,7 +2854,7 @@ function openMoreSheet(){
 }
 
 function exportBackup(){
-  const payload={categories:Data.CATEGORIES,entries:Data.ENTRIES,office:{days:Data.OFFICE_DAYS},diario:{days:Data.DIARIO_DAYS},todos:Data.TODOS,todoDone:Data.TODO_DONE,attachments:Data.ATTACHMENTS,agenda:{days:Data.AGENDA_DAYS,weeks:Data.AGENDA_WEEKS}};
+  const payload={categories:Data.CATEGORIES,entries:Data.ENTRIES,office:{days:Data.OFFICE_DAYS},diario:{days:Data.DIARIO_DAYS},todos:Data.TODOS,todoDone:Data.TODO_DONE,attachments:Data.ATTACHMENTS,agenda:{days:Data.AGENDA_DAYS,weeks:Data.AGENDA_WEEKS,postit:Data.POSTITS}};
   const blob=new Blob([JSON.stringify(payload,null,2)],{type:"application/json"});
   const url=URL.createObjectURL(blob);
   const a=document.createElement("a");
@@ -2594,6 +2912,9 @@ document.addEventListener("click",e=>{
   else if(action==="agenda-this-week"){ state.agendaWeekFrom=weekRange(todayISO()).fromISO; render(); }
   else if(action==="agenda-page"){ state.agendaPage=btn.dataset.page; render(); }
   else if(action==="agenda-convert") convertAgendaText(btn.dataset.date,btn);
+  else if(action==="postit-new") openPostitModal(null);
+  else if(action==="postit-edit") openPostitModal(btn.dataset.id);
+  else if(action==="diary-lock"){ DiaryLock.lock(); render(); }
   else if(action==="notes-strike"){ const ed=document.querySelector(".notes-edit"); if(ed) notesToggleStrike(ed); }
   else if(action==="avvisi-attiva") Avvisi.activate();
   else if(action==="avvisi-prova") Avvisi.test();
@@ -2620,6 +2941,8 @@ document.addEventListener("click",e=>{
   }
 });
 document.addEventListener("input",e=>{
+  const pid=e.target.dataset&&e.target.dataset.postitText;
+  if(pid){ Postit.change(pid,{text:e.target.value}); return; }
   const k=e.target.dataset&&e.target.dataset.agenda; if(!k)return;
   if(e.target.isContentEditable) notesSave(e.target); else Agenda.edit(k,e.target.value);
 });
@@ -2666,17 +2989,24 @@ async function convertAgendaText(iso,btn){
 document.addEventListener("focusout",e=>{
   const ds=e.target.dataset||{};
   if(ds.agenda) Agenda.flush(ds.agenda);
+  if(ds.postitText) Postit.flush(ds.postitText);
   if(ds.agendaNew) commitAgendaLine(e.target,{refocus:false});
 });
 // Righe dell'agenda scritte ma non ancora confermate con Invio: senza questo andrebbero perse chiudendo
 // l'app o cambiando finestra (al ritorno la pagina si ricarica e le cancellerebbe).
 function pendingAgendaLines(){ return[...document.querySelectorAll("input[data-agenda-new]")].filter(i=>i.value.trim()&&!i.dataset.busy); }
 function commitPendingAgendaLines(){ for(const i of pendingAgendaLines()) commitAgendaLine(i,{refocus:false}); }
-document.addEventListener("visibilitychange",()=>{ if(document.visibilityState==="hidden"){ Agenda.flushAll(); commitPendingAgendaLines(); } });
-window.addEventListener("pagehide",()=>{ Agenda.flushAll(); commitPendingAgendaLines(); });
+// Uscendo dall'app il diario si richiude (una finestra di scrittura già aperta resta, per non perdere il testo).
+document.addEventListener("visibilitychange",()=>{ if(document.visibilityState==="hidden"){ Agenda.flushAll(); Postit.flushAll(); commitPendingAgendaLines(); DiaryLock.lock(); if(state.route==="diario") render(); } });
+window.addEventListener("pagehide",()=>{ Agenda.flushAll(); Postit.flushAll(); commitPendingAgendaLines(); });
 window.addEventListener("beforeunload",e=>{
   const lines=pendingAgendaLines().length;
-  if(Object.keys(Agenda.drafts).length||lines){ Agenda.flushAll(); commitPendingAgendaLines(); e.preventDefault(); e.returnValue=""; }
+  if(Object.keys(Agenda.drafts).length||Object.keys(Postit.pending).length||lines){ Agenda.flushAll(); Postit.flushAll(); commitPendingAgendaLines(); e.preventDefault(); e.returnValue=""; }
+});
+document.addEventListener("submit",e=>{
+  const id=e.target.id;
+  if(id==="diary-unlock-form"||id==="diary-setup-form"){ e.preventDefault(); diaryLockSubmit(e.target); }
+  else if(id==="diary-change-form"){ e.preventDefault(); diaryChangeSubmit(); }
 });
 document.addEventListener("change",e=>{
   if(e.target.id==="filter-category"){ state.historyFilters.categoryId=e.target.value; state.historyFilters.activityId="all"; render(); }
