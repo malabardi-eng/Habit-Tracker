@@ -369,6 +369,12 @@ button.attach-name:hover{text-decoration:underline;}
 .notes-edit{position:relative;white-space:pre-wrap;overflow-wrap:anywhere;cursor:text;}
 .notes-edit>div{min-height:var(--lh);}
 .notes-edit .struck{text-decoration:line-through;text-decoration-color:var(--paper-soft);color:var(--paper-soft);}
+/* elenchi: «• » e «1. » sono testo semplice; le righe che vanno a capo restano allineate dopo il segno */
+.notes-edit>div.li-b{padding-left:1em;text-indent:-1em;}
+.notes-edit>div.li-n{padding-left:1.5em;text-indent:-1.5em;}
+/* carattere scelto per l'agenda (giorni, note, mese) e per ogni post-it */
+.ag-title,.ag-new,.notes-edit,.mev,.mnote span:last-child{font-family:var(--agenda-font,var(--font-body));}
+.pi-chip.font-chip{font-size:.95rem;}
 .notes-edit.empty::before{content:attr(data-placeholder);position:absolute;left:2px;top:0;color:var(--paper-soft);opacity:.55;pointer-events:none;}
 .notes-head-right{display:flex;flex-direction:column;align-items:flex-end;gap:6px;}
 .notes-strike{background:transparent;border:1px solid var(--paper-line);border-radius:var(--r-sm);color:var(--paper-ink);font-size:.74rem;padding:4px 9px;cursor:pointer;}
@@ -396,7 +402,7 @@ button.attach-name:hover{text-decoration:underline;}
 .postit-grip{position:absolute;left:0;right:30px;top:0;height:28px;cursor:grab;touch-action:none;}
 .postit-menu{position:absolute;right:4px;top:3px;width:24px;height:22px;border:none;background:transparent;color:rgba(42,41,37,.55);font-size:1rem;line-height:1;cursor:pointer;border-radius:4px;}
 .postit-menu:hover,.postit-menu:focus-visible{background:rgba(0,0,0,.08);color:#2A2925;}
-.postit-text{position:absolute;left:10px;right:8px;top:28px;bottom:10px;border:none;background:transparent;resize:none;color:#2A2925;font-family:var(--font-hand,inherit);font-size:.86rem;line-height:22px;padding:0 2px;overflow-y:auto;}
+.postit-text{position:absolute;left:10px;right:8px;top:28px;bottom:10px;border:none;background:transparent;resize:none;color:#2A2925;font-family:var(--pi-font,var(--font-body));font-size:.86rem;line-height:22px;padding:0 2px;overflow-y:auto;}
 .postit-text:focus{outline:none;}
 .postit-text::placeholder{color:rgba(42,41,37,.4);}
 .postit.paper-righe .postit-text{background-image:repeating-linear-gradient(to bottom,transparent 0,transparent 21px,rgba(60,50,20,.2) 21px,rgba(60,50,20,.2) 22px);background-attachment:local;}
@@ -1854,6 +1860,68 @@ const POSTIT_SIZES={s:[130,"Piccolo"],m:[170,"Medio"],l:[220,"Grande"]};
 const POSTIT_PAPERS={liscio:"Liscio",righe:"A righe",quadretti:"A quadretti"};
 const POSTIT_FASTENERS={puntina:"Puntina",nastro:"Nastro adesivo",graffetta:"Graffetta",molletta:"Molletta",nessuno:"Niente"};
 const POSTIT_PINS=["#E0393E","#2F9E5B","#2C8FD6","#F2B705","#B24BC9"];
+/* ---- Caratteri: uno per l'agenda (giorni, note, mese), uno per ogni post-it ----
+   Tutti già presenti su Mac e iPhone; altrove si usa il carattere simile indicato dopo. Salvati in habit_impostazioni
+   («agenda_carattere» e «postit_caratteri», id del post-it → carattere), quindi uguali su ogni dispositivo. */
+const FONTS={
+  normale:["Normale","var(--font-body)"],
+  macchina:["American Typewriter","'American Typewriter','Courier New',Courier,monospace"],
+  mano:["Noteworthy","Noteworthy,'Segoe Print','Bradley Hand',cursive"],
+  corsivo:["Bradley Hand","'Bradley Hand','Segoe Script',cursive"],
+  lavagna:["Chalkboard","'Chalkboard SE',Chalkboard,'Comic Sans MS',cursive"],
+  georgia:["Georgia","Georgia,'Times New Roman',serif"]
+};
+const Fonts={
+  css(k){ return(FONTS[k]||FONTS.normale)[1]; },
+  agenda(){
+    const v=Data.SETTINGS.agenda_carattere; if(FONTS[v]) return v;
+    try{ const l=localStorage.getItem("agenda-carattere"); if(FONTS[l]) return l; }catch(_){}
+    return "normale";
+  },
+  apply(){ document.documentElement.style.setProperty("--agenda-font",this.css(this.agenda())); },
+  postit(id){ const v=(Data.SETTINGS.postit_caratteri||{})[id]; return FONTS[v]?v:"normale"; },
+  async save(chiave,valore){
+    const before=Data.SETTINGS[chiave]; Data.SETTINGS[chiave]=valore;
+    if(!Data.settingsAvailable) return;
+    try{ await sbFetch("/habit_impostazioni?on_conflict=chiave",{method:"POST",body:{chiave,valore,updated_at:new Date().toISOString()},prefer:"resolution=merge-duplicates"}); }
+    catch(e){ if(before===undefined) delete Data.SETTINGS[chiave]; else Data.SETTINGS[chiave]=before; throw e; }
+  },
+  async setAgenda(k){
+    try{ localStorage.setItem("agenda-carattere",k); }catch(_){}
+    await this.save("agenda_carattere",k); this.apply();
+  },
+  // Solo i post-it che esistono ancora: quelli staccati spariscono dall'elenco.
+  async setPostit(id,k){
+    const map={}; for(const[pid,v] of Object.entries(Data.SETTINGS.postit_caratteri||{})) if(Postit.get(pid)) map[pid]=v;
+    if(k==="normale") delete map[id]; else map[id]=k;
+    await this.save("postit_caratteri",map);
+  }
+};
+function fontPickerHTML(name,cur){
+  return Object.entries(FONTS).map(([k,[label,css]])=>`<label title="${escapeHTML(label)}"><input type="radio" name="${name}" value="${k}" ${cur===k?"checked":""}><span class="pi-chip font-chip" style="font-family:${escapeHTML(css)}">${label}</span></label>`).join("");
+}
+function openAgendaFontModal(){
+  const cur=Fonts.agenda();
+  openModal(`
+    <div class="modal-head"><h3>Carattere dell'agenda</h3><button class="icon-btn" data-close>✕</button></div>
+    <form id="agfont-form" class="modal-form">
+      <p class="card-text">Vale per gli impegni dei giorni, le note della settimana e il mese, su tutti i tuoi dispositivi. I post-it hanno il loro carattere (⋯ sul post-it).</p>
+      <div class="pi-preview" id="agfont-preview" style="height:auto;padding:12px 14px"><div class="ruled notes-edit" style="min-height:0">10:00 Dentista<br>• Comprare il pane<br>1. Chiamare Luca</div></div>
+      <div class="row"><label>Carattere</label><div class="pi-picker">${fontPickerHTML("font",cur)}</div></div>
+      <div class="modal-actions"><span></span><div><button type="button" class="btn btn-ghost" data-close>Annulla</button><button type="submit" class="btn btn-primary">Usa questo carattere</button></div></div>
+    </form>`);
+  modalEl.querySelectorAll("[data-close]").forEach(b=>b.addEventListener("click",closeModal));
+  const form=document.getElementById("agfont-form");
+  const chosen=()=>form.querySelector("input[name=font]:checked").value;
+  const preview=()=>{ document.getElementById("agfont-preview").firstElementChild.style.fontFamily=Fonts.css(chosen()); };
+  form.addEventListener("change",preview); preview();
+  form.addEventListener("submit",async e=>{
+    e.preventDefault();
+    const btn=form.querySelector("button[type=submit]"); btn.disabled=true;
+    try{ await Fonts.setAgenda(chosen()); closeModal(); render(); }
+    catch(err){ btn.disabled=false; alert("Non sono riuscito a salvare il carattere: "+err.message); }
+  });
+}
 const Postit={
   pending:{}, timers:{}, queue:{}, failed:new Set(), saving:0, saved:false,
   forWeek(w){ return Data.POSTITS.filter(p=>p.week_start===w).sort((a,b)=>a.z-b.z); },
@@ -1861,15 +1929,17 @@ const Postit={
   // Ciò che non è ancora arrivato al database vale più di quanto appena riletto.
   mergeLoaded(rows){ return rows.map(r=>this.pending[r.id]?Object.assign({},r,this.pending[r.id]):r); },
   lastStyle(){
-    try{ const s=JSON.parse(localStorage.getItem("postit-stile")||"null"); if(s&&POSTIT_COLORS[s.color]&&POSTIT_SIZES[s.size]&&POSTIT_PAPERS[s.paper]&&POSTIT_FASTENERS[s.fastener]) return s; }catch(_){}
-    return{color:"giallo",size:"m",paper:"liscio",fastener:"puntina"};
+    try{ const s=JSON.parse(localStorage.getItem("postit-stile")||"null"); if(s&&POSTIT_COLORS[s.color]&&POSTIT_SIZES[s.size]&&POSTIT_PAPERS[s.paper]&&POSTIT_FASTENERS[s.fastener]) return Object.assign({font:"normale"},s,FONTS[s.font]?{}:{font:"normale"}); }catch(_){}
+    return{color:"giallo",size:"m",paper:"liscio",fastener:"puntina",font:"normale"};
   },
-  async create(week,style){
-    try{ localStorage.setItem("postit-stile",JSON.stringify(style)); }catch(_){}
+  async create(week,{font="normale",...style}){
+    try{ localStorage.setItem("postit-stile",JSON.stringify(Object.assign({font},style))); }catch(_){}
     const mine=this.forWeek(week), n=mine.length;
     const body=Object.assign({week_start:week,text:"",x:Math.max(0,1-(n%4)*.18),y:14+(n%5)*34,tilt:Math.round((Math.random()*8-4)*10)/10,z:(mine.length?mine[mine.length-1].z:0)+1},style);
     const rows=await sbFetch("/habit_agenda_postit",{method:"POST",body,prefer:"return=representation"});
-    Data.POSTITS.push(rows[0]); return rows[0];
+    Data.POSTITS.push(rows[0]);
+    if(font!=="normale") try{ await Fonts.setPostit(rows[0].id,font); }catch(_){ alert("Post-it attaccato, ma non sono riuscito a salvare il carattere: riprova da ⋯."); }
+    return rows[0];
   },
   change(id,patch,{now=false}={}){
     const p=this.get(id); if(!p) return;
@@ -1911,10 +1981,10 @@ function postitFastenerHTML(p){
 }
 function postitHTML(p,{preview=false}={}){
   const w=POSTIT_SIZES[p.size][0];
-  return `<div class="postit paper-${p.paper}" ${preview?"":`data-postit="${p.id}"`} style="--pi-bg:${POSTIT_COLORS[p.color][0]};--pi-w:${w}px;--pi-x:${p.x};${preview?"":`top:${p.y}px;transform:rotate(${p.tilt}deg);z-index:${p.z};`}">
+  return `<div class="postit paper-${p.paper}" ${preview?"":`data-postit="${p.id}"`} style="--pi-bg:${POSTIT_COLORS[p.color][0]};--pi-w:${w}px;--pi-font:${Fonts.css(p.font||Fonts.postit(p.id))};--pi-x:${p.x};${preview?"":`top:${p.y}px;transform:rotate(${p.tilt}deg);z-index:${p.z};`}">
     ${postitFastenerHTML(p)}
     <div class="postit-grip" data-postit-grip title="Trascina per spostare il post-it"></div>
-    <button type="button" class="postit-menu" data-action="postit-edit" data-id="${p.id}" title="Colore, carta, fermaglio o stacca" aria-label="Modifica il post-it">⋯</button>
+    <button type="button" class="postit-menu" data-action="postit-edit" data-id="${p.id}" title="Colore, carta, fermaglio, carattere o stacca" aria-label="Modifica il post-it">⋯</button>
     <textarea class="postit-text" ${preview?"tabindex=\"-1\" readonly":`data-postit-text="${p.id}"`} maxlength="2000" placeholder="Scrivi…" aria-label="Testo del post-it">${escapeHTML(p.text||"")}</textarea>
   </div>`;
 }
@@ -1923,7 +1993,7 @@ function postitPageMinHeight(list){ return list.reduce((m,p)=>Math.max(m,p.y+POS
 function openPostitModal(id){
   const p=id?Postit.get(id):null;
   if(id&&!p) return;
-  const cur=p?{color:p.color,size:p.size,paper:p.paper,fastener:p.fastener}:Postit.lastStyle();
+  const cur=p?{color:p.color,size:p.size,paper:p.paper,fastener:p.fastener,font:Fonts.postit(p.id)}:Postit.lastStyle();
   const radios=(name,list,fn)=>Object.entries(list).map(([k,v])=>`<label title="${escapeHTML(Array.isArray(v)?v[1]:v)}"><input type="radio" name="${name}" value="${k}" ${cur[name]===k?"checked":""}>${fn(k,v)}</label>`).join("");
   openModal(`
     <div class="modal-head"><h3>${p?"Modifica il post-it":"Nuovo post-it"}</h3><button class="icon-btn" data-close>✕</button></div>
@@ -1933,21 +2003,26 @@ function openPostitModal(id){
       <div class="row"><label>Grandezza</label><div class="pi-picker">${radios("size",POSTIT_SIZES,(k,v)=>`<span class="pi-chip">${v[1]}</span>`)}</div></div>
       <div class="row"><label>Carta</label><div class="pi-picker">${radios("paper",POSTIT_PAPERS,(k,v)=>`<span class="pi-chip">${v}</span>`)}</div></div>
       <div class="row"><label>Fermaglio</label><div class="pi-picker">${radios("fastener",POSTIT_FASTENERS,(k,v)=>`<span class="pi-chip">${v}</span>`)}</div></div>
+      <div class="row"><label>Carattere</label><div class="pi-picker">${fontPickerHTML("font",cur.font)}</div></div>
       <div class="modal-actions">${p?`<button type="button" class="btn btn-danger" id="postit-delete">Stacca il post-it</button>`:"<span></span>"}<div><button type="button" class="btn btn-ghost" data-close>Annulla</button><button type="submit" class="btn btn-primary">${p?"Salva":"Attacca il post-it"}</button></div></div>
     </form>`);
   modalEl.querySelectorAll("[data-close]").forEach(b=>b.addEventListener("click",closeModal));
   const form=document.getElementById("postit-form");
-  const style=()=>Object.fromEntries(["color","size","paper","fastener"].map(n=>[n,form.querySelector(`input[name=${n}]:checked`).value]));
+  const style=()=>Object.fromEntries(["color","size","paper","fastener","font"].map(n=>[n,form.querySelector(`input[name=${n}]:checked`).value]));
   const preview=()=>{ document.getElementById("pi-preview").innerHTML=postitHTML(Object.assign({id:p?p.id:"anteprima",x:.5,text:p&&p.text?p.text:"Comprare il pane\nChiamare Luca"},style()),{preview:true}); };
   form.addEventListener("change",preview); preview();
   form.addEventListener("submit",async e=>{
     e.preventDefault();
     const btn=form.querySelector("button[type=submit]"); btn.disabled=true;
     try{
-      if(p){ Postit.change(p.id,style(),{now:true}); try{ localStorage.setItem("postit-stile",JSON.stringify(style())); }catch(_){} }
+      if(p){
+        const{font,...look}=style();
+        if(font!==Fonts.postit(p.id)) await Fonts.setPostit(p.id,font);
+        Postit.change(p.id,look,{now:true}); try{ localStorage.setItem("postit-stile",JSON.stringify(style())); }catch(_){}
+      }
       else await Postit.create(state.agendaWeekFrom,style());
       closeModal(); render();
-    }catch(err){ btn.disabled=false; alert("Non sono riuscito ad attaccare il post-it: "+err.message); }
+    }catch(err){ btn.disabled=false; alert((p?"Non sono riuscito a salvare il post-it: ":"Non sono riuscito ad attaccare il post-it: ")+err.message); }
   });
   if(p) document.getElementById("postit-delete").addEventListener("click",async()=>{
     if(p.text.trim()&&!confirm("Staccare questo post-it? Il testo scritto sopra verrà cancellato.")) return;
@@ -2059,42 +2134,113 @@ function notesWrapLine(ed,node){
 function notesTidy(ed){
   if(!ed.textContent&&!ed.querySelector("div")){ ed.innerHTML="<div><br></div>"; notesCaretTo(ed.firstChild,true); }
   for(const d of ed.querySelectorAll(":scope>.struck")) if(!d.textContent.trim()) d.classList.remove("struck");
+  for(const d of ed.querySelectorAll(":scope>div")){ const p=notesListPrefix(d.textContent); d.classList.toggle("li-b",p==="• "); d.classList.toggle("li-n",!!p&&p!=="• "); }
   ed.classList.toggle("empty",!ed.textContent.trim()&&ed.querySelectorAll(":scope>div").length<=1);
 }
 function notesSave(ed){ notesTidy(ed); Agenda.edit(ed.dataset.agenda,notesFromEditor(ed)); }
-// Barra (o toglie la barra a) la riga del cursore o tutte le righe selezionate.
-function notesToggleStrike(ed){
+// Le righe toccate dal cursore o dalla selezione (sul telefono: dov'era prima di toccare il pulsante).
+function notesSelectedLines(ed){
   const sel=getSelection();
   let r=sel.rangeCount&&ed.contains(sel.anchorNode)?sel.getRangeAt(0):(Agenda.notesRange&&ed.contains(Agenda.notesRange.startContainer)?Agenda.notesRange:null);
-  if(!r){ ed.focus(); return; }
+  if(!r){ ed.focus(); return null; }
   const top=(c,i)=>notesLineOf(ed,c)||(c===ed?ed.childNodes[Math.max(0,i)]||ed.lastChild:null);
   const first=top(r.startContainer,r.startOffset), last=top(r.endContainer,r.collapsed?r.endOffset:r.endOffset-1)||first;
-  if(!first) return;
+  if(!first) return null;
   const lines=[]; let moved=false;
   for(let n=first;n;n=n.nextSibling){
     const line=notesWrapLine(ed,n); if(line!==n) moved=true;
     lines.push(line); if(line===last||line.contains(last)) break; n=line;
   }
+  return{lines,moved,collapsed:r.collapsed};
+}
+// Barra (o toglie la barra a) la riga del cursore o tutte le righe selezionate.
+function notesToggleStrike(ed){
+  const picked=notesSelectedLines(ed); if(!picked) return;
+  const{lines,moved}=picked;
   const withText=lines.filter(d=>d.textContent.trim()); if(!withText.length) return;
   const strike=!withText.every(d=>d.classList.contains("struck"));
   withText.forEach(d=>d.classList.toggle("struck",strike));
   if(moved) notesCaretTo(lines[lines.length-1],false);
   notesSave(ed);
 }
+/* Elenchi nelle note: il segno fa parte del testo («• voce», «1. voce»), così si salva e si legge ovunque come testo semplice.
+   Le voci numerate una dopo l'altra si rinumerano da sole partendo dal numero della prima. */
+const NOTES_LIST=/^(•|\d{1,3}\.) /;
+function notesListPrefix(text){ const m=NOTES_LIST.exec(text); return m?m[0]:""; }
+function notesCaretOffset(line){
+  const s=getSelection(); if(!s.rangeCount||!line.contains(s.anchorNode)) return null;
+  const r=document.createRange(); r.setStart(line,0); r.setEnd(s.anchorNode,s.anchorOffset); return r.toString().length;
+}
+function notesSetCaret(line,offset){
+  const w=document.createTreeWalker(line,NodeFilter.SHOW_TEXT); let n;
+  while((n=w.nextNode())){ if(offset<=n.length){ const r=document.createRange(); r.setStart(n,offset); r.collapse(true); const s=getSelection(); s.removeAllRanges(); s.addRange(r); return; } offset-=n.length; }
+  notesCaretTo(line,false);
+}
+// Cambia solo il segno all'inizio della riga; il resto del testo (e il cursore) non si toccano.
+function notesSetPrefix(line,prefix){
+  const old=notesListPrefix(line.textContent); if(old===prefix) return;
+  line.normalize();
+  const t=line.firstChild&&line.firstChild.nodeType===3?line.firstChild:null;
+  if(!t){ if(!line.textContent){ line.textContent=prefix; if(!prefix) line.innerHTML="<br>"; } else line.insertBefore(document.createTextNode(prefix),line.firstChild); return; }
+  // Da un numero all'altro cambiano solo le cifre: il cursore subito dopo «9. » resta al suo posto.
+  const num=/^\d+/, a=num.exec(old), b=num.exec(prefix);
+  if(a&&b) t.replaceData(0,a[0].length,b[0]); else t.replaceData(0,old.length,prefix);
+  if(!line.textContent) line.innerHTML="<br>";
+}
+function notesRenumber(ed){
+  let n=null;
+  for(const line of ed.childNodes){
+    const m=line.nodeType===1?/^(\d{1,3})\. /.exec(line.textContent):null;
+    if(!m){ n=null; continue; }
+    n=n===null?+m[1]:n+1;
+    if(+m[1]!==n) notesSetPrefix(line,n+". ");
+  }
+}
+// Pulsanti «• Elenco» e «1. Elenco»: mette (o toglie, se ce l'hanno già tutte) il segno sulle righe scelte.
+function notesToggleList(ed,kind){
+  const picked=notesSelectedLines(ed); if(!picked) return;
+  const{lines,collapsed}=picked;
+  const targets=lines.length===1?lines:lines.filter(d=>d.textContent.trim()); if(!targets.length) return;
+  const isKind=d=>kind==="b"?d.textContent.startsWith("• "):/^\d{1,3}\. /.test(d.textContent);
+  const remove=targets.every(isKind);
+  const caretLine=collapsed&&targets.length===1?targets[0]:null;
+  const before=caretLine?notesCaretOffset(caretLine):null, oldLen=caretLine?notesListPrefix(caretLine.textContent).length:0;
+  targets.forEach(d=>notesSetPrefix(d,remove?"":kind==="b"?"• ":"1. "));
+  notesRenumber(ed);
+  if(caretLine){ const p=notesListPrefix(caretLine.textContent).length; notesSetCaret(caretLine,Math.max(p,(before??caretLine.textContent.length)-oldLen+p)); }
+  notesSave(ed);
+}
+// Invio su una voce d'elenco: la riga nuova continua l'elenco; Invio su una voce vuota chiude l'elenco.
 // Invio su una riga barrata: la riga nuova non deve essere barrata (il browser copierebbe la barra).
 function notesEnter(ed,e){
   const sel=getSelection(); if(!sel.rangeCount)return;
   const r=sel.getRangeAt(0), line=notesLineOf(ed,r.startContainer);
-  if(!line||!line.classList||!line.classList.contains("struck")) return;
+  if(!line||!line.classList) return;
+  const prefix=notesListPrefix(line.textContent), struck=line.classList.contains("struck");
+  if(!prefix&&!struck) return;
   e.preventDefault();
+  if(prefix&&r.collapsed&&line.textContent===prefix){ notesSetPrefix(line,""); notesCaretTo(line,true); notesRenumber(ed); notesSave(ed); return; }
   r.deleteContents();
   const head=document.createRange(); head.setStart(line,0); head.setEnd(r.startContainer,r.startOffset);
-  if(!head.toString()){ const empty=document.createElement("div"); empty.innerHTML="<br>"; ed.insertBefore(empty,line); notesCaretTo(line,true); notesSave(ed); return; }
+  if(!head.toString()){ const empty=document.createElement("div"); empty.innerHTML="<br>"; ed.insertBefore(empty,line); notesCaretTo(line,true); notesRenumber(ed); notesSave(ed); return; }
   const tail=document.createRange(); tail.setStart(r.startContainer,r.startOffset); tail.setEnd(line,line.childNodes.length);
   const div=document.createElement("div"); div.appendChild(tail.extractContents());
-  if(div.textContent.trim()) div.className="struck"; else div.innerHTML="<br>";
+  if(struck&&div.textContent.trim()) div.className="struck";
   if(!line.textContent) line.innerHTML="<br>";
-  line.after(div); notesCaretTo(div,true); notesSave(ed);
+  const next=!prefix?"":prefix==="• "?"• ":"1. ";
+  if(next){ if(div.textContent) div.insertBefore(document.createTextNode(next),div.firstChild); else div.textContent=next; }
+  if(!div.textContent) div.innerHTML="<br>";
+  line.after(div); notesRenumber(ed);
+  if(next) notesSetCaret(div,notesListPrefix(div.textContent).length); else notesCaretTo(div,true);
+  notesSave(ed);
+}
+// «- » o «* » scritti a inizio riga diventano «• ».
+function notesAutoBullet(ed){
+  const s=getSelection(); if(!s.rangeCount||!s.isCollapsed) return;
+  const line=notesLineOf(ed,s.anchorNode); if(!line||line.nodeType!==1) return;
+  if(!/^[-*] /.test(line.textContent)||notesCaretOffset(line)!==2) return;
+  line.normalize(); const t=line.firstChild; if(!t||t.nodeType!==3) return;
+  t.replaceData(0,1,"•"); notesSetCaret(line,2);
 }
 // «10:00 dentista», «9.30 - call Marco» → ora + titolo; senza ora all'inizio resta tutto titolo.
 function parseAgendaLine(line){
@@ -2145,7 +2291,7 @@ function agendaDayEvents(iso){
   return ev;
 }
 function agendaViewsHTML(){
-  return `<div class="seg" role="tablist" aria-label="Vista dell'agenda">${[["settimana","Settimana"],["mese","Mese"],["anno","Anno"]].map(([id,l])=>`<button type="button" role="tab" aria-selected="${state.agendaView===id}" class="${state.agendaView===id?"active":""}" data-action="agenda-view" data-view="${id}">${l}</button>`).join("")}</div>`;
+  return `<button type="button" class="btn btn-ghost btn-sm" data-action="agenda-font" title="Scegli il carattere dell'agenda: ${escapeHTML(FONTS[Fonts.agenda()][0])}" style="font-family:${escapeHTML(Fonts.css(Fonts.agenda()))}">Aa Carattere</button><div class="seg" role="tablist" aria-label="Vista dell'agenda">${[["settimana","Settimana"],["mese","Mese"],["anno","Anno"]].map(([id,l])=>`<button type="button" role="tab" aria-selected="${state.agendaView===id}" class="${state.agendaView===id?"active":""}" data-action="agenda-view" data-view="${id}">${l}</button>`).join("")}</div>`;
 }
 // Mese: griglia da lunedì a domenica con le prime voci di ogni giorno; tocca un giorno per aprire la sua settimana.
 function renderAgendaMonth(){
@@ -2203,7 +2349,7 @@ function renderAgendaYear(){
     </section>`;
 }
 function renderAgenda(){
-  const intro=`<div class="card intro" style="--accent:var(--c-todo)"><div>La tua agenda: in «Settimana» a sinistra gli appuntamenti di ogni giorno, a destra le note della settimana; «Mese» e «Anno» mostrano il calendario come sul telefono (tocca un giorno o un mese per aprirlo). Scrivi una riga e premi Invio: diventa un appuntamento con il suo cerchietto da spuntare, che trovi anche in Da fare. Se la riga inizia con un'ora (es. «10:00 dentista») viene messa in ordine di orario. Tocca il testo per modificarlo o eliminarlo. Nelle note, una riga fatta o che non ti serve più puoi barrarla con «Barra riga» (o ⌘⇧X): resta scritta, barrata. Con «＋ Post-it» attacchi un foglietto colorato alla settimana: scrivici sopra e spostalo trascinando la striscia in alto; con ⋯ cambi colore, carta e fermaglio o lo stacchi.</div></div>`;
+  const intro=`<div class="card intro" style="--accent:var(--c-todo)"><div>La tua agenda: in «Settimana» a sinistra gli appuntamenti di ogni giorno, a destra le note della settimana; «Mese» e «Anno» mostrano il calendario come sul telefono (tocca un giorno o un mese per aprirlo). Scrivi una riga e premi Invio: diventa un appuntamento con il suo cerchietto da spuntare, che trovi anche in Da fare. Se la riga inizia con un'ora (es. «10:00 dentista») viene messa in ordine di orario. Tocca il testo per modificarlo o eliminarlo. Nelle note, una riga fatta o che non ti serve più puoi barrarla con «Barra riga» (o ⌘⇧X): resta scritta, barrata; con «• Elenco» e «1. Elenco» fai elenchi puntati o numerati (Invio continua l'elenco, Invio su una voce vuota lo chiude). Con «Aa Carattere» scegli il carattere dell'agenda. Con «＋ Post-it» attacchi un foglietto colorato alla settimana: scrivici sopra e spostalo trascinando la striscia in alto; con ⋯ cambi colore, carta, fermaglio e carattere o lo stacchi.</div></div>`;
   if(!Data.agendaAvailable) return intro+`<div class="card">${emptyState("L'agenda sarà disponibile appena il database verrà aggiornato.")}</div>`;
   if(state.agendaView==="mese") return intro+renderAgendaMonth();
   if(state.agendaView==="anno") return intro+renderAgendaYear();
@@ -2233,7 +2379,7 @@ function renderAgenda(){
       </section>
       <div class="notebook-spine" aria-hidden="true"></div>
       <section class="npage npage-notes" aria-label="Note della settimana">
-        <div class="npage-head"><div class="npage-months"><span>Note</span></div><div class="notes-head-right"><div class="npage-wnum">${label}</div><div class="notes-tools">${Data.postitAvailable?`<button type="button" class="notes-strike" data-action="postit-new" title="Attacca un post-it a questa settimana: scegli colore, grandezza, carta e fermaglio">＋ Post-it</button>`:""}<button type="button" class="notes-strike" data-action="notes-strike" title="Barra la riga dove sei, o tutte quelle selezionate; ripremi per togliere la barra (⌘⇧X)"><s>Barra</s> riga</button></div></div></div>
+        <div class="npage-head"><div class="npage-months"><span>Note</span></div><div class="notes-head-right"><div class="npage-wnum">${label}</div><div class="notes-tools">${Data.postitAvailable?`<button type="button" class="notes-strike" data-action="postit-new" title="Attacca un post-it a questa settimana: scegli colore, grandezza, carta e fermaglio">＋ Post-it</button>`:""}<button type="button" class="notes-strike" data-action="notes-list" data-kind="b" title="Elenco puntato sulla riga dove sei o su quelle selezionate; ripremi per toglierlo (⌘⇧8). Anche scrivendo «- » a inizio riga">• Elenco</button><button type="button" class="notes-strike" data-action="notes-list" data-kind="n" title="Elenco numerato sulla riga dove sei o su quelle selezionate; ripremi per toglierlo (⌘⇧7). Anche scrivendo «1. » a inizio riga">1. Elenco</button><button type="button" class="notes-strike" data-action="notes-strike" title="Barra la riga dove sei, o tutte quelle selezionate; ripremi per togliere la barra (⌘⇧X)"><s>Barra</s> riga</button></div></div></div>
         <div class="notes-body" ${minH?`style="min-height:${minH}px"`:""}>
         <div class="ruled notes-edit ${notesText.trim()?"":"empty"}" contenteditable="true" role="textbox" aria-multiline="true" spellcheck="true" data-agenda="w:${from}" data-placeholder="Note della settimana…" aria-label="Note della settimana ${label}">${notesToHTML(notesText)}</div>
         ${postits.length?`<div class="postit-layer">${postits.map(p=>postitHTML(p)).join("")}</div>`:""}
@@ -2451,7 +2597,7 @@ function navigate(route){
 function render(){
   document.getElementById("today-date").textContent=new Date().toLocaleDateString("it-IT",{weekday:"long",day:"numeric",month:"long",year:"numeric"});
   document.getElementById("page-title").textContent=ROUTE_TITLES[state.route];
-  renderRailNav(); renderTabbar();
+  renderRailNav(); renderTabbar(); Fonts.apply();
   const root=document.getElementById("view-root");
   if(!Data.ready){ root.innerHTML=emptyState("Caricamento dei tuoi dati…"); return; }
   switch(state.route){
@@ -2916,6 +3062,8 @@ document.addEventListener("click",e=>{
   else if(action==="postit-edit") openPostitModal(btn.dataset.id);
   else if(action==="diary-lock"){ DiaryLock.lock(); render(); }
   else if(action==="notes-strike"){ const ed=document.querySelector(".notes-edit"); if(ed) notesToggleStrike(ed); }
+  else if(action==="notes-list"){ const ed=document.querySelector(".notes-edit"); if(ed) notesToggleList(ed,btn.dataset.kind); }
+  else if(action==="agenda-font") openAgendaFontModal();
   else if(action==="avvisi-attiva") Avvisi.activate();
   else if(action==="avvisi-prova") Avvisi.test();
   else if(action==="avvisi-disattiva") Avvisi.deactivate();
@@ -2944,13 +3092,18 @@ document.addEventListener("input",e=>{
   const pid=e.target.dataset&&e.target.dataset.postitText;
   if(pid){ Postit.change(pid,{text:e.target.value}); return; }
   const k=e.target.dataset&&e.target.dataset.agenda; if(!k)return;
-  if(e.target.isContentEditable) notesSave(e.target); else Agenda.edit(k,e.target.value);
+  if(e.target.isContentEditable){
+    if(e.inputType==="insertText"&&e.data===" ") notesAutoBullet(e.target);
+    notesRenumber(e.target); notesSave(e.target);
+  }
+  else Agenda.edit(k,e.target.value);
 });
 // Note della settimana: solo testo semplice, più la barra sulle righe.
 document.addEventListener("keydown",e=>{
   const ed=e.target.closest&&e.target.closest(".notes-edit"); if(!ed||e.isComposing)return;
   const mod=e.metaKey||e.ctrlKey;
   if(mod&&e.shiftKey&&e.key.toLowerCase()==="x"){ e.preventDefault(); notesToggleStrike(ed); }
+  else if(mod&&e.shiftKey&&(e.code==="Digit8"||e.code==="Digit7")){ e.preventDefault(); notesToggleList(ed,e.code==="Digit8"?"b":"n"); }
   else if(mod&&!e.shiftKey&&["b","i","u"].includes(e.key.toLowerCase())) e.preventDefault();
   else if(e.key==="Enter"&&!mod) notesEnter(ed,e);
 });
