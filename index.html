@@ -326,6 +326,43 @@ button.attach-name:hover{text-decoration:underline;}
 :root{--paper:#FBF8F0;--paper-line:#E7E0CF;--paper-ink:#2A2925;--paper-soft:#8C8577;--paper-edge:#E2DACA;--spine:#2B2B2E;}
 @media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--paper:#1B2130;--paper-line:rgba(255,255,255,.08);--paper-ink:#E6E3DA;--paper-soft:#8E96A8;--paper-edge:rgba(255,255,255,.06);--spine:#05080F;}}
 :root[data-theme="dark"]{--paper:#1B2130;--paper-line:rgba(255,255,255,.08);--paper-ink:#E6E3DA;--paper-soft:#8E96A8;--paper-edge:rgba(255,255,255,.06);--spine:#05080F;}
+/* formattazione dell'agenda: 4 colori del testo (rosso, blu, verde, viola) e 4 evidenziatori (giallo, verde, rosa, azzurro);
+   nella modalità scura colori più chiari e evidenziatori trasparenti, così il testo chiaro resta leggibile */
+:root{--nf-c1:#C62828;--nf-c2:#1565C0;--nf-c3:#2E7D32;--nf-c4:#7B3FA0;--nf-h1:#FFEB70;--nf-h2:#C4EDB4;--nf-h3:#FFC9DE;--nf-h4:#BFE2FF;}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--nf-c1:#FF8A80;--nf-c2:#82B1FF;--nf-c3:#7BD88F;--nf-c4:#D4A6FF;--nf-h1:rgba(250,214,60,.34);--nf-h2:rgba(95,205,115,.30);--nf-h3:rgba(255,110,170,.32);--nf-h4:rgba(80,160,255,.34);}}
+:root[data-theme="dark"]{--nf-c1:#FF8A80;--nf-c2:#82B1FF;--nf-c3:#7BD88F;--nf-c4:#D4A6FF;--nf-h1:rgba(250,214,60,.34);--nf-h2:rgba(95,205,115,.30);--nf-h3:rgba(255,110,170,.32);--nf-h4:rgba(80,160,255,.34);}
+.nf-b{font-weight:700;}
+.nf-i{font-style:italic;}
+.nf-z1{font-size:.82em;}
+.nf-z3{font-size:1.2em;}
+.nf-z4{font-size:1.4em;}
+.notes-edit [class*="nf-z"]{line-height:1;}
+.nf-c1{color:var(--nf-c1);} .nf-c2{color:var(--nf-c2);} .nf-c3{color:var(--nf-c3);} .nf-c4{color:var(--nf-c4);}
+.nf-h1,.nf-h2,.nf-h3,.nf-h4{border-radius:3px;box-decoration-break:clone;-webkit-box-decoration-break:clone;}
+.nf-h1{background:var(--nf-h1);} .nf-h2{background:var(--nf-h2);} .nf-h3{background:var(--nf-h3);} .nf-h4{background:var(--nf-h4);}
+.notes-edit .struck [class*="nf-c"],.mnote s [class*="nf-c"]{color:inherit;}
+.notes-edit .struck [class*="nf-h"]{opacity:.55;}
+.mev.nf-c1{color:var(--nf-c1);} .mev.nf-c2{color:var(--nf-c2);} .mev.nf-c3{color:var(--nf-c3);} .mev.nf-c4{color:var(--nf-c4);}
+.mev.nf-h1,.mev.nf-h2,.mev.nf-h3,.mev.nf-h4{border-radius:4px;}
+.mev.nf-h1{background:var(--nf-h1);} .mev.nf-h2{background:var(--nf-h2);} .mev.nf-h3{background:var(--nf-h3);} .mev.nf-h4{background:var(--nf-h4);}
+.ag-item.done .ag-title [class*="nf-c"]{color:inherit;}
+/* barra «Formato» delle note e scelta dell'aspetto di un appuntamento */
+.notes-format{display:flex;gap:3px;flex-wrap:wrap;justify-content:flex-end;align-items:center;margin-top:8px;}
+.notes-format .sep{width:1px;align-self:stretch;background:var(--paper-line);margin:0 2px;}
+.nf-btn{min-width:24px;height:26px;display:inline-flex;align-items:center;justify-content:center;background:transparent;border:1px solid var(--paper-line);border-radius:var(--r-sm);color:var(--paper-ink);font-size:.8rem;padding:0 5px;cursor:pointer;font-family:inherit;line-height:1;}
+.nf-btn:hover{border-color:var(--paper-soft);}
+.nf-btn.sw{padding:0;width:24px;}
+.nf-btn.sw i{display:block;width:16px;height:16px;border-radius:50%;}
+.nf-btn.sw.hl i{border-radius:3px;width:18px;height:12px;}
+.nf-btn.none i{background:none!important;border:1.5px solid var(--paper-soft);position:relative;overflow:hidden;}
+.nf-btn.none i::after{content:"";position:absolute;left:50%;top:-3px;bottom:-3px;width:1.5px;background:var(--paper-soft);transform:rotate(45deg);}
+.nf-style-picks{display:flex;flex-direction:column;gap:8px;}
+.nf-style-picks>div{display:flex;gap:6px;flex-wrap:wrap;align-items:center;}
+.nf-style-picks .lbl{font-size:.78rem;color:var(--ink-soft);min-width:88px;}
+.nf-style-picks input{position:absolute;opacity:0;pointer-events:none;}
+.nf-style-picks label .nf-btn{border-color:var(--line);color:var(--ink);}
+.nf-style-picks input:checked+.nf-btn{border-color:var(--c-todo);box-shadow:0 0 0 2px var(--c-todo-soft);}
+.nf-style-picks input:focus-visible+.nf-btn{outline:2px solid var(--c-todo);}
 .agenda-toolbar{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;}
 .agenda-toolbar>div{display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
 .agenda-status{font-size:.74rem;color:var(--ink-faint);font-family:var(--font-mono);min-height:1em;}
@@ -2089,7 +2126,171 @@ function autosizeRuled(el){ el.style.height="auto"; el.style.height=el.scrollHei
 // Note della settimana: testo libero, una riga barrata si salva come «~~testo~~» (come in Markdown).
 function notesStruck(line){ const m=/^~~(.*\S.*)~~$/.exec(line); return m?m[1]:null; }
 function notesToHTML(text){
-  return text.split("\n").map(l=>{ const s=notesStruck(l); return s===null?`<div>${escapeHTML(l)||"<br>"}</div>`:`<div class="struck">${escapeHTML(s)}</div>`; }).join("");
+  return text.split("\n").map(l=>{ const s=notesStruck(l); return s===null?`<div>${nfLineHTML(l)||"<br>"}</div>`:`<div class="struck">${nfLineHTML(s)}</div>`; }).join("");
+}
+/* Formattazione: grassetto, corsivo, 4 grandezze, 4 colori, 4 evidenziatori.
+   Nelle note ogni tratto formattato è salvato nella sua riga come «<f b i z3 c2 h1>testo</f>»; le righe senza
+   formattazione restano testo semplice come prima. Nelle righe formattate «&» e «<» del testo diventano «&amp;» e «&lt;».
+   Gli appuntamenti hanno un aspetto per tutta la riga, salvato in habit_impostazioni («agenda_stili», id → «b c2 …»). */
+const NF_SIZES=[["z1","Piccolo"],["","Normale"],["z3","Grande"],["z4","Molto grande"]];
+const NF_COLORS=[["c1","Rosso"],["c2","Blu"],["c3","Verde"],["c4","Viola"]];
+const NF_MARKS=[["h1","Giallo"],["h2","Verde"],["h3","Rosa"],["h4","Azzurro"]];
+// Da un elenco qualsiasi di segni allo stile in ordine fisso (b i z c h); i segni sconosciuti si ignorano.
+function nfNorm(tokens){
+  const t=String(tokens||"").split(/\s+/), pick=re=>t.filter(x=>re.test(x)).pop()||"";
+  return [t.includes("b")?"b":"",t.includes("i")?"i":"",pick(/^z[134]$/),pick(/^c[1-4]$/),pick(/^h[1-4]$/)].filter(Boolean).join(" ");
+}
+function nfClasses(st){ return st?st.split(" ").map(x=>"nf-"+x).join(" "):""; }
+const NF_RUN=/<f((?: [a-z0-9]+)*)>([^<]*)<\/f>/g;
+const nfUnesc=s=>s.replace(/&lt;/g,"<").replace(/&amp;/g,"&");
+const nfEsc=s=>s.replace(/&/g,"&amp;").replace(/</g,"&lt;");
+// Una riga salvata → tratti {text,st}.
+function nfParse(line){
+  if(!/<f[ >]/.test(line)) return line?[{text:line,st:""}]:[];
+  const out=[]; let last=0;
+  for(const m of line.matchAll(NF_RUN)){
+    if(m.index>last) out.push({text:nfUnesc(line.slice(last,m.index)),st:""});
+    if(m[2]) out.push({text:nfUnesc(m[2]),st:nfNorm(m[1])});
+    last=m.index+m[0].length;
+  }
+  if(last<line.length) out.push({text:nfUnesc(line.slice(last)),st:""});
+  return out;
+}
+function nfPlain(line){ return nfParse(line).map(r=>r.text).join(""); }
+function nfLineHTML(line){ return nfParse(line).map(r=>r.st?`<span class="${nfClasses(r.st)}">${escapeHTML(r.text)}</span>`:escapeHTML(r.text)).join(""); }
+// Tratti {text,st} di una riga → testo da salvare (semplice se non c'è nessuna formattazione).
+function nfEncodeLine(runs){
+  const merged=[];
+  for(const r of runs){ if(!r.text) continue; const p=merged[merged.length-1]; if(p&&p.st===r.st) p.text+=r.text; else merged.push({...r}); }
+  if(merged.every(r=>!r.st)) return merged.map(r=>r.text).join("");
+  return merged.map(r=>r.st?`<f ${r.st}>${nfEsc(r.text)}</f>`:nfEsc(r.text)).join("");
+}
+// Lo stile di un elemento del riquadro, sommato a quello ereditato (anche <b>/<i> che il browser può inserire).
+function nfStyleOf(el,inherited){
+  if(el.nodeType!==1) return inherited;
+  const t=inherited?inherited.split(" "):[];
+  if(/^(B|STRONG)$/.test(el.nodeName)) t.push("b");
+  if(/^(I|EM)$/.test(el.nodeName)) t.push("i");
+  for(const c of el.classList||[]) if(/^nf-([bi]|z[134]|c[1-4]|h[1-4])$/.test(c)) t.push(c.slice(3));
+  return nfNorm(t.join(" "));
+}
+// Come notesNodeText, ma tiene lo stile di ogni pezzo di testo; «\n» separa le righe.
+function nfNodeRuns(n,st=""){
+  if(n.nodeType===3) return n.nodeValue?[{text:n.nodeValue,st}]:[];
+  if(n.nodeName==="BR") return [{text:"\n",st:""}];
+  if(n.nodeType!==1) return [];
+  const own=nfStyleOf(n,st); let out=[];
+  const ends=()=>{ const l=out[out.length-1]; return !!l&&l.text.endsWith("\n"); };
+  for(const c of n.childNodes){
+    const block=c.nodeType===1&&NOTES_BLOCK.test(c.nodeName);
+    if(block&&out.length&&!ends()) out.push({text:"\n",st:""});
+    out=out.concat(nfNodeRuns(c,own));
+    if(block&&!ends()) out.push({text:"\n",st:""});
+  }
+  return out;
+}
+function nfEncodeRuns(runs){
+  const lines=[[]];
+  for(const r of runs){ const parts=r.text.split("\n"); parts.forEach((p,i)=>{ if(i) lines.push([]); if(p) lines[lines.length-1].push({text:p,st:r.st}); }); }
+  return lines.map(nfEncodeLine).join("\n");
+}
+// I pezzi di testo di una riga del riquadro, con il loro stile, nell'ordine di textContent.
+function nfLineSegments(line){
+  const segs=[], w=document.createTreeWalker(line,NodeFilter.SHOW_TEXT); let n;
+  while((n=w.nextNode())){ if(!n.nodeValue) continue; let st="", chain=[]; for(let p=n.parentNode;p&&p!==line;p=p.parentNode) chain.unshift(p); for(const p of chain) st=nfStyleOf(p,st); segs.push({text:n.nodeValue,st}); }
+  return segs;
+}
+function nfOffsetIn(line,node,off){
+  if(!line.contains(node)) return null;
+  const r=document.createRange(); r.setStart(line,0); r.setEnd(node,off); return r.toString().length;
+}
+function nfNodeAt(line,offset){
+  const w=document.createTreeWalker(line,NodeFilter.SHOW_TEXT); let n, last=null;
+  while((n=w.nextNode())){ last=n; if(offset<=n.length) return[n,offset]; offset-=n.length; }
+  return last?[last,last.length]:[line,0];
+}
+// Cambia lo stile del pezzo [from,to) di un tratto: {b:"toggle"}… viene già deciso prima (true/false), z/c/h è il nuovo valore.
+function nfApply(st,change){
+  const t=st?st.split(" "):[], has=x=>t.includes(x);
+  let b=has("b"), i=has("i"), z=t.find(x=>/^z/.test(x))||"", c=t.find(x=>/^c/.test(x))||"", h=t.find(x=>/^h/.test(x))||"";
+  if("b" in change) b=change.b; if("i" in change) i=change.i;
+  if("z" in change) z=change.z; if("c" in change) c=change.c; if("h" in change) h=change.h;
+  return nfNorm([b?"b":"",i?"i":"",z,c,h].join(" "));
+}
+// Pulsanti della barra «Formato»: sulle parole selezionate; senza selezione, su tutta la riga del cursore.
+function notesFormat(ed,kind,value){
+  const sel=getSelection();
+  const range=sel.rangeCount&&ed.contains(sel.anchorNode)?sel.getRangeAt(0):(Agenda.notesRange&&ed.contains(Agenda.notesRange.startContainer)?Agenda.notesRange:null);
+  const picked=notesSelectedLines(ed); if(!picked||!range) return;
+  const{lines,moved}=picked;
+  const whole=moved||range.collapsed;
+  const caret=range.collapsed&&!moved?nfOffsetIn(lines[0],range.startContainer,range.startOffset):null;
+  const spans=lines.map((line,k)=>{
+    const len=line.textContent.length;
+    if(whole) return[0,len];
+    const a=k===0?nfOffsetIn(line,range.startContainer,range.startOffset):null, b=k===lines.length-1?nfOffsetIn(line,range.endContainer,range.endOffset):null;
+    return[a??0,b??len];
+  });
+  // Grassetto e corsivo si tolgono se tutto il testo scelto li ha già, altrimenti si mettono.
+  const segsOf=lines.map(nfLineSegments);
+  const chosen=[]; segsOf.forEach((segs,k)=>{ let pos=0; for(const s of segs){ const a=Math.max(pos,spans[k][0]), b=Math.min(pos+s.text.length,spans[k][1]); if(a<b) chosen.push(s.st); pos+=s.text.length; } });
+  if(!chosen.length) return;
+  let change;
+  if(kind==="b"||kind==="i"){ const on=!chosen.every(st=>st.split(" ").includes(kind)); change={[kind]:on}; }
+  else change={[kind]:value};
+  lines.forEach((line,k)=>{
+    const[from,to]=spans[k]; const out=[]; let pos=0;
+    for(const s of segsOf[k]){
+      const end=pos+s.text.length, a=Math.max(pos,from), b=Math.min(end,to);
+      if(a>=b){ out.push(s); pos=end; continue; }
+      if(a>pos) out.push({text:s.text.slice(0,a-pos),st:s.st});
+      out.push({text:s.text.slice(a-pos,b-pos),st:nfApply(s.st,change)});
+      if(b<end) out.push({text:s.text.slice(b-pos),st:s.st});
+      pos=end;
+    }
+    const merged=[]; for(const r of out){ const p=merged[merged.length-1]; if(p&&p.st===r.st) p.text+=r.text; else merged.push({...r}); }
+    line.replaceChildren(...merged.map(r=>{ if(!r.st) return document.createTextNode(r.text); const sp=document.createElement("span"); sp.className=nfClasses(r.st); sp.textContent=r.text; return sp; }));
+    if(!line.firstChild) line.innerHTML="<br>";
+  });
+  // Rimette la selezione (o il cursore) dove era.
+  const r=document.createRange();
+  if(caret!==null){ const[n,o]=nfNodeAt(lines[0],caret); r.setStart(n,o); r.collapse(true); }
+  else{ const[sn,so]=nfNodeAt(lines[0],spans[0][0]), [en,eo]=nfNodeAt(lines[lines.length-1],spans[spans.length-1][1]); r.setStart(sn,so); r.setEnd(en,eo); }
+  sel.removeAllRanges(); sel.addRange(r); Agenda.notesRange=r.cloneRange();
+  notesSave(ed);
+}
+function notesFormatBarHTML(){
+  const b=(kind,value,inner,title,cls="")=>`<button type="button" class="nf-btn notes-fmt ${cls}" data-action="notes-fmt" data-kind="${kind}" data-value="${value}" title="${escapeHTML(title)}" aria-label="${escapeHTML(title)}">${inner}</button>`;
+  const sep=`<span class="sep"></span>`;
+  return `<div class="notes-format" role="toolbar" aria-label="Formato del testo">`+
+    b("b","",`<b>G</b>`,"Grassetto sulle parole selezionate (⌘B)")+b("i","",`<i style="font-family:Georgia,serif">C</i>`,"Corsivo sulle parole selezionate (⌘I)")+sep+
+    NF_SIZES.map(([z,l],k)=>b("z",z,`<span style="font-size:${[.68,.82,.98,1.14][k]}rem">A</span>`,"Grandezza: "+l)).join("")+sep+
+    b("c","",`<b>A</b>`,"Colore normale")+NF_COLORS.map(([c,l])=>b("c",c,`<b class="nf-${c}">A</b>`,"Colore: "+l)).join("")+sep+
+    b("h","",`<i></i>`,"Togli l'evidenziatore","sw hl none")+NF_MARKS.map(([h,l])=>b("h",h,`<i style="background:var(--nf-${h})"></i>`,"Evidenziatore: "+l,"sw hl")).join("")+
+    `</div>`;
+}
+// Aspetto di un appuntamento (tutta la riga).
+const AgendaStyles={
+  get(id){ return nfNorm((Data.SETTINGS.agenda_stili||{})[id]||""); },
+  async set(id,st){
+    const map={}; for(const[k,v] of Object.entries(Data.SETTINGS.agenda_stili||{})) if(Data.TODOS.some(t=>t.id===k)) map[k]=v;
+    st=nfNorm(st); if(st) map[id]=st; else delete map[id];
+    await Fonts.save("agenda_stili",map);
+  }
+};
+function nfStylePickerHTML(st){
+  const t=st?st.split(" "):[], z=t.find(x=>/^z/.test(x))||"", c=t.find(x=>/^c/.test(x))||"", h=t.find(x=>/^h/.test(x))||"";
+  const radio=(name,v,cur,inner,title,cls="")=>`<label title="${escapeHTML(title)}"><input type="radio" name="${name}" value="${v}" ${cur===v?"checked":""} aria-label="${escapeHTML(title)}"><span class="nf-btn ${cls}">${inner}</span></label>`;
+  return `<div class="nf-style-picks">
+    <div><span class="lbl">Stile</span><label title="Grassetto"><input type="checkbox" name="nf-b" ${t.includes("b")?"checked":""} aria-label="Grassetto"><span class="nf-btn"><b>G</b></span></label><label title="Corsivo"><input type="checkbox" name="nf-i" ${t.includes("i")?"checked":""} aria-label="Corsivo"><span class="nf-btn"><i style="font-family:Georgia,serif">C</i></span></label></div>
+    <div><span class="lbl">Grandezza</span>${NF_SIZES.map(([v,l],k)=>radio("nf-z",v,z,`<span style="font-size:${[.68,.82,.98,1.14][k]}rem">A</span>`,l)).join("")}</div>
+    <div><span class="lbl">Colore</span>${radio("nf-c","",c,`<b>A</b>`,"Normale")}${NF_COLORS.map(([v,l])=>radio("nf-c",v,c,`<b class="nf-${v}">A</b>`,l)).join("")}</div>
+    <div><span class="lbl">Evidenziatore</span>${radio("nf-h","",h,`<i></i>`,"Nessuno","sw hl none")}${NF_MARKS.map(([v,l])=>radio("nf-h",v,h,`<i style="background:var(--nf-${v})"></i>`,l,"sw hl")).join("")}</div>
+  </div>`;
+}
+function nfStyleFromForm(form){
+  return nfNorm([form.querySelector("[name=nf-b]").checked?"b":"",form.querySelector("[name=nf-i]").checked?"i":"",
+    form.querySelector("[name=nf-z]:checked").value,form.querySelector("[name=nf-c]:checked").value,form.querySelector("[name=nf-h]:checked").value].join(" "));
 }
 const NOTES_BLOCK=/^(DIV|P|LI|H[1-6])$/;
 function notesNodeText(n){
@@ -2108,11 +2309,11 @@ function notesNodeText(n){
 function notesFromEditor(ed){
   const lines=[]; let loose=null;
   const add=(text,struck)=>{ for(const l of text.split("\n")) lines.push(struck&&l.trim()?"~~"+l+"~~":l); };
-  const endLoose=()=>{ if(loose!==null){ add(loose,false); loose=null; } };
+  const endLoose=()=>{ if(loose!==null){ add(nfEncodeRuns(loose),false); loose=null; } };
   for(const n of ed.childNodes){
-    if(n.nodeType===1&&NOTES_BLOCK.test(n.nodeName)){ endLoose(); add(notesNodeText(n).replace(/\n$/,""),n.classList.contains("struck")); }
-    else if(n.nodeName==="BR"){ add(loose||"",false); loose=null; }
-    else loose=(loose||"")+notesNodeText(n);
+    if(n.nodeType===1&&NOTES_BLOCK.test(n.nodeName)){ endLoose(); add(nfEncodeRuns(nfNodeRuns(n)).replace(/\n$/,""),n.classList.contains("struck")); }
+    else if(n.nodeName==="BR"){ add(loose?nfEncodeRuns(loose):"",false); loose=null; }
+    else loose=(loose||[]).concat(nfNodeRuns(n));
   }
   endLoose();
   while(lines.length&&!lines[lines.length-1].trim()) lines.pop();
@@ -2269,7 +2470,7 @@ function agendaDayHTML(iso,today){
     const t=i.todo, done=!!i.done;
     return `<div class="ag-item ${done?"done":""} ${i.late?"late":""}">
       <button type="button" class="todo-check ${done?"done":""}" data-action="${done?"todo-undo":"todo-done"}" data-id="${t.id}" data-occ="${i.occurrence||""}" title="${done?"Segna di nuovo come da fare":"Segna come fatta"}" aria-label="${done?"Segna di nuovo come da fare":"Segna come fatta"}: ${escapeHTML(t.title)}">${done?"✓":""}</button>
-      <button type="button" class="ag-title" data-action="todo-edit" data-id="${t.id}" title="Modifica o elimina">${t.due_time?`<span class="ag-time">${t.due_time.slice(0,5)}</span>`:""}${escapeHTML(t.title)}${t.recurrence?` <span title="${escapeHTML(describeRecurrenceIT(t.recurrence))}">🔁</span>`:""}</button>
+      <button type="button" class="ag-title" data-action="todo-edit" data-id="${t.id}" title="Modifica o elimina">${t.due_time?`<span class="ag-time">${t.due_time.slice(0,5)}</span>`:""}${(st=>st?`<span class="${nfClasses(st)}">${escapeHTML(t.title)}</span>`:escapeHTML(t.title))(AgendaStyles.get(t.id))}${t.recurrence?` <span title="${escapeHTML(describeRecurrenceIT(t.recurrence))}">🔁</span>`:""}</button>
     </div>`;
   }).join("");
   const fillers=Math.max(0,2-items.length);
@@ -2286,7 +2487,7 @@ function agendaDayHTML(iso,today){
 }
 // Contenuto di un giorno per mese e anno: appuntamenti in ordine di orario, poi l'eventuale testo libero vecchio.
 function agendaDayEvents(iso){
-  const ev=agendaItemsForDay(iso).map(i=>({time:i.todo.due_time?i.todo.due_time.slice(0,5):"",title:i.todo.title,done:!!i.done,late:!!i.late}));
+  const ev=agendaItemsForDay(iso).map(i=>({time:i.todo.due_time?i.todo.due_time.slice(0,5):"",title:i.todo.title,done:!!i.done,late:!!i.late,st:AgendaStyles.get(i.todo.id)}));
   for(const l of Agenda.value("d",iso).split("\n").map(l=>l.trim()).filter(Boolean)) ev.push({time:"",title:l,text:true});
   return ev;
 }
@@ -2302,12 +2503,12 @@ function renderAgendaMonth(){
     const d=new Date(iso+"T12:00:00"), dow=(d.getDay()+6)%7;
     if(dow===0) weeks.push(iso);
     const ev=agendaDayEvents(iso);
-    const evHTML=ev.slice(0,3).map(e=>`<span class="mev ${e.done?"done":""} ${e.late?"late":""} ${e.text?"text":""}">${e.time?`<b>${e.time}</b>`:""}${escapeHTML(e.title)}</span>`).join("");
+    const evHTML=ev.slice(0,3).map(e=>`<span class="mev ${e.done?"done":""} ${e.late?"late":""} ${e.text?"text":""} ${nfClasses((e.st||"").split(" ").filter(x=>!/^z/.test(x)).join(" "))}">${e.time?`<b>${e.time}</b>`:""}${escapeHTML(e.title)}</span>`).join("");
     const long=d.toLocaleDateString("it-IT",{weekday:"long",day:"numeric",month:"long"});
     cells.push(`<button type="button" class="mcell ${iso.slice(0,7)!==first.slice(0,7)?"out":""} ${iso===today?"today":""} ${dow>=5?"weekend":""}" data-action="agenda-open-day" data-date="${iso}" aria-label="${long}${ev.length?`, ${ev.length} ${ev.length===1?"voce":"voci"}`:""}">`+
       `<strong class="mnum">${d.getDate()}</strong>${evHTML}${ev.length>3?`<span class="mmore d">+${ev.length-3} altre</span>`:""}${ev.length>2?`<span class="mmore m">+${ev.length-2}</span>`:""}</button>`);
   }
-  const notes=weeks.map(mon=>[mon,Agenda.value("w",mon).split("\n").map(l=>l.trim()).filter(Boolean).map(l=>{ const s=notesStruck(l); return s===null?escapeHTML(l):`<s>${escapeHTML(s)}</s>`; }).join(" · ")]).filter(([,t])=>t);
+  const notes=weeks.map(mon=>[mon,Agenda.value("w",mon).split("\n").map(l=>l.trim()).filter(Boolean).map(l=>{ const s=notesStruck(l); return s===null?nfLineHTML(l):`<s>${nfLineHTML(s)}</s>`; }).join(" · ")]).filter(([,t])=>t);
   const notesHTML=notes.length?`<div class="mnotes"><h4>Note delle settimane</h4>${notes.map(([mon,t])=>`<button type="button" class="mnote" data-action="agenda-open-notes" data-date="${mon}"><span>sett. ${isoWeekNumber(mon)} · ${weekLabel(new Date(mon+"T12:00:00"),new Date(TodoLogic.addDaysISO(mon,6)+"T12:00:00"))}</span><span>${t}</span></button>`).join("")}</div>`:"";
   const isNow=today.slice(0,7)===first.slice(0,7);
   return `
@@ -2349,7 +2550,7 @@ function renderAgendaYear(){
     </section>`;
 }
 function renderAgenda(){
-  const intro=`<div class="card intro" style="--accent:var(--c-todo)"><div>La tua agenda: in «Settimana» a sinistra gli appuntamenti di ogni giorno, a destra le note della settimana; «Mese» e «Anno» mostrano il calendario come sul telefono (tocca un giorno o un mese per aprirlo). Scrivi una riga e premi Invio: diventa un appuntamento con il suo cerchietto da spuntare, che trovi anche in Da fare. Se la riga inizia con un'ora (es. «10:00 dentista») viene messa in ordine di orario. Tocca il testo per modificarlo o eliminarlo. Nelle note, una riga fatta o che non ti serve più puoi barrarla con «Barra riga» (o ⌘⇧X): resta scritta, barrata; con «• Elenco» e «1. Elenco» fai elenchi puntati o numerati (Invio continua l'elenco, Invio su una voce vuota lo chiude). Con «Aa Carattere» scegli il carattere dell'agenda. Con «＋ Post-it» attacchi un foglietto colorato alla settimana: scrivici sopra e spostalo trascinando la striscia in alto; con ⋯ cambi colore, carta, fermaglio e carattere o lo stacchi.</div></div>`;
+  const intro=`<div class="card intro" style="--accent:var(--c-todo)"><div>La tua agenda: in «Settimana» a sinistra gli appuntamenti di ogni giorno, a destra le note della settimana; «Mese» e «Anno» mostrano il calendario come sul telefono (tocca un giorno o un mese per aprirlo). Scrivi una riga e premi Invio: diventa un appuntamento con il suo cerchietto da spuntare, che trovi anche in Da fare. Se la riga inizia con un'ora (es. «10:00 dentista») viene messa in ordine di orario. Tocca il testo per modificarlo o eliminarlo. Nelle note, una riga fatta o che non ti serve più puoi barrarla con «Barra riga» (o ⌘⇧X): resta scritta, barrata; con «• Elenco» e «1. Elenco» fai elenchi puntati o numerati (Invio continua l'elenco, Invio su una voce vuota lo chiude). Sotto, la barra del formato: seleziona le parole e scegli <b>G</b> grassetto, <i>C</i> corsivo (⌘B, ⌘I), la grandezza, il colore o l'evidenziatore; senza selezione vale per tutta la riga. Per dare colore o evidenziatore a un appuntamento toccalo e scegli «Aspetto nell'agenda». Con «Aa Carattere» scegli il carattere dell'agenda. Con «＋ Post-it» attacchi un foglietto colorato alla settimana: scrivici sopra e spostalo trascinando la striscia in alto; con ⋯ cambi colore, carta, fermaglio e carattere o lo stacchi.</div></div>`;
   if(!Data.agendaAvailable) return intro+`<div class="card">${emptyState("L'agenda sarà disponibile appena il database verrà aggiornato.")}</div>`;
   if(state.agendaView==="mese") return intro+renderAgendaMonth();
   if(state.agendaView==="anno") return intro+renderAgendaYear();
@@ -2380,6 +2581,7 @@ function renderAgenda(){
       <div class="notebook-spine" aria-hidden="true"></div>
       <section class="npage npage-notes" aria-label="Note della settimana">
         <div class="npage-head"><div class="npage-months"><span>Note</span></div><div class="notes-head-right"><div class="npage-wnum">${label}</div><div class="notes-tools">${Data.postitAvailable?`<button type="button" class="notes-strike" data-action="postit-new" title="Attacca un post-it a questa settimana: scegli colore, grandezza, carta e fermaglio">＋ Post-it</button>`:""}<button type="button" class="notes-strike" data-action="notes-list" data-kind="b" title="Elenco puntato sulla riga dove sei o su quelle selezionate; ripremi per toglierlo (⌘⇧8). Anche scrivendo «- » a inizio riga">• Elenco</button><button type="button" class="notes-strike" data-action="notes-list" data-kind="n" title="Elenco numerato sulla riga dove sei o su quelle selezionate; ripremi per toglierlo (⌘⇧7). Anche scrivendo «1. » a inizio riga">1. Elenco</button><button type="button" class="notes-strike" data-action="notes-strike" title="Barra la riga dove sei, o tutte quelle selezionate; ripremi per togliere la barra (⌘⇧X)"><s>Barra</s> riga</button></div></div></div>
+        ${notesFormatBarHTML()}
         <div class="notes-body" ${minH?`style="min-height:${minH}px"`:""}>
         <div class="ruled notes-edit ${notesText.trim()?"":"empty"}" contenteditable="true" role="textbox" aria-multiline="true" spellcheck="true" data-agenda="w:${from}" data-placeholder="Note della settimana…" aria-label="Note della settimana ${label}">${notesToHTML(notesText)}</div>
         ${postits.length?`<div class="postit-layer">${postits.map(p=>postitHTML(p)).join("")}</div>`:""}
@@ -2783,6 +2985,8 @@ function openTodoModal({id,date}={}){
   const r=t&&t.recurrence||null;
   const hasDate=t?!!t.due_date:date!=="";
   const weekdays=r&&r.weekdays||[];
+  // Grassetto, corsivo, grandezza, colore ed evidenziatore valgono per tutto l'appuntamento nell'agenda.
+  const styleable=!!t&&Data.settingsAvailable, oldStyle=t?AgendaStyles.get(t.id):"";
   const html=`
     <div class="modal-head"><h3>${t?"Modifica cosa da fare":"Nuova cosa da fare"}</h3><button class="icon-btn" data-close>✕</button></div>
     <form id="todo-form" class="modal-form">
@@ -2805,6 +3009,7 @@ function openTodoModal({id,date}={}){
         </div>
       </div>
       <div class="row"><label for="todo-notes">Note (facoltative)</label><textarea id="todo-notes" rows="3" placeholder="Dettagli, persone, luogo…">${escapeHTML(t?t.notes:"")}</textarea></div>
+      ${styleable?`<div class="row" id="todo-style-row"><label>Aspetto nell'agenda</label>${nfStylePickerHTML(oldStyle)}<div class="pi-preview" style="height:auto;padding:8px 12px"><span class="ag-title" style="cursor:default"><span id="todo-style-preview">${escapeHTML(t.title)}</span></span></div></div>`:""}
       <div class="modal-actions">${t?`<button type="button" class="btn btn-danger" id="todo-delete">Elimina</button>`:"<span></span>"}<div><button type="button" class="btn btn-ghost" data-close>Annulla</button><button type="submit" class="btn btn-primary">Salva</button></div></div>
     </form>`;
   openModal(html);
@@ -2818,6 +3023,10 @@ function openTodoModal({id,date}={}){
     $("todo-interval-label").textContent={daily:"Ogni quanti giorni",weekly:"Ogni quante settimane",monthly:"Ogni quanti mesi",yearly:"Ogni quanti anni"}[f]||"Ogni quanti";
   }
   $("todo-when").addEventListener("change",sync); $("todo-freq").addEventListener("change",sync); sync();
+  if(styleable){
+    const form=$("todo-form"), preview=()=>{ $("todo-style-preview").className=nfClasses(nfStyleFromForm(form)); };
+    form.addEventListener("change",preview); $("todo-title").addEventListener("input",()=>{ $("todo-style-preview").textContent=$("todo-title").value; }); preview();
+  }
   if(t) $("todo-delete").addEventListener("click",async()=>{
     if(confirm(t.recurrence?"Eliminare questa cosa da fare e tutte le sue ripetizioni?":"Eliminare questa cosa da fare?")){ closeModal(); await Data.deleteTodo(t.id); }
   });
@@ -2843,8 +3052,13 @@ function openTodoModal({id,date}={}){
     }
     // Una ricorrente non usa done_at: le spunte sono per singolo giorno.
     if(t&&payload.recurrence) payload.done_at=null;
+    const newStyle=styleable?nfStyleFromForm($("todo-form")):oldStyle;
     closeModal();
     if(t) await Data.updateTodo(t.id,payload); else await Data.addTodo(payload);
+    if(newStyle!==oldStyle){
+      try{ await AgendaStyles.set(t.id,newStyle); render(); }
+      catch(err){ alert("Non sono riuscito a salvare l'aspetto dell'appuntamento: "+err.message); }
+    }
   });
 }
 
@@ -3063,6 +3277,7 @@ document.addEventListener("click",e=>{
   else if(action==="diary-lock"){ DiaryLock.lock(); render(); }
   else if(action==="notes-strike"){ const ed=document.querySelector(".notes-edit"); if(ed) notesToggleStrike(ed); }
   else if(action==="notes-list"){ const ed=document.querySelector(".notes-edit"); if(ed) notesToggleList(ed,btn.dataset.kind); }
+  else if(action==="notes-fmt"){ const ed=document.querySelector(".notes-edit"); if(ed) notesFormat(ed,btn.dataset.kind,btn.dataset.value); }
   else if(action==="agenda-font") openAgendaFontModal();
   else if(action==="avvisi-attiva") Avvisi.activate();
   else if(action==="avvisi-prova") Avvisi.test();
@@ -3098,13 +3313,14 @@ document.addEventListener("input",e=>{
   }
   else Agenda.edit(k,e.target.value);
 });
-// Note della settimana: solo testo semplice, più la barra sulle righe.
+// Note della settimana: testo semplice più barra, elenchi e formato (⌘B, ⌘I e la barra «Formato»).
 document.addEventListener("keydown",e=>{
   const ed=e.target.closest&&e.target.closest(".notes-edit"); if(!ed||e.isComposing)return;
   const mod=e.metaKey||e.ctrlKey;
   if(mod&&e.shiftKey&&e.key.toLowerCase()==="x"){ e.preventDefault(); notesToggleStrike(ed); }
   else if(mod&&e.shiftKey&&(e.code==="Digit8"||e.code==="Digit7")){ e.preventDefault(); notesToggleList(ed,e.code==="Digit8"?"b":"n"); }
-  else if(mod&&!e.shiftKey&&["b","i","u"].includes(e.key.toLowerCase())) e.preventDefault();
+  else if(mod&&!e.shiftKey&&["b","i"].includes(e.key.toLowerCase())){ e.preventDefault(); notesFormat(ed,e.key.toLowerCase()); }
+  else if(mod&&!e.shiftKey&&e.key.toLowerCase()==="u") e.preventDefault();
   else if(e.key==="Enter"&&!mod) notesEnter(ed,e);
 });
 document.addEventListener("paste",e=>{
@@ -3119,7 +3335,7 @@ document.addEventListener("selectionchange",()=>{
   const ed=document.querySelector(".notes-edit");
   if(ed&&ed.contains(s.anchorNode)) Agenda.notesRange=s.getRangeAt(0).cloneRange();
 });
-document.addEventListener("mousedown",e=>{ if(e.target.closest&&e.target.closest(".notes-strike")) e.preventDefault(); });
+document.addEventListener("mousedown",e=>{ if(e.target.closest&&e.target.closest(".notes-strike,.notes-fmt")) e.preventDefault(); });
 // Nuova riga dell'agenda: Invio (o uscire dalla riga) la salva come cosa da fare di quel giorno.
 async function commitAgendaLine(input,{refocus}){
   const text=input.value.trim(); if(!text||input.dataset.busy)return;
