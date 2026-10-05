@@ -356,7 +356,21 @@ button.attach-name:hover{text-decoration:underline;}
 .nf-btn.sw.hl i{border-radius:3px;width:18px;height:12px;}
 .nf-btn.none i{background:none!important;border:1.5px solid var(--paper-soft);position:relative;overflow:hidden;}
 .nf-btn.none i::after{content:"";position:absolute;left:50%;top:-3px;bottom:-3px;width:1.5px;background:var(--paper-soft);transform:rotate(45deg);}
+.nf-dd-btn{gap:5px;padding:0 7px;}
+.nf-dd-btn .car{font-size:.78rem;color:var(--paper-soft);}
+.nf-dd-btn .sw-dot{display:block;width:14px;height:14px;border-radius:50%;}
+.nf-dd-btn .sw-hl{display:block;width:16px;height:11px;border-radius:3px;}
+.nf-dd-btn.none-sw .sw-hl{border:1.5px solid var(--paper-soft);}
+.nf-dd-btn[aria-expanded="true"]{border-color:var(--c-todo);}
+.nf-dd-menu{position:fixed;z-index:60;min-width:170px;display:flex;flex-direction:column;padding:4px;background:var(--surface);border:1px solid var(--line);border-radius:var(--r-sm);box-shadow:var(--shadow-lg,var(--shadow));}
+.nf-dd-menu[hidden]{display:none;}
+.nf-item{display:flex;align-items:center;gap:10px;width:100%;min-height:32px;padding:4px 10px;background:none;border:none;border-radius:6px;color:var(--ink);font-family:inherit;font-size:.86rem;text-align:left;cursor:pointer;}
+.nf-item:hover,.nf-item:focus-visible{background:var(--c-todo-soft);outline:none;}
+.nf-item .ic{width:22px;display:inline-flex;justify-content:center;align-items:center;flex:none;}
+.nf-item .ic .sw-hl{display:block;width:20px;height:13px;border-radius:3px;}
+.nf-item .ic .sw-hl.none{border:1.5px solid var(--ink-faint);}
 .nf-style-picks{display:flex;flex-direction:column;gap:8px;}
+.nf-style-picks select{flex:1;min-width:0;max-width:220px;}
 .nf-style-picks>div{display:flex;gap:6px;flex-wrap:wrap;align-items:center;}
 .nf-style-picks .lbl{font-size:.78rem;color:var(--ink-soft);min-width:88px;}
 .nf-style-picks input{position:absolute;opacity:0;pointer-events:none;}
@@ -2261,13 +2275,31 @@ function notesFormat(ed,kind,value){
 }
 function notesFormatBarHTML(){
   const b=(kind,value,inner,title,cls="")=>`<button type="button" class="nf-btn notes-fmt ${cls}" data-action="notes-fmt" data-kind="${kind}" data-value="${value}" title="${escapeHTML(title)}" aria-label="${escapeHTML(title)}">${inner}</button>`;
+  // Grandezza, colore ed evidenziatore: un pulsante con il menu a tendina delle scelte.
+  const item=(kind,value,icon,label)=>`<button type="button" class="nf-item notes-fmt" role="menuitem" data-action="notes-fmt" data-kind="${kind}" data-value="${value}"><span class="ic">${icon}</span>${escapeHTML(label)}</button>`;
+  const menu=(kind,inner,title,items,cls="")=>`<button type="button" class="nf-btn nf-dd-btn notes-fmt-menu ${cls}" data-action="notes-fmt-menu" data-menu="${kind}" aria-haspopup="menu" aria-expanded="false" title="${escapeHTML(title)}" aria-label="${escapeHTML(title)}">${inner}<span class="car">▾</span></button><div class="nf-dd-menu" role="menu" data-menu-for="${kind}" aria-label="${escapeHTML(title)}" hidden>${items}</div>`;
   const sep=`<span class="sep"></span>`;
   return `<div class="notes-format" role="toolbar" aria-label="Formato del testo">`+
     b("b","",`<b>G</b>`,"Grassetto sulle parole selezionate (⌘B)")+b("i","",`<i style="font-family:Georgia,serif">C</i>`,"Corsivo sulle parole selezionate (⌘I)")+sep+
-    NF_SIZES.map(([z,l],k)=>b("z",z,`<span style="font-size:${[.68,.82,.98,1.14][k]}rem">A</span>`,"Grandezza: "+l)).join("")+sep+
-    b("c","",`<b>A</b>`,"Colore normale")+NF_COLORS.map(([c,l])=>b("c",c,`<b class="nf-${c}">A</b>`,"Colore: "+l)).join("")+sep+
-    b("h","",`<i></i>`,"Togli l'evidenziatore","sw hl none")+NF_MARKS.map(([h,l])=>b("h",h,`<i style="background:var(--nf-${h})"></i>`,"Evidenziatore: "+l,"sw hl")).join("")+
+    menu("z",`<span>Aa</span>`,"Grandezza del testo",NF_SIZES.map(([z,l],k)=>item("z",z,`<span style="font-size:${[.72,.86,1.02,1.2][k]}rem;font-weight:600">A</span>`,l)).join(""))+
+    menu("c",`<b class="nf-c1">A</b>`,"Colore del testo",item("c","",`<b>A</b>`,"Normale")+NF_COLORS.map(([c,l])=>item("c",c,`<b class="nf-${c}">A</b>`,l)).join(""))+
+    menu("h",`<i class="sw-hl" style="background:var(--nf-h1)"></i>`,"Evidenziatore",item("h","",`<i class="sw-hl none"></i>`,"Nessuno")+NF_MARKS.map(([h,l])=>item("h",h,`<i class="sw-hl" style="background:var(--nf-${h})"></i>`,l)).join(""))+
     `</div>`;
+}
+// Menu a tendina della barra «Formato»: si apre sotto il suo pulsante (o sopra, se in basso non c'è spazio).
+function nfMenuClose(){
+  document.querySelectorAll(".nf-dd-menu:not([hidden])").forEach(m=>{ m.hidden=true; });
+  document.querySelectorAll('.notes-fmt-menu[aria-expanded="true"]').forEach(b=>b.setAttribute("aria-expanded","false"));
+}
+function nfMenuToggle(btn){
+  const menu=btn.nextElementSibling, open=menu.hidden;
+  nfMenuClose(); if(!open) return;
+  menu.hidden=false; btn.setAttribute("aria-expanded","true"); nfMenuPlace(btn,menu);
+}
+function nfMenuPlace(btn,menu){
+  const r=btn.getBoundingClientRect(), w=menu.offsetWidth, h=menu.offsetHeight;
+  menu.style.left=Math.max(8,Math.min(r.right-w,innerWidth-w-8))+"px";
+  menu.style.top=(r.bottom+4+h>innerHeight-8&&r.top-4-h>8?r.top-4-h:r.bottom+4)+"px";
 }
 // Aspetto di un appuntamento (tutta la riga).
 const AgendaStyles={
@@ -2280,17 +2312,17 @@ const AgendaStyles={
 };
 function nfStylePickerHTML(st){
   const t=st?st.split(" "):[], z=t.find(x=>/^z/.test(x))||"", c=t.find(x=>/^c/.test(x))||"", h=t.find(x=>/^h/.test(x))||"";
-  const radio=(name,v,cur,inner,title,cls="")=>`<label title="${escapeHTML(title)}"><input type="radio" name="${name}" value="${v}" ${cur===v?"checked":""} aria-label="${escapeHTML(title)}"><span class="nf-btn ${cls}">${inner}</span></label>`;
+  const select=(name,cur,opts)=>`<select name="${name}" aria-label="${name==="nf-z"?"Grandezza":name==="nf-c"?"Colore":"Evidenziatore"}">${opts.map(([v,l])=>`<option value="${v}" ${cur===v?"selected":""}>${escapeHTML(l)}</option>`).join("")}</select>`;
   return `<div class="nf-style-picks">
     <div><span class="lbl">Stile</span><label title="Grassetto"><input type="checkbox" name="nf-b" ${t.includes("b")?"checked":""} aria-label="Grassetto"><span class="nf-btn"><b>G</b></span></label><label title="Corsivo"><input type="checkbox" name="nf-i" ${t.includes("i")?"checked":""} aria-label="Corsivo"><span class="nf-btn"><i style="font-family:Georgia,serif">C</i></span></label></div>
-    <div><span class="lbl">Grandezza</span>${NF_SIZES.map(([v,l],k)=>radio("nf-z",v,z,`<span style="font-size:${[.68,.82,.98,1.14][k]}rem">A</span>`,l)).join("")}</div>
-    <div><span class="lbl">Colore</span>${radio("nf-c","",c,`<b>A</b>`,"Normale")}${NF_COLORS.map(([v,l])=>radio("nf-c",v,c,`<b class="nf-${v}">A</b>`,l)).join("")}</div>
-    <div><span class="lbl">Evidenziatore</span>${radio("nf-h","",h,`<i></i>`,"Nessuno","sw hl none")}${NF_MARKS.map(([v,l])=>radio("nf-h",v,h,`<i style="background:var(--nf-${v})"></i>`,l,"sw hl")).join("")}</div>
+    <div><span class="lbl">Grandezza</span>${select("nf-z",z,NF_SIZES)}</div>
+    <div><span class="lbl">Colore</span>${select("nf-c",c,[["","Normale"],...NF_COLORS])}</div>
+    <div><span class="lbl">Evidenziatore</span>${select("nf-h",h,[["","Nessuno"],...NF_MARKS])}</div>
   </div>`;
 }
 function nfStyleFromForm(form){
   return nfNorm([form.querySelector("[name=nf-b]").checked?"b":"",form.querySelector("[name=nf-i]").checked?"i":"",
-    form.querySelector("[name=nf-z]:checked").value,form.querySelector("[name=nf-c]:checked").value,form.querySelector("[name=nf-h]:checked").value].join(" "));
+    form.querySelector("[name=nf-z]").value,form.querySelector("[name=nf-c]").value,form.querySelector("[name=nf-h]").value].join(" "));
 }
 const NOTES_BLOCK=/^(DIV|P|LI|H[1-6])$/;
 function notesNodeText(n){
@@ -2550,7 +2582,7 @@ function renderAgendaYear(){
     </section>`;
 }
 function renderAgenda(){
-  const intro=`<div class="card intro" style="--accent:var(--c-todo)"><div>La tua agenda: in «Settimana» a sinistra gli appuntamenti di ogni giorno, a destra le note della settimana; «Mese» e «Anno» mostrano il calendario come sul telefono (tocca un giorno o un mese per aprirlo). Scrivi una riga e premi Invio: diventa un appuntamento con il suo cerchietto da spuntare, che trovi anche in Da fare. Se la riga inizia con un'ora (es. «10:00 dentista») viene messa in ordine di orario. Tocca il testo per modificarlo o eliminarlo. Nelle note, una riga fatta o che non ti serve più puoi barrarla con «Barra riga» (o ⌘⇧X): resta scritta, barrata; con «• Elenco» e «1. Elenco» fai elenchi puntati o numerati (Invio continua l'elenco, Invio su una voce vuota lo chiude). Sotto, la barra del formato: seleziona le parole e scegli <b>G</b> grassetto, <i>C</i> corsivo (⌘B, ⌘I), la grandezza, il colore o l'evidenziatore; senza selezione vale per tutta la riga. Per dare colore o evidenziatore a un appuntamento toccalo e scegli «Aspetto nell'agenda». Con «Aa Carattere» scegli il carattere dell'agenda. Con «＋ Post-it» attacchi un foglietto colorato alla settimana: scrivici sopra e spostalo trascinando la striscia in alto; con ⋯ cambi colore, carta, fermaglio e carattere o lo stacchi.</div></div>`;
+  const intro=`<div class="card intro" style="--accent:var(--c-todo)"><div>La tua agenda: in «Settimana» a sinistra gli appuntamenti di ogni giorno, a destra le note della settimana; «Mese» e «Anno» mostrano il calendario come sul telefono (tocca un giorno o un mese per aprirlo). Scrivi una riga e premi Invio: diventa un appuntamento con il suo cerchietto da spuntare, che trovi anche in Da fare. Se la riga inizia con un'ora (es. «10:00 dentista») viene messa in ordine di orario. Tocca il testo per modificarlo o eliminarlo. Nelle note, una riga fatta o che non ti serve più puoi barrarla con «Barra riga» (o ⌘⇧X): resta scritta, barrata; con «• Elenco» e «1. Elenco» fai elenchi puntati o numerati (Invio continua l'elenco, Invio su una voce vuota lo chiude). Sotto, la barra del formato: seleziona le parole e scegli <b>G</b> grassetto, <i>C</i> corsivo (⌘B, ⌘I), nei menu a tendina la grandezza (Aa), il colore o l'evidenziatore; senza selezione vale per tutta la riga. Per dare colore o evidenziatore a un appuntamento toccalo e scegli «Aspetto nell'agenda». Con «Aa Carattere» scegli il carattere dell'agenda. Con «＋ Post-it» attacchi un foglietto colorato alla settimana: scrivici sopra e spostalo trascinando la striscia in alto; con ⋯ cambi colore, carta, fermaglio e carattere o lo stacchi.</div></div>`;
   if(!Data.agendaAvailable) return intro+`<div class="card">${emptyState("L'agenda sarà disponibile appena il database verrà aggiornato.")}</div>`;
   if(state.agendaView==="mese") return intro+renderAgendaMonth();
   if(state.agendaView==="anno") return intro+renderAgendaYear();
@@ -3277,7 +3309,8 @@ document.addEventListener("click",e=>{
   else if(action==="diary-lock"){ DiaryLock.lock(); render(); }
   else if(action==="notes-strike"){ const ed=document.querySelector(".notes-edit"); if(ed) notesToggleStrike(ed); }
   else if(action==="notes-list"){ const ed=document.querySelector(".notes-edit"); if(ed) notesToggleList(ed,btn.dataset.kind); }
-  else if(action==="notes-fmt"){ const ed=document.querySelector(".notes-edit"); if(ed) notesFormat(ed,btn.dataset.kind,btn.dataset.value); }
+  else if(action==="notes-fmt"){ nfMenuClose(); const ed=document.querySelector(".notes-edit"); if(ed) notesFormat(ed,btn.dataset.kind,btn.dataset.value); }
+  else if(action==="notes-fmt-menu") nfMenuToggle(btn);
   else if(action==="agenda-font") openAgendaFontModal();
   else if(action==="avvisi-attiva") Avvisi.activate();
   else if(action==="avvisi-prova") Avvisi.test();
@@ -3335,7 +3368,12 @@ document.addEventListener("selectionchange",()=>{
   const ed=document.querySelector(".notes-edit");
   if(ed&&ed.contains(s.anchorNode)) Agenda.notesRange=s.getRangeAt(0).cloneRange();
 });
-document.addEventListener("mousedown",e=>{ if(e.target.closest&&e.target.closest(".notes-strike,.notes-fmt")) e.preventDefault(); });
+document.addEventListener("mousedown",e=>{ if(e.target.closest&&e.target.closest(".notes-strike,.notes-fmt,.notes-fmt-menu")) e.preventDefault(); });
+// Il menu a tendina del formato si chiude toccando fuori o con Esc; scorrendo (o se si chiude la tastiera del telefono) resta attaccato al suo pulsante.
+document.addEventListener("pointerdown",e=>{ if(!(e.target.closest&&e.target.closest(".nf-dd-menu,.notes-fmt-menu"))) nfMenuClose(); },true);
+document.addEventListener("keydown",e=>{ if(e.key==="Escape"&&document.querySelector(".nf-dd-menu:not([hidden])")){ e.stopPropagation(); nfMenuClose(); } },true);
+const nfMenuFollow=()=>{ const b=document.querySelector('.notes-fmt-menu[aria-expanded="true"]'); if(b) nfMenuPlace(b,b.nextElementSibling); };
+addEventListener("scroll",nfMenuFollow,{passive:true,capture:true}); addEventListener("resize",nfMenuFollow);
 // Nuova riga dell'agenda: Invio (o uscire dalla riga) la salva come cosa da fare di quel giorno.
 async function commitAgendaLine(input,{refocus}){
   const text=input.value.trim(); if(!text||input.dataset.busy)return;
