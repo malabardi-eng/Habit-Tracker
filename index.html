@@ -443,17 +443,18 @@ button.attach-name:hover{text-decoration:underline;}
 /* sfoglio della pagina al cambio di settimana: sopra la settimana nuova, una copia della vecchia che gira sulla costola */
 .notebook.flipping{position:relative;overflow:visible;}
 .notebook.flipping.flip-single{overflow-x:clip;}
-.flip-layer{position:absolute;left:0;top:0;width:100%;z-index:5;pointer-events:none;transform-style:preserve-3d;}
-.flip-layer *{animation:none!important;transition:none!important;}
+.flip-layer,.flip-flat{position:absolute;left:0;top:0;width:100%;z-index:5;pointer-events:none;}
+.flip-layer{z-index:6;transform-style:preserve-3d;}
+.flip-layer *,.flip-flat *{animation:none!important;transition:none!important;}
 .flip-strip{position:absolute;top:0;transform-style:preserve-3d;will-change:transform;}
 .flip-face,.flip-under{position:absolute;top:0;overflow:hidden;}
 .flip-face{left:0;width:100%;height:100%;backface-visibility:hidden;-webkit-backface-visibility:hidden;}
-.flip-face.back{transform:rotateY(180deg);}
+.flip-face.front{transform:translateZ(.5px);}
+.flip-face.back{transform:rotateY(180deg) translateZ(.5px);}
 .flip-face.blank{background:var(--paper);}
-.flip-under{transform:translateZ(-2px);}
 .flip-copy{position:absolute;top:0;margin:0;box-shadow:none;}
 .flip-shade{position:absolute;left:0;top:0;width:100%;height:100%;background:#000;opacity:0;pointer-events:none;}
-.flip-cast{position:absolute;top:0;transform:translateZ(-1px);opacity:0;pointer-events:none;}
+.flip-cast{position:absolute;top:0;opacity:0;pointer-events:none;}
 
 /* post-it sulle note della settimana: liberi, trascinabili dalla striscia in alto */
 .notes-body{position:relative;flex:1;display:flex;flex-direction:column;}
@@ -1905,7 +1906,7 @@ const PageFlip={
   finish(){
     const cur=this.current; this.current=null; if(!cur) return;
     cur.anims.forEach(a=>{ try{ a.cancel(); }catch(_){} });
-    cur.layer.remove(); cur.nb.classList.remove("flipping","flip-single");
+    cur.layer.remove(); cur.flat.remove(); cur.nb.classList.remove("flipping","flip-single");
   },
   // dir 1 = settimana successiva, -1 = precedente. update() disegna la settimana nuova.
   run(dir,update){
@@ -1928,8 +1929,10 @@ const PageFlip={
     const newCopy=two?this.snapshot(nb):null;
     const layer=document.createElement("div"); layer.className="flip-layer"; layer.setAttribute("aria-hidden","true");
     layer.style.height=H+"px"; layer.style.perspective=Math.max(1600,W*2.2)+"px"; layer.style.perspectiveOrigin=hinge+"px 40%";
+    // Pagine ferme e ombre stanno in un piano a parte, sempre sotto: nessun conflitto di profondità con la pagina che gira.
+    const flat=document.createElement("div"); flat.className="flip-flat"; flat.setAttribute("aria-hidden","true"); flat.style.height=H+"px";
     const anims=[], tracks=[];
-    const box=(cls,x,w)=>{ const d=document.createElement("div"); d.className=cls; d.style.left=x+"px"; d.style.width=w+"px"; d.style.height=H+"px"; layer.append(d); return d; };
+    const box=(cls,x,w)=>{ const d=document.createElement("div"); d.className=cls; d.style.left=x+"px"; d.style.width=w+"px"; d.style.height=H+"px"; flat.append(d); return d; };
     if(two){
       // La metà vecchia che la pagina andrà a coprire resta ferma fino all'ultimo, con l'ombra che si avvicina.
       const ux=dir>0?0:hinge, uw=dir>0?hinge:W-hinge;
@@ -1952,8 +1955,8 @@ const PageFlip={
       const [back,bsh]=this.face(newCopy,dir>0?hinge-(i+1)*sw:hinge+i*sw,"back",dir>0?"left":"right");
       s.append(front,back); parent.append(s); parent=s; strips.push({s,fsh,bsh});
     }
-    nb.classList.add("flipping"); nb.classList.toggle("flip-single",!two); nb.append(layer);
-    layer.querySelectorAll("[data-flip-scroll]").forEach(el=>{ el.scrollTop=+el.dataset.flipScroll; });
+    nb.classList.add("flipping"); nb.classList.toggle("flip-single",!two); nb.append(flat,layer);
+    nb.querySelectorAll(".flip-flat [data-flip-scroll],.flip-layer [data-flip-scroll]").forEach(el=>{ el.scrollTop=+el.dataset.flipScroll; });
     // Angolo di ogni striscia nel tempo: la pagina gira di 180°, il bordo libero anticipa (curvatura)
     // e nessuna striscia supera la pagina d'arrivo.
     const ease=t=>-(Math.cos(Math.PI*t)-1)/2, BEND=58, weights=[...Array(n)].map((_,i)=>i/(n*(n-1)/2));
@@ -1965,7 +1968,8 @@ const PageFlip={
     const edges=v=>v.map((x,i)=>[i?(v[i-1]+x)/2:x,i<n-1?(x+v[i+1])/2:x]);
     for(let k=0;k<=N;k++){
       const t=k/N, A=angles(t), cos=A.map(a=>Math.cos(a.abs*Math.PI/180));
-      const fe=edges(cos.map(c=>.3*(1-c))), be=edges(cos.map(c=>.3*(1+c)));
+      // la faccia girata dall'altra parte non ha ombra: Safari ne lascerebbe trapelare i bordi (righe scure)
+      const fe=edges(cos.map(c=>.3*(1-c))).map((e,i)=>cos[i]>0?e:[0,0]), be=edges(cos.map(c=>.3*(1+c))).map((e,i)=>cos[i]<0?e:[0,0]);
       A.forEach(({rel},i)=>{ const F=frames[i];
         F.s.push({offset:t,transform:`rotateY(${(sign*rel).toFixed(2)}deg)`});
         F.f0.push({offset:t,opacity:fe[i][0]}); F.f1.push({offset:t,opacity:fe[i][1]});
@@ -1976,7 +1980,7 @@ const PageFlip={
     strips.forEach(({s,fsh,bsh},i)=>{ const F=frames[i];
       anims.push(s.animate(F.s,opts),fsh[0].animate(F.f0,opts),fsh[1].animate(F.f1,opts),bsh[0].animate(F.b0,opts),bsh[1].animate(F.b1,opts)); });
     tracks.forEach(([el],j)=>anims.push(el.animate(other[j],opts)));
-    const cur={layer,anims,nb}; this.current=cur;
+    const cur={layer,flat,anims,nb}; this.current=cur;
     anims[0].finished.then(()=>{ if(this.current===cur) this.finish(); },()=>{});
   }
 };
