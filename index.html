@@ -1925,7 +1925,8 @@ const PageFlip={
     // Con due pagine affiancate la cerniera è la costola; sul telefono (una pagina) è il bordo opposto.
     const nr=nb.getBoundingClientRect(), sr=spine&&spine.getBoundingClientRect();
     const hinge=two?sr.left-nr.left+sr.width/2:(dir>0?0:W);
-    const leafW=dir>0?W-hinge:hinge, n=this.STRIPS, sw=leafW/n, sign=dir>0?-1:1;
+    // ogni striscia copre di 1px la precedente (verso il bordo libero): niente fessure da cui traspare la pagina sotto
+    const leafW=dir>0?W-hinge:hinge, n=this.STRIPS, OV=1, sw=(leafW+(n-1)*OV)/n, step=sw-OV, sign=dir>0?-1:1;
     const newCopy=two?this.snapshot(nb):null;
     const layer=document.createElement("div"); layer.className="flip-layer"; layer.setAttribute("aria-hidden","true");
     layer.style.height=H+"px"; layer.style.perspective=Math.max(1600,W*2.2)+"px"; layer.style.perspectiveOrigin=hinge+"px 40%";
@@ -1948,37 +1949,45 @@ const PageFlip={
     const strips=[]; let parent=layer;
     for(let i=0;i<n;i++){
       const s=document.createElement("div"); s.className="flip-strip";
-      s.style.left=(i===0?(dir>0?hinge:hinge-sw):(dir>0?sw:-sw))+"px"; s.style.width=sw+"px"; s.style.height=H+"px";
+      s.style.left=(i===0?(dir>0?hinge:hinge-sw):(dir>0?step:-step))+"px"; s.style.width=sw+"px"; s.style.height=H+"px";
       s.style.transformOrigin=(dir>0?"left":"right")+" center";
       // davanti: il pezzo della pagina vecchia; dietro: il pezzo della nuova che resterà scoperto a fine giro
-      const [front,fsh]=this.face(oldCopy,dir>0?hinge+i*sw:hinge-(i+1)*sw,"front",dir>0?"right":"left");
-      const [back,bsh]=this.face(newCopy,dir>0?hinge-(i+1)*sw:hinge+i*sw,"back",dir>0?"left":"right");
-      s.append(front,back); parent.append(s); parent=s; strips.push({s,fsh,bsh});
+      const [front,fsh]=this.face(oldCopy,dir>0?hinge+i*step:hinge-i*step-sw,"front",dir>0?"right":"left");
+      s.append(front);
+      // dietro: un unico foglio sulla prima striscia, largo quanto la pagina; la curva finisce a metà giro,
+      // così mentre la pagina si posa non ci sono bordi tra strisce (Safari vi disegnava una riga)
+      let back=null, bsh=null;
+      if(i===0){ [back,bsh]=this.face(newCopy,dir>0?hinge-leafW:hinge,"back","left");
+        back.style.left=(dir>0?0:sw-leafW)+"px"; back.style.width=leafW+"px"; s.append(back); }
+      parent.append(s); parent=s; strips.push({s,front,fsh,back,bsh});
     }
     nb.classList.add("flipping"); nb.classList.toggle("flip-single",!two); nb.append(flat,layer);
     nb.querySelectorAll(".flip-flat [data-flip-scroll],.flip-layer [data-flip-scroll]").forEach(el=>{ el.scrollTop=+el.dataset.flipScroll; });
-    // Angolo di ogni striscia nel tempo: la pagina gira di 180°, il bordo libero anticipa (curvatura)
-    // e nessuna striscia supera la pagina d'arrivo.
-    const ease=t=>-(Math.cos(Math.PI*t)-1)/2, BEND=58, weights=[...Array(n)].map((_,i)=>i/(n*(n-1)/2));
-    const angles=t=>{ const base=180*ease(t), bend=BEND*6.75*t*(1-t)*(1-t); let cum=0, prev=0;
+    // Angolo di ogni striscia nel tempo: la pagina gira di 180°; nella prima metà il bordo libero
+    // anticipa (curvatura), a metà giro la pagina torna piatta e si posa come un foglio unico.
+    const ease=t=>-(Math.cos(Math.PI*t)-1)/2, BEND=46, weights=[...Array(n)].map((_,i)=>i/(n*(n-1)/2));
+    const angles=t=>{ const base=180*ease(t), bend=t<.5?BEND*Math.sin(2*Math.PI*t):0; let cum=0, prev=0;
       return weights.map((w,i)=>{ cum+=w; const a=Math.min(179.5,base+bend*cum)+(t>=1?.5:0); const d=i===0?a:a-prev; prev=a; return {abs:a,rel:d}; }); };
     // Luce: la faccia davanti si scurisce mentre si alza, quella dietro si schiarisce mentre si posa;
-    // ai bordi di ogni striscia l'ombra è la media con la vicina.
-    const N=18, frames=strips.map(()=>({s:[],f0:[],f1:[],b0:[],b1:[]})), other=tracks.map(()=>[]);
+    // davanti, ai bordi di ogni striscia l'ombra è la media con la vicina.
+    const N=18, frames=strips.map(()=>({s:[],f0:[],f1:[],b0:[],b1:[],fv:[],bv:[]})), other=tracks.map(()=>[]);
     const edges=v=>v.map((x,i)=>[i?(v[i-1]+x)/2:x,i<n-1?(x+v[i+1])/2:x]);
     for(let k=0;k<=N;k++){
       const t=k/N, A=angles(t), cos=A.map(a=>Math.cos(a.abs*Math.PI/180));
       // la faccia girata dall'altra parte non ha ombra: Safari ne lascerebbe trapelare i bordi (righe scure)
-      const fe=edges(cos.map(c=>.3*(1-c))).map((e,i)=>cos[i]>0?e:[0,0]), be=edges(cos.map(c=>.3*(1+c))).map((e,i)=>cos[i]<0?e:[0,0]);
+      const fe=edges(cos.map(c=>.3*(1-c))).map((e,i)=>cos[i]>0?e:[0,0]), be=cos[0]<0?.3*(1+cos[0]):0;
       A.forEach(({rel},i)=>{ const F=frames[i];
         F.s.push({offset:t,transform:`rotateY(${(sign*rel).toFixed(2)}deg)`});
         F.f0.push({offset:t,opacity:fe[i][0]}); F.f1.push({offset:t,opacity:fe[i][1]});
-        F.b0.push({offset:t,opacity:be[i][0]}); F.b1.push({offset:t,opacity:be[i][1]}); });
+        F.b0.push({offset:t,opacity:be}); F.b1.push({offset:t,opacity:be});
+        // fronte e retro nascosti esplicitamente quando sono girati: Safari non sempre rispetta backface-visibility
+        F.fv.push({offset:t,visibility:cos[i]>0?"visible":"hidden"}); F.bv.push({offset:t,visibility:cos[0]<0?"visible":"hidden"}); });
       tracks.forEach(([,fn],j)=>other[j].push({offset:t,...fn(t)}));
     }
     const opts={duration:ms,easing:"linear",fill:"both"};
-    strips.forEach(({s,fsh,bsh},i)=>{ const F=frames[i];
-      anims.push(s.animate(F.s,opts),fsh[0].animate(F.f0,opts),fsh[1].animate(F.f1,opts),bsh[0].animate(F.b0,opts),bsh[1].animate(F.b1,opts)); });
+    strips.forEach(({s,front,fsh,back,bsh},i)=>{ const F=frames[i];
+      anims.push(s.animate(F.s,opts),front.animate(F.fv,opts),fsh[0].animate(F.f0,opts),fsh[1].animate(F.f1,opts));
+      if(back) anims.push(back.animate(F.bv,opts),bsh[0].animate(F.b0,opts),bsh[1].animate(F.b1,opts)); });
     tracks.forEach(([el],j)=>anims.push(el.animate(other[j],opts)));
     const cur={layer,flat,anims,nb}; this.current=cur;
     anims[0].finished.then(()=>{ if(this.current===cur) this.finish(); },()=>{});
