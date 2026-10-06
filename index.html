@@ -440,6 +440,20 @@ button.attach-name:hover{text-decoration:underline;}
   .npage{padding:16px 16px 12px;}
   .notebook[data-page="settimana"] .npage-notes,.notebook[data-page="note"] .npage-week{display:none;}
 }
+/* sfoglio della pagina al cambio di settimana: sopra la settimana nuova, una copia della vecchia che gira sulla costola */
+.notebook.flipping{position:relative;overflow:visible;}
+.notebook.flipping.flip-single{overflow-x:clip;}
+.flip-layer{position:absolute;left:0;top:0;width:100%;z-index:5;pointer-events:none;transform-style:preserve-3d;}
+.flip-layer *{animation:none!important;transition:none!important;}
+.flip-strip{position:absolute;top:0;transform-style:preserve-3d;will-change:transform;}
+.flip-face,.flip-under{position:absolute;top:0;overflow:hidden;}
+.flip-face{left:0;width:100%;height:100%;backface-visibility:hidden;-webkit-backface-visibility:hidden;}
+.flip-face.back{transform:rotateY(180deg);}
+.flip-face.blank{background:var(--paper);}
+.flip-under{transform:translateZ(-2px);}
+.flip-copy{position:absolute;top:0;margin:0;box-shadow:none;}
+.flip-shade{position:absolute;left:0;top:0;width:100%;height:100%;background:#000;opacity:0;pointer-events:none;}
+.flip-cast{position:absolute;top:0;transform:translateZ(-1px);opacity:0;pointer-events:none;}
 
 /* post-it sulle note della settimana: liberi, trascinabili dalla striscia in alto */
 .notes-body{position:relative;flex:1;display:flex;flex-direction:column;}
@@ -1855,6 +1869,122 @@ function todoDashboardCardHTML(){
   const items=[...s.in_ritardo,...s.oggi];
   return `<div class="card"><div class="card-header"><h3>✅ Da fare oggi</h3><button class="btn btn-outline btn-sm" style="--accent:var(--c-todo)" data-route="dafare">Apri</button></div>
     ${items.length?`<div class="rlist">${items.slice(0,5).map(i=>todoRowHTML(i,{compact:true})).join("")}</div>${items.length>5?`<div class="hint">…e altre ${items.length-5} nella sezione Da fare.</div>`:""}`:emptyState("Niente in programma per oggi.")}</div>`;
+}
+
+/* ---- Sfoglio della pagina al cambio di settimana ---- */
+// La settimana nuova viene disegnata subito; sopra resta una copia della vecchia pagina che si solleva
+// dal bordo e gira sulla costola: avanti dal lato destro verso sinistra, indietro dal sinistro verso destra.
+// La pagina che gira è fatta di strisce verticali incernierate una all'altra: piegandole un poco
+// il bordo libero si alza per primo e la carta si curva; ombre sulle due facce e sulle pagine sotto.
+// Le copie sono solo immagini (inert, senza id né data-*): niente salvataggi o clic doppi.
+const PageFlip={
+  STRIPS:6, MS:820, FAST_MS:380, current:null,
+  reduced(){ return !!(window.matchMedia&&matchMedia("(prefers-reduced-motion: reduce)").matches); },
+  snapshot(nb){
+    const c=nb.cloneNode(true);
+    const src=nb.querySelectorAll("input,textarea,.ruled"), dst=c.querySelectorAll("input,textarea,.ruled");
+    src.forEach((el,i)=>{ const d=dst[i];
+      if(el.tagName==="INPUT") d.setAttribute("value",el.value); else if(el.tagName==="TEXTAREA") d.textContent=el.value;
+      if(el.scrollTop) d.dataset.flipScroll=el.scrollTop; });
+    for(const el of [c,...c.querySelectorAll("*")]){
+      el.removeAttribute("id"); el.removeAttribute("contenteditable"); el.removeAttribute("name");
+      for(const a of [...el.attributes]) if(a.name.startsWith("data-")&&a.name!=="data-flip-scroll"&&!(el===c&&a.name==="data-page")) el.removeAttribute(a.name);
+    }
+    c.classList.add("flip-copy"); c.setAttribute("aria-hidden","true"); c.inert=true;
+    c.style.width=nb.offsetWidth+"px"; c.style.height=nb.offsetHeight+"px";
+    return c;
+  },
+  // Una faccia della striscia: la copia della pagina vista da x in poi, con due ombre sfumate
+  // (lato cerniera e lato bordo libero) così l'ombra passa senza salti da una striscia all'altra.
+  face(copy,x,cls,away){
+    const f=document.createElement("div"); f.className="flip-face "+cls+(copy?"":" blank");
+    if(copy){ const c=copy.cloneNode(true); c.style.left=(-x)+"px"; f.append(c); }
+    const sh=["#000,transparent","transparent,#000"].map(g=>{ const d=document.createElement("div"); d.className="flip-shade"; d.style.background=`linear-gradient(to ${away},${g})`; f.append(d); return d; });
+    return [f,sh];
+  },
+  finish(){
+    const cur=this.current; this.current=null; if(!cur) return;
+    cur.anims.forEach(a=>{ try{ a.cancel(); }catch(_){} });
+    cur.layer.remove(); cur.nb.classList.remove("flipping","flip-single");
+  },
+  // dir 1 = settimana successiva, -1 = precedente. update() disegna la settimana nuova.
+  run(dir,update){
+    const busy=!!this.current; this.finish();
+    const old=document.querySelector("#view-root .notebook");
+    if(!old||this.reduced()||typeof old.animate!=="function"){ update(); return; }
+    const oldCopy=this.snapshot(old);
+    update();
+    const nb=document.querySelector("#view-root .notebook");
+    if(!nb) return;
+    try{ this.play(nb,oldCopy,dir,busy?this.FAST_MS:this.MS); }catch(_){ this.finish(); }
+  },
+  play(nb,oldCopy,dir,ms){
+    const W=nb.offsetWidth, H=Math.max(nb.offsetHeight,parseFloat(oldCopy.style.height)||0);
+    const spine=nb.querySelector(".notebook-spine"), two=!!(spine&&spine.offsetWidth>0);
+    // Con due pagine affiancate la cerniera è la costola; sul telefono (una pagina) è il bordo opposto.
+    const nr=nb.getBoundingClientRect(), sr=spine&&spine.getBoundingClientRect();
+    const hinge=two?sr.left-nr.left+sr.width/2:(dir>0?0:W);
+    const leafW=dir>0?W-hinge:hinge, n=this.STRIPS, sw=leafW/n, sign=dir>0?-1:1;
+    const newCopy=two?this.snapshot(nb):null;
+    const layer=document.createElement("div"); layer.className="flip-layer"; layer.setAttribute("aria-hidden","true");
+    layer.style.height=H+"px"; layer.style.perspective=Math.max(1600,W*2.2)+"px"; layer.style.perspectiveOrigin=hinge+"px 40%";
+    const anims=[], tracks=[];
+    const box=(cls,x,w)=>{ const d=document.createElement("div"); d.className=cls; d.style.left=x+"px"; d.style.width=w+"px"; d.style.height=H+"px"; layer.append(d); return d; };
+    if(two){
+      // La metà vecchia che la pagina andrà a coprire resta ferma fino all'ultimo, con l'ombra che si avvicina.
+      const ux=dir>0?0:hinge, uw=dir>0?hinge:W-hinge;
+      const under=box("flip-under",ux,uw), c=oldCopy.cloneNode(true); c.style.left=(-ux)+"px"; under.append(c);
+      const cover=box("flip-cast",ux,uw);
+      cover.style.background=`linear-gradient(to ${dir>0?"left":"right"},rgba(0,0,0,.34),rgba(0,0,0,.1) 40%,rgba(0,0,0,0) 75%)`;
+      tracks.push([cover,t=>({opacity:t<.3?0:Math.min(1,(t-.3)/.55)})]);
+    }
+    // Ombra della pagina sollevata sulla settimana nuova che compare sotto.
+    const reveal=box("flip-cast",dir>0?hinge:0,leafW);
+    reveal.style.background=`linear-gradient(to ${dir>0?"right":"left"},rgba(0,0,0,.42),rgba(0,0,0,.16) 45%,rgba(0,0,0,.04))`;
+    tracks.push([reveal,t=>({opacity:Math.max(0,1-t*1.15)})]);
+    const strips=[]; let parent=layer;
+    for(let i=0;i<n;i++){
+      const s=document.createElement("div"); s.className="flip-strip";
+      s.style.left=(i===0?(dir>0?hinge:hinge-sw):(dir>0?sw:-sw))+"px"; s.style.width=sw+"px"; s.style.height=H+"px";
+      s.style.transformOrigin=(dir>0?"left":"right")+" center";
+      // davanti: il pezzo della pagina vecchia; dietro: il pezzo della nuova che resterà scoperto a fine giro
+      const [front,fsh]=this.face(oldCopy,dir>0?hinge+i*sw:hinge-(i+1)*sw,"front",dir>0?"right":"left");
+      const [back,bsh]=this.face(newCopy,dir>0?hinge-(i+1)*sw:hinge+i*sw,"back",dir>0?"left":"right");
+      s.append(front,back); parent.append(s); parent=s; strips.push({s,fsh,bsh});
+    }
+    nb.classList.add("flipping"); nb.classList.toggle("flip-single",!two); nb.append(layer);
+    layer.querySelectorAll("[data-flip-scroll]").forEach(el=>{ el.scrollTop=+el.dataset.flipScroll; });
+    // Angolo di ogni striscia nel tempo: la pagina gira di 180°, il bordo libero anticipa (curvatura)
+    // e nessuna striscia supera la pagina d'arrivo.
+    const ease=t=>-(Math.cos(Math.PI*t)-1)/2, BEND=58, weights=[...Array(n)].map((_,i)=>i/(n*(n-1)/2));
+    const angles=t=>{ const base=180*ease(t), bend=BEND*6.75*t*(1-t)*(1-t); let cum=0, prev=0;
+      return weights.map((w,i)=>{ cum+=w; const a=Math.min(179.5,base+bend*cum)+(t>=1?.5:0); const d=i===0?a:a-prev; prev=a; return {abs:a,rel:d}; }); };
+    // Luce: la faccia davanti si scurisce mentre si alza, quella dietro si schiarisce mentre si posa;
+    // ai bordi di ogni striscia l'ombra è la media con la vicina.
+    const N=18, frames=strips.map(()=>({s:[],f0:[],f1:[],b0:[],b1:[]})), other=tracks.map(()=>[]);
+    const edges=v=>v.map((x,i)=>[i?(v[i-1]+x)/2:x,i<n-1?(x+v[i+1])/2:x]);
+    for(let k=0;k<=N;k++){
+      const t=k/N, A=angles(t), cos=A.map(a=>Math.cos(a.abs*Math.PI/180));
+      const fe=edges(cos.map(c=>.3*(1-c))), be=edges(cos.map(c=>.3*(1+c)));
+      A.forEach(({rel},i)=>{ const F=frames[i];
+        F.s.push({offset:t,transform:`rotateY(${(sign*rel).toFixed(2)}deg)`});
+        F.f0.push({offset:t,opacity:fe[i][0]}); F.f1.push({offset:t,opacity:fe[i][1]});
+        F.b0.push({offset:t,opacity:be[i][0]}); F.b1.push({offset:t,opacity:be[i][1]}); });
+      tracks.forEach(([,fn],j)=>other[j].push({offset:t,...fn(t)}));
+    }
+    const opts={duration:ms,easing:"linear",fill:"both"};
+    strips.forEach(({s,fsh,bsh},i)=>{ const F=frames[i];
+      anims.push(s.animate(F.s,opts),fsh[0].animate(F.f0,opts),fsh[1].animate(F.f1,opts),bsh[0].animate(F.b0,opts),bsh[1].animate(F.b1,opts)); });
+    tracks.forEach(([el],j)=>anims.push(el.animate(other[j],opts)));
+    const cur={layer,anims,nb}; this.current=cur;
+    anims[0].finished.then(()=>{ if(this.current===cur) this.finish(); },()=>{});
+  }
+};
+function agendaGoToWeek(from){
+  if(from===state.agendaWeekFrom){ render(); return; }
+  const dir=from>state.agendaWeekFrom?1:-1;
+  const go=()=>{ state.agendaWeekFrom=from; render(); };
+  if(state.route==="agenda"&&state.agendaView==="settimana") PageFlip.run(dir,go); else go();
 }
 
 /* ---- Agenda settimanale ---- */
@@ -3299,9 +3429,9 @@ document.addEventListener("click",e=>{
   else if(action==="todo-prev-week"){ state.todoWeekFrom=TodoLogic.addDaysISO(state.todoWeekFrom,-7); render(); }
   else if(action==="todo-next-week"){ state.todoWeekFrom=TodoLogic.addDaysISO(state.todoWeekFrom,7); render(); }
   else if(action==="todo-this-week"){ state.todoWeekFrom=weekRange(todayISO()).fromISO; render(); }
-  else if(action==="agenda-prev-week"){ state.agendaWeekFrom=TodoLogic.addDaysISO(state.agendaWeekFrom,-7); render(); }
-  else if(action==="agenda-next-week"){ state.agendaWeekFrom=TodoLogic.addDaysISO(state.agendaWeekFrom,7); render(); }
-  else if(action==="agenda-this-week"){ state.agendaWeekFrom=weekRange(todayISO()).fromISO; render(); }
+  else if(action==="agenda-prev-week") agendaGoToWeek(TodoLogic.addDaysISO(state.agendaWeekFrom,-7));
+  else if(action==="agenda-next-week") agendaGoToWeek(TodoLogic.addDaysISO(state.agendaWeekFrom,7));
+  else if(action==="agenda-this-week") agendaGoToWeek(weekRange(todayISO()).fromISO);
   else if(action==="agenda-page"){ state.agendaPage=btn.dataset.page; render(); }
   else if(action==="agenda-convert") convertAgendaText(btn.dataset.date,btn);
   else if(action==="postit-new") openPostitModal(null);
