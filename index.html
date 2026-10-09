@@ -2598,9 +2598,15 @@ async function formaNew(page,kind,rot){
     try{ await Forme.create(page,kind,{rot}); }catch(err){ alert("Non sono riuscito ad aggiungere la forma: "+err.message); }
     return;
   }
-  const input=document.createElement("input"); input.type="file"; input.accept="image/*";
+  // Estensioni elencate oltre a image/*: alcuni selettori del Mac oscurano i PNG con il solo image/*.
+  // Il campo sta nella pagina finché si sceglie: Safari a volte non avvisa la scelta di un campo staccato.
+  document.querySelectorAll(".fm-file-input").forEach(i=>i.remove());
+  const input=document.createElement("input"); input.type="file"; input.className="fm-file-input"; input.hidden=true;
+  input.accept="image/*,.png,.jpg,.jpeg,.gif,.webp,.heic,.heif";
+  document.body.appendChild(input);
+  input.addEventListener("cancel",()=>input.remove());
   input.addEventListener("change",async()=>{
-    const file=input.files&&input.files[0]; if(!file) return;
+    const file=input.files&&input.files[0]; input.remove(); if(!file) return;
     try{
       const{data,w,h}=await readImageForAgenda(file);
       const layer=document.querySelector(`.fm-layer[data-fm-page="${page}"]`), max=Math.min(240,(layer&&layer.clientWidth||400)*.7), s=Math.min(1,max/Math.max(w,h));
