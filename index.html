@@ -494,6 +494,56 @@ button.attach-name:hover{text-decoration:underline;}
 .pi-preview{position:relative;height:276px;border-radius:var(--r-sm);background:var(--paper);box-shadow:inset 0 0 0 1px var(--paper-edge);overflow:hidden;}
 .pi-preview .postit{left:50%;top:30px;transform:translateX(-50%) rotate(-2deg);}
 .pi-preview .postit-grip,.pi-preview .postit-menu{display:none;}
+/* forme, riquadri di testo e immagini sulle pagine dell'agenda: sopra il testo e i post-it */
+:root{--fm-rosso:#D32F2F;--fm-blu:#1E63C4;--fm-verde:#2E8B3E;--fm-nero:#24231F;}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--fm-rosso:#FF7B72;--fm-blu:#7FB0FF;--fm-verde:#6FD58A;--fm-nero:#ECE8DD;}}
+:root[data-theme="dark"]{--fm-rosso:#FF7B72;--fm-blu:#7FB0FF;--fm-verde:#6FD58A;--fm-nero:#ECE8DD;}
+.npage{position:relative;}
+.fm-layer{position:absolute;inset:0;pointer-events:none;z-index:3;}
+.forma{position:absolute;pointer-events:none;color:var(--fm);}
+.fm-svg{position:absolute;left:0;top:0;overflow:visible;pointer-events:none;}
+.fm-vis{fill:none;stroke:var(--fm);stroke-linecap:round;stroke-linejoin:round;pointer-events:none;}
+.fm-vis .fm-head{fill:var(--fm);stroke-width:1px;}
+.forma.fill-piena .fm-vis>:not(.fm-head){fill:var(--fm);fill-opacity:.22;}
+.fm-hit{fill:none;stroke:transparent;stroke-width:18px;pointer-events:stroke;cursor:move;touch-action:none;}
+.forma.fill-piena .fm-hit,.fm-hit .fm-head{pointer-events:all;}
+.forma .fm-svg{touch-action:none;}
+.fm-frame{position:absolute;inset:0;pointer-events:auto;cursor:move;touch-action:none;border:1.5px solid var(--fm);border-radius:3px;}
+.forma.fill-piena .fm-frame{background:color-mix(in srgb,var(--fm) 14%,transparent);}
+.forma.fill-nessuno .fm-frame{border:1px dashed transparent;}
+.forma.fill-nessuno:hover .fm-frame,.forma.fill-nessuno.sel .fm-frame{border-color:var(--paper-soft);}
+.fm-text{position:absolute;inset:7px;width:calc(100% - 14px);height:calc(100% - 14px);box-sizing:border-box;pointer-events:auto;border:none;background:transparent;resize:none;padding:0;margin:0;color:var(--fm);font-family:var(--agenda-font,var(--font-body));line-height:1.35;overflow-y:auto;}
+.fm-text:focus{outline:none;}
+.fm-text::placeholder{color:var(--paper-soft);opacity:.7;}
+.fm-img{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;pointer-events:auto;cursor:move;touch-action:none;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;}
+.fm-img:not([src]){background:repeating-linear-gradient(45deg,var(--paper-line) 0 8px,transparent 8px 16px);border-radius:3px;}
+.forma.sel:not(.is-line)::after{content:"";position:absolute;inset:-5px;border:1px dashed var(--c-todo);pointer-events:none;}
+/* mentre è scelta sta davanti alle altre, così i suoi pallini si possono sempre prendere */
+.forma.sel{z-index:50!important;}
+.forma.dragging{opacity:.85;}
+.fm-handles{display:none;}
+.forma.sel .fm-handles{display:block;}
+.fm-h{position:absolute;width:28px;height:28px;margin:-14px 0 0 -14px;pointer-events:auto;touch-action:none;z-index:2;}
+.fm-h::after{content:"";position:absolute;inset:8px;border-radius:50%;background:#fff;border:1.5px solid var(--c-todo);box-shadow:0 1px 3px rgba(0,0,0,.25);}
+.fm-se{left:100%;top:100%;cursor:nwse-resize;} .fm-e{left:100%;top:50%;cursor:ew-resize;} .fm-s{left:50%;top:100%;cursor:ns-resize;}
+.fm-a{left:0;top:50%;cursor:crosshair;} .fm-b{left:100%;top:50%;cursor:crosshair;}
+.fm-rot{left:50%;top:-30px;cursor:grab;}
+.fm-rot::after{background:var(--c-todo);}
+.fm-rot::before{content:"";position:absolute;left:13.5px;top:20px;width:1px;height:17px;background:var(--c-todo);}
+.fm-grip{position:absolute;left:-12px;top:-12px;width:24px;height:24px;border-radius:50%;background:var(--c-todo);color:#fff;font-size:.8rem;line-height:24px;text-align:center;pointer-events:auto;cursor:move;touch-action:none;z-index:2;}
+.fm-bar{position:absolute;z-index:60;display:flex;flex-wrap:wrap;align-items:center;gap:2px;max-width:100%;box-sizing:border-box;padding:4px;background:var(--surface);color:var(--ink);border:1px solid var(--line-strong);border-radius:10px;box-shadow:var(--shadow);pointer-events:auto;font-family:var(--font-body);}
+.fm-grp{display:flex;align-items:center;gap:2px;padding:0 3px;}
+.fm-grp+.fm-grp{border-left:1px solid var(--line);}
+.fm-btn{display:inline-flex;align-items:center;justify-content:center;min-width:30px;height:30px;padding:0 5px;border:1px solid transparent;border-radius:7px;background:transparent;color:var(--ink);font-size:.85rem;cursor:pointer;}
+.fm-btn:hover{background:var(--surface-2);border-color:var(--line);}
+.fm-btn.on{border-color:var(--c-todo);background:var(--c-todo-soft);}
+.fm-btn svg{width:18px;height:18px;}
+.fm-dot{display:block;width:16px;height:16px;border-radius:50%;box-shadow:inset 0 0 0 1px rgba(0,0,0,.15);}
+.fm-menu{position:fixed;z-index:1000;display:grid;grid-template-columns:repeat(4,76px);gap:4px;padding:8px;background:var(--surface);color:var(--ink);border:1px solid var(--line-strong);border-radius:12px;box-shadow:var(--shadow);}
+.fm-mi{display:flex;flex-direction:column;align-items:center;gap:3px;padding:7px 2px 5px;border:1px solid transparent;border-radius:8px;background:transparent;color:var(--ink);font-size:.68rem;line-height:1.15;cursor:pointer;text-align:center;}
+.fm-mi:hover,.fm-mi:focus-visible{background:var(--surface-2);border-color:var(--line);}
+.fm-mi svg{width:26px;height:26px;}
+@media (max-width:420px){.fm-menu{grid-template-columns:repeat(4,68px);}}
 /* lucchetto del diario */
 .diary-lock{display:flex;flex-direction:column;align-items:center;text-align:center;gap:10px;padding:34px 20px;}
 .diary-lock .lock-icon{font-size:2.4rem;line-height:1;}
@@ -666,7 +716,7 @@ button.attach-name:hover{text-decoration:underline;}
     return {
       token,
       async request(path, opts = {}) {
-        if (!/^\/(finanze_(categorie|impostazioni|metodi|movimenti)|habit_(activities|entries|office_days|diario_days|diario_photos|todos|todo_done|attachments|agenda_days|agenda_weeks|agenda_postit|impostazioni|push_subscriptions)|rpc\/habit_avviso_prova)(\?|$)/.test(path)) throw new Error('Percorso non valido.');
+        if (!/^\/(finanze_(categorie|impostazioni|metodi|movimenti)|habit_(activities|entries|office_days|diario_days|diario_photos|todos|todo_done|attachments|agenda_days|agenda_weeks|agenda_postit|agenda_forme|impostazioni|push_subscriptions)|rpc\/habit_avviso_prova)(\?|$)/.test(path)) throw new Error('Percorso non valido.');
         const method=(opts.method || 'GET').toUpperCase();
         if (!['GET','POST','PATCH','DELETE'].includes(method)) throw new Error('Metodo non consentito.');
         if (method !== 'GET' && !config.allowMutations) {
@@ -1040,6 +1090,8 @@ const Data={
   agendaAvailable:false,
   POSTITS:[],
   postitAvailable:false,
+  FORME:[],
+  formeAvailable:false,
   SETTINGS:{},
   settingsAvailable:false,
 
@@ -1099,6 +1151,9 @@ const Data={
         this.SETTINGS=Object.fromEntries(settings.map(r=>[r.chiave,r.valore])); this.settingsAvailable=true;
         DiaryLock.remember();
       }catch(_){ if(!this.settingsAvailable){ this.postitAvailable=false; } }
+      // Forme, riquadri di testo e immagini: disponibili solo dopo forme-PROPOSTA.sql (le immagini si scaricano a parte).
+      try{ this.FORME=Forme.mergeLoaded(await readAllRows(`/habit_agenda_forme?select=${FORMA_COLS}`,"week_start,z,id")); this.formeAvailable=true; }
+      catch(_){ if(!this.formeAvailable) this.FORME=[]; }
       this.online=true;
       // Verification build: do not persist personal data in the old cache.
     }catch(e){
@@ -2037,9 +2092,9 @@ const Agenda={
   },
   flushAll(){ return Promise.all(Object.keys(this.drafts).map(k=>this.flush(k))); },
   statusText(){
-    if(this.failed.size||Postit.failed.size) return["⚠️ Non salvato: controlla la connessione, riprovo appena scrivi o esci dal riquadro",true];
-    if(this.saving||Postit.saving||Object.keys(this.timers).length||Object.keys(Postit.timers).length) return["Salvataggio…",false];
-    return[Object.keys(this.writtenAt).length||Postit.saved?"✓ Salvato":"Si salva da solo mentre scrivi",false];
+    if(this.failed.size||Postit.failed.size||Forme.failed.size) return["⚠️ Non salvato: controlla la connessione, riprovo appena scrivi o esci dal riquadro",true];
+    if(this.saving||Postit.saving||Forme.saving||Object.keys(this.timers).length||Object.keys(Postit.timers).length||Object.keys(Forme.timers).length) return["Salvataggio…",false];
+    return[Object.keys(this.writtenAt).length||Postit.saved||Forme.saved?"✓ Salvato":"Si salva da solo mentre scrivi",false];
   },
   showStatus(){
     const el=document.getElementById("agenda-status"); if(!el)return;
@@ -2272,6 +2327,385 @@ document.addEventListener("focusin",e=>{
   const top=Math.max(...Postit.forWeek(p.week_start).map(q=>q.z));
   if(p.z<top){ const el=e.target.closest("[data-postit]"); if(el) el.style.zIndex=top+1; Postit.change(id,{z:top+1}); }
 });
+
+/* ---- Forme, riquadri di testo e immagini sulle pagine dell'agenda (giorni e note) ----
+   Come i post-it appartengono a una settimana, in più a una delle due pagine. x: centro da 0 (sinistra) a 1 (destra)
+   della pagina, y: centro in pixel dall'alto, w e h in pixel, rot in gradi attorno al centro, flip = capovolta.
+   Per il riquadro di testo «stroke» è la grandezza del testo. Le immagini (ridotte) si scaricano solo per la settimana aperta. */
+const FORMA_COLS="id,week_start,page,kind,color,fill,stroke,x,y,w,h,rot,flip,text,z";
+const FORMA_KINDS={
+  testo:{label:"Riquadro di testo",short:"Testo",w:190,h:80},
+  linea:{label:"Linea",short:"Linea",w:150,h:24,line:true},
+  freccia:{label:"Freccia",short:"Freccia",w:150,h:24,line:true},
+  rettangolo:{label:"Rettangolo",short:"Rettangolo",w:130,h:80,closed:true},
+  cerchio:{label:"Cerchio",short:"Cerchio",w:90,h:90,closed:true},
+  arrotondato:{label:"Rettangolo arrotondato",short:"Arrotondato",w:130,h:80,closed:true},
+  gomito:{label:"Connettore a gomito",short:"Gomito",w:140,h:70,elbow:true},
+  gomito_freccia:{label:"Connettore a gomito con freccia",short:"Gomito →",w:140,h:70,elbow:true},
+  freccia_piena:{label:"Freccia piena",short:"Freccia →",w:130,h:64,closed:true},
+  immagine:{label:"Immagine",short:"Immagine"}
+};
+// Voci del menu «＋ Forme», nell'ordine di Word; la freccia in giù è la freccia piena girata di 90°.
+const FORMA_MENU=[["testo"],["linea"],["freccia"],["rettangolo"],["cerchio"],["arrotondato"],["gomito"],["gomito_freccia"],["freccia_piena","Freccia →","Freccia piena a destra"],["freccia_piena","Freccia ↓","Freccia piena in giù",90],["immagine"]];
+const FORMA_COLORS={rosso:"Rosso",blu:"Blu",verde:"Verde",nero:"Nero (chiaro nella modalità scura)"};
+const FORMA_FILLS={contorno:"Solo contorno",piena:"Piena",nessuno:"Senza bordo"};
+const FORMA_STROKES={s:[1.5,"Linea sottile"],m:[3,"Linea media"],l:[5,"Linea spessa"]};
+const FORMA_TEXT={s:[".8rem","Testo piccolo"],m:[".95rem","Testo normale"],l:["1.3rem","Testo grande"]};
+const fmR=n=>Math.round(n*10)/10;
+const fmClamp=(n,a,b)=>Math.min(b,Math.max(a,n));
+const fmNorm=a=>((a+180)%360+360)%360-180;
+// Vicino a un multiplo di 15° l'angolo si aggancia (orizzontale, verticale, 45°…).
+const fmSnap=a=>{ a=fmNorm(a); const n=Math.round(a/15)*15; return Math.abs(a-n)<=4?fmNorm(n):Math.round(a); };
+function formaGeometry(kind,w,h,sw){
+  const p=sw/2, head=Math.min(Math.max(sw*3.2+5,9),w*.45), hw=head*.55;
+  switch(kind){
+    case "linea": return `<line x1="0" y1="${fmR(h/2)}" x2="${fmR(w)}" y2="${fmR(h/2)}"/>`;
+    case "freccia": return `<line x1="0" y1="${fmR(h/2)}" x2="${fmR(w-head*.7)}" y2="${fmR(h/2)}"/><polygon class="fm-head" points="${fmR(w)},${fmR(h/2)} ${fmR(w-head)},${fmR(h/2-hw)} ${fmR(w-head)},${fmR(h/2+hw)}"/>`;
+    case "rettangolo": return `<rect x="${p}" y="${p}" width="${fmR(Math.max(1,w-sw))}" height="${fmR(Math.max(1,h-sw))}"/>`;
+    case "arrotondato": { const r=fmR(Math.min(w,h)*.2); return `<rect x="${p}" y="${p}" width="${fmR(Math.max(1,w-sw))}" height="${fmR(Math.max(1,h-sw))}" rx="${r}" ry="${r}"/>`; }
+    case "cerchio": return `<ellipse cx="${fmR(w/2)}" cy="${fmR(h/2)}" rx="${fmR(Math.max(.5,w/2-p))}" ry="${fmR(Math.max(.5,h/2-p))}"/>`;
+    case "gomito": return `<path d="M${p} ${p}H${fmR(w/2)}V${fmR(h-p)}H${fmR(w-p)}"/>`;
+    case "gomito_freccia": return `<path d="M${p} ${p}H${fmR(w/2)}V${fmR(h-p)}H${fmR(Math.max(w/2,w-head*.7))}"/><polygon class="fm-head" points="${fmR(w)},${fmR(h-p)} ${fmR(w-head)},${fmR(h-p-hw)} ${fmR(w-head)},${fmR(h-p+hw)}"/>`;
+    case "freccia_piena": { const hl=Math.min(w*.45,h*.9), t=h*.27; return `<polygon points="${p},${fmR(t)} ${fmR(w-hl)},${fmR(t)} ${fmR(w-hl)},${p} ${fmR(w-p)},${fmR(h/2)} ${fmR(w-hl)},${fmR(h-p)} ${fmR(w-hl)},${fmR(h-t)} ${p},${fmR(h-t)}"/>`; }
+  }
+  return "";
+}
+function formaSVG(f){
+  const sw=FORMA_STROKES[f.stroke][0], g=formaGeometry(f.kind,f.w,f.h,sw);
+  return `<svg class="fm-svg" width="${fmR(f.w)}" height="${fmR(f.h)}" viewBox="0 0 ${fmR(f.w)} ${fmR(f.h)}" aria-hidden="true"><g class="fm-hit" data-fm-hit>${g}</g><g class="fm-vis" style="stroke-width:${sw}px">${g}</g></svg>`;
+}
+function formaHandlesHTML(f){
+  const k=FORMA_KINDS[f.kind], h=n=>`<span class="fm-h fm-${n}" data-fm-handle="${n}"></span>`;
+  if(k.line) return `<div class="fm-handles">${h("a")}${h("b")}</div>`;
+  return `<div class="fm-handles">${f.kind==="testo"?`<span class="fm-grip" data-fm-handle="move" title="Trascina per spostare">✥</span>`:""}${h("rot")}${f.kind==="immagine"?"":h("e")+h("s")}${h("se")}</div>`;
+}
+function formaHTML(f){
+  const k=FORMA_KINDS[f.kind];
+  const cls=["forma","k-"+f.kind,Forme.selected===f.id?"sel":"",k.line?"is-line":"",k.closed||f.kind==="testo"?"fill-"+f.fill:""].filter(Boolean).join(" ");
+  const style=`left:calc(${f.x} * 100% - ${fmR(f.w/2)}px);top:${fmR(f.y-f.h/2)}px;width:${fmR(f.w)}px;height:${fmR(f.h)}px;transform:rotate(${f.rot}deg)${f.flip?" scaleX(-1)":""};z-index:${f.z};--fm:var(--fm-${f.color})`;
+  let body;
+  if(f.kind==="testo") body=`<div class="fm-frame" data-fm-hit></div><textarea class="fm-text" data-fm-text="${f.id}" maxlength="2000" placeholder="Scrivi…" aria-label="Riquadro di testo" style="font-size:${FORMA_TEXT[f.stroke][0]}">${escapeHTML(f.text||"")}</textarea>`;
+  else if(f.kind==="immagine") body=`<img class="fm-img" data-fm-hit data-fm-img="${f.id}" alt="Immagine" draggable="false" ${Forme.images[f.id]?`src="${escapeHTML(Forme.images[f.id])}"`:""}>`;
+  else body=formaSVG(f);
+  return `<div class="${cls}" data-forma="${f.id}" style="${style}">${body}${formaHandlesHTML(f)}</div>`;
+}
+function formeLayerHTML(week,page){
+  if(!Data.formeAvailable) return "";
+  return `<div class="fm-layer" data-fm-page="${page}">${Forme.forPage(week,page).map(formaHTML).join("")}</div>`;
+}
+// Altezza della pagina: abbastanza perché nessuna forma resti tagliata (anche se girata).
+function formePageMinHeight(list){
+  return list.reduce((m,f)=>{ const r=f.rot*Math.PI/180; return Math.max(m,f.y+(Math.abs(f.w*Math.sin(r))+Math.abs(f.h*Math.cos(r)))/2+20); },0);
+}
+// Dove finiscono intestazione e pulsanti della pagina (le note iniziano dopo la barra del formato).
+function formePageContentTop(pageEl){
+  const body=pageEl.querySelector(".notes-body"), head=pageEl.querySelector(".npage-head");
+  return body?body.offsetTop:head?head.offsetTop+head.offsetHeight:0;
+}
+function formeButtonHTML(page){
+  return Data.formeAvailable?`<button type="button" class="notes-strike" data-action="forme-menu" data-page="${page}" aria-haspopup="true" title="Inserisci su questa pagina una linea, una freccia, una forma, un riquadro di testo o un'immagine">＋ Forme</button>`:"";
+}
+// Icone del menu, disegnate come le forme vere.
+function formaIconSVG(kind,rot){
+  const ic={
+    testo:`<rect x="3" y="4" width="20" height="18" rx="1.5" fill="none"/><path d="M8 17l5-11 5 11M9.8 13.5h6.4" fill="none"/>`,
+    linea:`<line x1="4" y1="22" x2="22" y2="4"/>`,
+    freccia:`<line x1="4" y1="22" x2="18" y2="8"/><polygon points="22,4 13.5,7.5 18.5,12.5" fill="currentColor"/>`,
+    rettangolo:`<rect x="4" y="6" width="18" height="14" fill="currentColor" fill-opacity=".18"/>`,
+    cerchio:`<circle cx="13" cy="13" r="9" fill="currentColor" fill-opacity=".18"/>`,
+    arrotondato:`<rect x="4" y="6" width="18" height="14" rx="4" fill="currentColor" fill-opacity=".18"/>`,
+    gomito:`<path d="M4 6H13V20H22" fill="none"/>`,
+    gomito_freccia:`<path d="M4 6H13V20H18" fill="none"/><polygon points="23,20 17,16.5 17,23.5" fill="currentColor"/>`,
+    freccia_piena:`<polygon points="3,9 14,9 14,4 23,13 14,22 14,17 3,17" fill="currentColor" fill-opacity=".18"/>`,
+    immagine:`<rect x="3" y="5" width="20" height="16" rx="1.5" fill="none"/><circle cx="9" cy="10" r="2" fill="currentColor"/><path d="M4 19l6-6 4 4 3-3 5 5" fill="none"/>`
+  }[kind];
+  return `<svg viewBox="0 0 26 26" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round" stroke-linecap="round" aria-hidden="true"${rot?` style="transform:rotate(${rot}deg)"`:""}>${ic}</svg>`;
+}
+function formaBarHTML(f){
+  const k=FORMA_KINDS[f.kind];
+  const b=(act,v,label,inner,on)=>`<button type="button" class="fm-btn${on?" on":""}" data-action="${act}" data-v="${v}" title="${escapeHTML(label)}" aria-label="${escapeHTML(label)}"${on===undefined?"":` aria-pressed="${!!on}"`}>${inner}</button>`;
+  const ico=d=>`<svg viewBox="0 0 18 18" stroke="currentColor" fill="none" stroke-linecap="round" aria-hidden="true">${d}</svg>`;
+  const g=[];
+  if(f.kind!=="immagine") g.push(Object.entries(FORMA_COLORS).map(([c,l])=>b("forma-color",c,l,`<span class="fm-dot" style="background:var(--fm-${c})"></span>`,f.color===c)).join(""));
+  if(k.closed||f.kind==="testo"){
+    const fills={contorno:ico(`<rect x="3" y="3" width="12" height="12" rx="1.5" stroke-width="1.8"/>`),piena:ico(`<rect x="3" y="3" width="12" height="12" rx="1.5" stroke-width="1.8" fill="currentColor" fill-opacity=".35"/>`),nessuno:ico(`<rect x="3" y="3" width="12" height="12" rx="1.5" stroke-width="1.2" stroke-dasharray="2 2"/>`)};
+    g.push(Object.keys(FORMA_FILLS).filter(v=>v!=="nessuno"||f.kind==="testo").map(v=>b("forma-fill",v,FORMA_FILLS[v],fills[v],f.fill===v)).join(""));
+  }
+  if(f.kind==="testo") g.push(Object.entries(FORMA_TEXT).map(([v,[size,l]])=>b("forma-stroke",v,l,`<span style="font-size:${v==="s"?".7rem":v==="m"?".88rem":"1.1rem"};font-weight:600">A</span>`,f.stroke===v)).join(""));
+  else if(f.kind!=="immagine") g.push(Object.entries(FORMA_STROKES).map(([v,[sw,l]])=>b("forma-stroke",v,l,ico(`<line x1="3" y1="9" x2="15" y2="9" stroke-width="${sw}"/>`),f.stroke===v)).join(""));
+  g.push(b("forma-scale","0.85","Più piccola","−")+b("forma-scale","1.18","Più grande","+"));
+  g.push(b("forma-rotate","90","Gira di 90°","↻")+(k.elbow?b("forma-flip","1","Capovolgi","⇋",f.flip):"")+b("forma-front","1","Porta davanti alle altre forme",ico(`<rect x="2.5" y="2.5" width="9" height="9" rx="1" stroke-width="1.4"/><rect x="6.5" y="6.5" width="9" height="9" rx="1" stroke-width="1.4" fill="currentColor" fill-opacity=".5"/>`)));
+  g.push(b("forma-delete","1",f.kind==="immagine"?"Elimina l'immagine":f.kind==="testo"?"Elimina il riquadro di testo":"Elimina la forma","🗑"));
+  return g.map(x=>`<div class="fm-grp">${x}</div>`).join("");
+}
+const Forme={
+  pending:{}, timers:{}, queue:{}, failed:new Set(), saving:0, saved:false, selected:null, images:{}, loadingImages:new Set(),
+  valid(f){ return FORMA_KINDS[f.kind]&&FORMA_COLORS[f.color]&&FORMA_FILLS[f.fill]&&FORMA_STROKES[f.stroke]; },
+  forPage(w,page){ return Data.FORME.filter(f=>f.week_start===w&&f.page===page&&this.valid(f)).sort((a,b)=>a.z-b.z); },
+  get(id){ return Data.FORME.find(f=>f.id===id); },
+  el(id){ return id?document.querySelector(`.fm-layer [data-forma="${id}"]`):null; },
+  mergeLoaded(rows){ return rows.map(r=>this.pending[r.id]?Object.assign({},r,this.pending[r.id]):r); },
+  family(kind){ return kind==="testo"?"testo":"forma"; },
+  lastStyle(kind){
+    const fam=this.family(kind), d={color:"nero",fill:"contorno",stroke:"m"};
+    try{ const s=JSON.parse(localStorage.getItem("forma-stile-"+fam)||"null")||{};
+      if(FORMA_COLORS[s.color]) d.color=s.color; if(FORMA_STROKES[s.stroke]) d.stroke=s.stroke;
+      if(FORMA_FILLS[s.fill]&&(fam==="testo"||s.fill!=="nessuno")) d.fill=s.fill; }catch(_){}
+    return d;
+  },
+  remember(f){ if(f.kind!=="immagine") try{ localStorage.setItem("forma-stile-"+this.family(f.kind),JSON.stringify({color:f.color,fill:f.fill,stroke:f.stroke})); }catch(_){} },
+  // La forma nuova compare al centro della parte di pagina che si sta guardando.
+  async create(page,kind,{rot=0,image=null,w,h}={}){
+    const week=state.agendaWeekFrom, k=FORMA_KINDS[kind];
+    const layer=document.querySelector(`.fm-layer[data-fm-page="${page}"]`); if(!layer) return;
+    w=w||k.w; h=h||k.h;
+    const W=layer.clientWidth||400, lr=layer.getBoundingClientRect(), mine=this.forPage(week,page), n=mine.length;
+    // Mai sopra l'intestazione e i pulsanti della pagina.
+    const minC=formePageContentTop(layer.parentElement)+(rot%180?w/2:h/2)+10, off=(n%5)*14;
+    const cy=fmClamp(innerHeight/2-lr.top+off,minC,Math.max(minC,layer.clientHeight-(rot%180?w/2:h/2)-12));
+    const body=Object.assign({week_start:week,page,kind,x:fmR(fmClamp((W/2+off)/W,0,1)*1000)/1000,y:Math.round(cy),w,h,rot,flip:false,text:"",z:(mine.length?mine[mine.length-1].z:0)+1},this.lastStyle(kind));
+    if(image) body.image=image;
+    const rows=await sbFetch(`/habit_agenda_forme?select=${FORMA_COLS}`,{method:"POST",body,prefer:"return=representation"});
+    const f=rows[0]; Data.FORME.push(f); if(image) this.images[f.id]=image;
+    this.selected=f.id; this.saved=true; render();
+    if(kind==="testo"){ const t=this.el(f.id); if(t) t.querySelector("textarea").focus({preventScroll:true}); }
+    return f;
+  },
+  change(id,patch,{now=false}={}){
+    const f=this.get(id); if(!f) return;
+    Object.assign(f,patch); this.pending[id]=Object.assign(this.pending[id]||{},patch);
+    clearTimeout(this.timers[id]); this.timers[id]=setTimeout(()=>this.flush(id),now?0:800);
+    Agenda.showStatus();
+  },
+  flush(id){
+    clearTimeout(this.timers[id]); delete this.timers[id];
+    const patch=this.pending[id]; if(!patch) return this.queue[id]||Promise.resolve();
+    delete this.pending[id];
+    this.queue[id]=(this.queue[id]||Promise.resolve()).then(async()=>{
+      this.saving++; Agenda.showStatus();
+      try{
+        await sbFetch(`/habit_agenda_forme?id=eq.${encodeURIComponent(id)}`,{method:"PATCH",body:Object.assign({},patch,{updated_at:new Date().toISOString()})});
+        this.failed.delete(id); this.saved=true;
+      }catch(_){ if(this.get(id)){ this.pending[id]=Object.assign({},patch,this.pending[id]||{}); this.failed.add(id); } }
+      finally{ this.saving--; Agenda.showStatus(); }
+    });
+    return this.queue[id];
+  },
+  flushAll(){ return Promise.all(Object.keys(this.pending).map(id=>this.flush(id))); },
+  async remove(id){
+    clearTimeout(this.timers[id]); delete this.timers[id];
+    await sbFetch(`/habit_agenda_forme?id=eq.${encodeURIComponent(id)}`,{method:"DELETE"});
+    delete this.pending[id]; this.failed.delete(id); delete this.images[id];
+    Data.FORME=Data.FORME.filter(f=>f.id!==id);
+    if(this.selected===id) this.selected=null;
+    const el=this.el(id); if(el) el.remove();
+    this.showBar(); Agenda.showStatus();
+  },
+  async askRemove(id){
+    const f=this.get(id); if(!f) return;
+    if(f.kind==="immagine"&&!confirm("Eliminare questa immagine dall'agenda?")) return;
+    if(f.kind==="testo"&&f.text.trim()&&!confirm("Eliminare questo riquadro? Il testo scritto dentro verrà cancellato.")) return;
+    try{ await this.remove(id); }catch(err){ alert("Non sono riuscito a eliminarla: "+err.message); }
+  },
+  select(id){
+    if(this.selected===id) return this.showBar();
+    this.selected=id;
+    document.querySelectorAll(".fm-layer .forma.sel").forEach(el=>el.classList.remove("sel"));
+    const el=this.el(id); if(el) el.classList.add("sel");
+    this.showBar();
+  },
+  // Ridisegna una forma dopo una modifica, senza togliere il cursore dal riquadro di testo.
+  redraw(id){
+    const f=this.get(id), el=this.el(id); if(!f||!el) return;
+    const ta=el.querySelector("textarea"), had=ta&&document.activeElement===ta, sel=had&&[ta.selectionStart,ta.selectionEnd];
+    el.outerHTML=formaHTML(f);
+    if(had){ const t=this.el(id).querySelector("textarea"); t.focus({preventScroll:true}); try{ t.setSelectionRange(...sel); }catch(_){} }
+    const page=this.el(id).closest(".npage"); page.style.minHeight=formePageMinHeight(this.forPage(f.week_start,f.page))+"px";
+    this.showBar();
+  },
+  // La barra per colore, riempimento, spessore… sta sopra la forma scelta (sotto se in alto non c'è posto).
+  showBar(){
+    document.querySelectorAll(".fm-bar").forEach(b=>b.remove());
+    const f=this.get(this.selected), el=this.el(this.selected); if(!f||!el) return;
+    const layer=el.parentElement, bar=document.createElement("div");
+    bar.className="fm-bar"; bar.setAttribute("role","toolbar"); bar.setAttribute("aria-label","Modifica "+FORMA_KINDS[f.kind].label.toLowerCase());
+    bar.innerHTML=formaBarHTML(f); layer.append(bar);
+    const lr=layer.getBoundingClientRect(), r=el.getBoundingClientRect(), gap=FORMA_KINDS[f.kind].line?12:40;
+    let top=r.top-lr.top-bar.offsetHeight-gap; if(top<formePageContentTop(layer.parentElement)) top=r.bottom-lr.top+(FORMA_KINDS[f.kind].line?12:20);
+    bar.style.top=Math.round(top)+"px";
+    bar.style.left=Math.round(fmClamp(r.left-lr.left+r.width/2-bar.offsetWidth/2,0,Math.max(0,layer.clientWidth-bar.offsetWidth)))+"px";
+  },
+  action(act,v){
+    const f=this.get(this.selected); if(!f) return;
+    if(act==="forma-delete") return this.askRemove(f.id);
+    const k=FORMA_KINDS[f.kind], p={};
+    if(act==="forma-color"&&FORMA_COLORS[v]) p.color=v;
+    else if(act==="forma-fill"&&FORMA_FILLS[v]) p.fill=v;
+    else if(act==="forma-stroke"&&FORMA_STROKES[v]) p.stroke=v;
+    else if(act==="forma-rotate") p.rot=fmNorm(Math.round(f.rot)+90);
+    else if(act==="forma-flip") p.flip=!f.flip;
+    else if(act==="forma-front") p.z=Math.max(...this.forPage(f.week_start,f.page).map(q=>q.z))+1;
+    else if(act==="forma-scale"){ const s=+v||1; p.w=fmR(fmClamp(f.w*s,12,3000)); if(!k.line) p.h=fmR(fmClamp(f.h*s,12,3000)); }
+    else return;
+    this.change(f.id,p,{now:true}); this.remember(f); this.redraw(f.id);
+  },
+  // Spostamento con le frecce della tastiera (Maiusc: 10 pixel alla volta).
+  nudge(dx,dy){
+    const f=this.get(this.selected), el=this.el(this.selected); if(!f||!el) return;
+    const W=el.parentElement.clientWidth||1;
+    this.change(f.id,{x:Math.round(fmClamp(f.x+dx/W,0,1)*10000)/10000,y:fmR(fmClamp(f.y+dy,0,5000))});
+    this.redraw(f.id);
+  },
+  async loadImages(week){
+    const ids=Data.FORME.filter(f=>f.week_start===week&&f.kind==="immagine"&&!(f.id in this.images)&&!this.loadingImages.has(f.id)).map(f=>f.id);
+    if(!ids.length) return;
+    ids.forEach(i=>this.loadingImages.add(i));
+    try{
+      const rows=await sbFetch(`/habit_agenda_forme?select=id,image&id=in.(${ids.join(",")})`);
+      for(const r of rows||[]){ this.images[r.id]=r.image||""; if(r.image) document.querySelectorAll(`img[data-fm-img="${r.id}"]`).forEach(i=>{ i.src=r.image; }); }
+    }catch(_){}
+    finally{ ids.forEach(i=>this.loadingImages.delete(i)); }
+  },
+  afterRender(){
+    if(!Data.formeAvailable||state.route!=="agenda"||state.agendaView!=="settimana") return;
+    this.showBar(); this.loadImages(state.agendaWeekFrom);
+  }
+};
+// Immagine ridotta (lato lungo 1400 px) per stare nel database: PNG/GIF/WebP restano trasparenti se non diventano troppo grandi.
+function readImageForAgenda(file){
+  return new Promise((resolve,reject)=>{
+    const url=URL.createObjectURL(file), img=new Image();
+    img.onerror=()=>{ URL.revokeObjectURL(url); reject(new Error("il file non è un'immagine che il browser sa aprire.")); };
+    img.onload=()=>{
+      URL.revokeObjectURL(url);
+      const keepAlpha=/png|gif|webp/.test(file.type);
+      for(const[max,q] of [[1400,.82],[1000,.72],[700,.62]]){
+        const s=Math.min(1,max/Math.max(img.naturalWidth,img.naturalHeight));
+        const w=Math.max(1,Math.round(img.naturalWidth*s)), h=Math.max(1,Math.round(img.naturalHeight*s));
+        const cv=document.createElement("canvas"); cv.width=w; cv.height=h; const ctx=cv.getContext("2d");
+        if(keepAlpha){ ctx.drawImage(img,0,0,w,h); const png=cv.toDataURL("image/png"); if(png.length<=1200000) return resolve({data:png,w,h}); }
+        ctx.fillStyle="#fff"; ctx.fillRect(0,0,w,h); ctx.drawImage(img,0,0,w,h);
+        const jpg=cv.toDataURL("image/jpeg",q); if(jpg.length<=2900000) return resolve({data:jpg,w,h});
+      }
+      reject(new Error("l'immagine è troppo grande."));
+    };
+    img.src=url;
+  });
+}
+async function formaNew(page,kind,rot){
+  if(!FORMA_KINDS[kind]) return;
+  if(kind!=="immagine"){
+    try{ await Forme.create(page,kind,{rot}); }catch(err){ alert("Non sono riuscito ad aggiungere la forma: "+err.message); }
+    return;
+  }
+  const input=document.createElement("input"); input.type="file"; input.accept="image/*";
+  input.addEventListener("change",async()=>{
+    const file=input.files&&input.files[0]; if(!file) return;
+    try{
+      const{data,w,h}=await readImageForAgenda(file);
+      const layer=document.querySelector(`.fm-layer[data-fm-page="${page}"]`), max=Math.min(240,(layer&&layer.clientWidth||400)*.7), s=Math.min(1,max/Math.max(w,h));
+      await Forme.create(page,"immagine",{image:data,w:fmR(Math.max(24,w*s)),h:fmR(Math.max(24,h*s))});
+    }catch(err){ alert("Non sono riuscito ad aggiungere l'immagine: "+err.message); }
+  });
+  input.click();
+}
+// Menu «＋ Forme»: le icone delle forme, come nella barra di Word.
+function formeMenuClose(){ document.querySelectorAll(".fm-menu").forEach(m=>m.remove()); document.querySelectorAll('[data-action="forme-menu"][aria-expanded="true"]').forEach(b=>b.setAttribute("aria-expanded","false")); }
+function formeMenuToggle(btn){
+  const open=btn.getAttribute("aria-expanded")==="true"; formeMenuClose(); if(open) return;
+  const page=btn.dataset.page, m=document.createElement("div");
+  m.className="fm-menu"; m.setAttribute("role","menu");
+  m.innerHTML=FORMA_MENU.map(([kind,short,label,rot])=>`<button type="button" class="fm-mi" role="menuitem" data-action="forma-new" data-page="${page}" data-kind="${kind}" data-rot="${rot||0}" title="${escapeHTML(label||FORMA_KINDS[kind].label)}">${formaIconSVG(kind,rot)}<span>${escapeHTML(short||FORMA_KINDS[kind].short)}</span></button>`).join("");
+  document.body.append(m); btn.setAttribute("aria-expanded","true");
+  const r=btn.getBoundingClientRect(), mw=m.offsetWidth, mh=m.offsetHeight;
+  m.style.left=Math.round(fmClamp(r.right-mw,8,Math.max(8,innerWidth-mw-8)))+"px";
+  m.style.top=Math.round(r.bottom+6+mh>innerHeight&&r.top-6-mh>0?r.top-6-mh:r.bottom+6)+"px";
+  const first=m.querySelector("button"); if(first) first.focus({preventScroll:true});
+}
+// Trascinare: spostare (sulla forma), allargare (pallini sui lati e nell'angolo), girare (pallino in alto),
+// le estremità di linee e frecce. Si lavora in pixel della pagina; alla fine si salva il centro come frazione.
+const FormaDrag={
+  start(e,el,mode){
+    const f=Forme.get(el.dataset.forma); if(!f) return;
+    e.preventDefault();
+    const layer=el.parentElement, left=el.offsetLeft, top=el.offsetTop;
+    this.cur={f,el,layer,mode,pointer:e.pointerId,x0:e.clientX,y0:e.clientY,left0:left,top0:top,w0:f.w,h0:f.h,rot0:f.rot,moved:false,g:{left,top,w:f.w,h:f.h,rot:f.rot}};
+    try{ e.target.setPointerCapture(e.pointerId); }catch(_){}
+  },
+  move(e){
+    const c=this.cur; if(!c||e.pointerId!==c.pointer) return;
+    const dx=e.clientX-c.x0, dy=e.clientY-c.y0;
+    if(!c.moved&&Math.abs(dx)+Math.abs(dy)<3) return;
+    if(!c.moved){ c.moved=true; c.el.classList.add("dragging"); document.querySelectorAll(".fm-bar").forEach(b=>b.remove()); }
+    const g=c.g, W=c.layer.clientWidth, lr=c.layer.getBoundingClientRect(), px=e.clientX-lr.left, py=e.clientY-lr.top, rad=a=>a*Math.PI/180;
+    const cx0=c.left0+c.w0/2, cy0=c.top0+c.h0/2;
+    if(c.mode==="move"){
+      g.left=fmClamp(cx0+dx,0,W)-c.w0/2; g.top=fmClamp(cy0+dy,0,5000)-c.h0/2;
+    }else if(c.mode==="rot"){
+      g.rot=fmSnap(Math.atan2(py-cy0,px-cx0)*180/Math.PI+90);
+    }else if(c.mode==="a"||c.mode==="b"){
+      // L'altra estremità resta ferma; rot è sempre la direzione da «a» a «b».
+      const ux=Math.cos(rad(c.rot0))*c.w0/2, uy=Math.sin(rad(c.rot0))*c.w0/2;
+      const fx=c.mode==="b"?cx0-ux:cx0+ux, fy=c.mode==="b"?cy0-uy:cy0+uy;
+      const len=Math.max(12,Math.hypot(px-fx,py-fy)), ang=fmSnap(Math.atan2(py-fy,px-fx)*180/Math.PI);
+      const mx=fx+Math.cos(rad(ang))*len/2, my=fy+Math.sin(rad(ang))*len/2;
+      g.w=len; g.rot=c.mode==="b"?ang:fmNorm(ang+180); g.left=mx-len/2; g.top=my-c.h0/2;
+    }else{
+      // Pallini per allargare: lo spostamento si legge nel verso della forma (girata o capovolta); l'angolo opposto resta fermo.
+      const r=rad(c.rot0), cos=Math.cos(r), sin=Math.sin(r), fl=c.f.flip?-1:1;
+      const lx=(dx*cos+dy*sin)*fl, ly=-dx*sin+dy*cos;
+      let w=c.mode==="s"?c.w0:fmClamp(c.w0+lx,12,3000), h=c.mode==="e"?c.h0:fmClamp(c.h0+ly,12,3000);
+      if(c.mode==="se"&&(e.shiftKey||c.f.kind==="immagine")){ const k=Math.max(w/c.w0,h/c.h0); w=fmClamp(c.w0*k,12,3000); h=fmClamp(c.h0*k,12,3000); }
+      const dw=(w-c.w0)/2*fl, dh=(h-c.h0)/2;
+      const cx=cx0+dw*cos-dh*sin, cy=cy0+dw*sin+dh*cos;
+      g.w=w; g.h=h; g.left=cx-w/2; g.top=cy-h/2;
+    }
+    const el=c.el, s=el.style;
+    s.left=g.left+"px"; s.top=g.top+"px"; s.width=g.w+"px"; s.height=g.h+"px";
+    s.transform=`rotate(${g.rot}deg)${c.f.flip?" scaleX(-1)":""}`;
+    const svg=el.querySelector(".fm-svg"); if(svg) svg.outerHTML=formaSVG(Object.assign({},c.f,{w:g.w,h:g.h}));
+    const page=c.layer.parentElement, need=g.top+g.h+40;
+    if(page.offsetHeight<need) page.style.minHeight=need+"px";
+  },
+  end(e){
+    const c=this.cur; if(!c||e.pointerId!==c.pointer) return;
+    this.cur=null; c.el.classList.remove("dragging");
+    if(!c.moved){ Forme.showBar(); return; }
+    const g=c.g, W=c.layer.clientWidth||1;
+    Forme.change(c.f.id,{x:Math.round(fmClamp((g.left+g.w/2)/W,0,1)*10000)/10000,y:fmR(fmClamp(g.top+g.h/2,0,5000)),w:fmR(g.w),h:fmR(g.h),rot:fmR(fmNorm(g.rot))},{now:true});
+    Forme.redraw(c.f.id);
+  }
+};
+document.addEventListener("pointerdown",e=>{
+  const t=e.target;
+  if(!(t.closest&&t.closest(".fm-menu,[data-action=\"forme-menu\"]"))) formeMenuClose();
+  // Toccando fuori dalle forme (e dalla loro barra) la forma scelta torna normale.
+  if(Forme.selected&&!(t.closest&&t.closest(".fm-layer [data-forma],.fm-bar"))) Forme.select(null);
+},true);
+document.addEventListener("pointerdown",e=>{
+  if(e.button>0||!e.target.closest) return;
+  const txt=e.target.closest("[data-fm-text]"); if(txt){ Forme.select(txt.dataset.fmText); return; }
+  const h=e.target.closest("[data-fm-handle]"), hit=h||e.target.closest("[data-fm-hit]"); if(!hit) return;
+  const el=hit.closest(".fm-layer [data-forma]"); if(!el) return;
+  Forme.select(el.dataset.forma);
+  FormaDrag.start(e,el,h?h.dataset.fmHandle:"move");
+});
+document.addEventListener("pointermove",e=>FormaDrag.move(e));
+document.addEventListener("pointerup",e=>FormaDrag.end(e));
+document.addEventListener("pointercancel",e=>FormaDrag.end(e));
+// I pulsanti della barra e del menu non tolgono il cursore dal riquadro di testo.
+document.addEventListener("mousedown",e=>{ if(e.target.closest&&e.target.closest(".fm-bar button")) e.preventDefault(); });
+document.addEventListener("keydown",e=>{
+  if(document.querySelector(".fm-menu")&&e.key==="Escape"){ formeMenuClose(); return; }
+  if(!Forme.selected) return;
+  const t=e.target, typing=t&&(t.isContentEditable||/^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName));
+  if(e.key==="Escape"){ if(typing&&t.dataset.fmText) t.blur(); Forme.select(null); return; }
+  if(typing||e.metaKey||e.ctrlKey||e.altKey||!overlay.classList.contains("hidden")) return;
+  if(e.key==="Delete"||e.key==="Backspace"){ e.preventDefault(); Forme.askRemove(Forme.selected); }
+  else if(e.key.startsWith("Arrow")){ e.preventDefault(); const s=e.shiftKey?10:1; Forme.nudge(e.key==="ArrowLeft"?-s:e.key==="ArrowRight"?s:0,e.key==="ArrowUp"?-s:e.key==="ArrowDown"?s:0); }
+});
+addEventListener("scroll",e=>{ if(!(e.target.closest&&e.target.closest(".fm-menu"))) formeMenuClose(); },{passive:true,capture:true});
+addEventListener("resize",()=>{ formeMenuClose(); Forme.showBar(); });
 
 function isoWeekNumber(iso){
   const d=new Date(iso+"T12:00:00"); d.setDate(d.getDate()+3-(d.getDay()+6)%7);
@@ -2725,7 +3159,7 @@ function renderAgendaYear(){
     </section>`;
 }
 function renderAgenda(){
-  const intro=`<div class="card intro" style="--accent:var(--c-todo)"><div>La tua agenda: in «Settimana» a sinistra gli appuntamenti di ogni giorno, a destra le note della settimana; «Mese» e «Anno» mostrano il calendario come sul telefono (tocca un giorno o un mese per aprirlo). Scrivi una riga e premi Invio: diventa un appuntamento con il suo cerchietto da spuntare, che trovi anche in Da fare. Se la riga inizia con un'ora (es. «10:00 dentista») viene messa in ordine di orario. Tocca il testo per modificarlo o eliminarlo. Nelle note, una riga fatta o che non ti serve più puoi barrarla con «Barra riga» (o ⌘⇧X): resta scritta, barrata; con «• Elenco» e «1. Elenco» fai elenchi puntati o numerati (Invio continua l'elenco, Invio su una voce vuota lo chiude). Sotto, la barra del formato: seleziona le parole e scegli <b>G</b> grassetto, <i>C</i> corsivo (⌘B, ⌘I), nei menu a tendina la grandezza (Aa), il colore o l'evidenziatore; senza selezione vale per tutta la riga. Per dare colore o evidenziatore a un appuntamento toccalo e scegli «Aspetto nell'agenda». Con «Aa Carattere» scegli il carattere dell'agenda. Con «＋ Post-it» attacchi un foglietto colorato alla settimana: scrivici sopra e spostalo trascinando la striscia in alto; con ⋯ cambi colore, carta, fermaglio e carattere o lo stacchi.</div></div>`;
+  const intro=`<div class="card intro" style="--accent:var(--c-todo)"><div>La tua agenda: in «Settimana» a sinistra gli appuntamenti di ogni giorno, a destra le note della settimana; «Mese» e «Anno» mostrano il calendario come sul telefono (tocca un giorno o un mese per aprirlo). Scrivi una riga e premi Invio: diventa un appuntamento con il suo cerchietto da spuntare, che trovi anche in Da fare. Se la riga inizia con un'ora (es. «10:00 dentista») viene messa in ordine di orario. Tocca il testo per modificarlo o eliminarlo. Nelle note, una riga fatta o che non ti serve più puoi barrarla con «Barra riga» (o ⌘⇧X): resta scritta, barrata; con «• Elenco» e «1. Elenco» fai elenchi puntati o numerati (Invio continua l'elenco, Invio su una voce vuota lo chiude). Sotto, la barra del formato: seleziona le parole e scegli <b>G</b> grassetto, <i>C</i> corsivo (⌘B, ⌘I), nei menu a tendina la grandezza (Aa), il colore o l'evidenziatore; senza selezione vale per tutta la riga. Per dare colore o evidenziatore a un appuntamento toccalo e scegli «Aspetto nell'agenda». Con «Aa Carattere» scegli il carattere dell'agenda. Con «＋ Post-it» attacchi un foglietto colorato alla settimana: scrivici sopra e spostalo trascinando la striscia in alto; con ⋯ cambi colore, carta, fermaglio e carattere o lo stacchi. Con «＋ Forme», in alto su ciascuna pagina, aggiungi linee, frecce, rettangoli, cerchi, connettori a gomito, frecce piene, riquadri di testo e immagini: trascinali per spostarli, usa i pallini per allargarli o girarli (le linee si tirano dalle estremità) e la barra che compare sopra per colore, contorno o pieno, spessore, grandezza o per eliminarli.</div></div>`;
   if(!Data.agendaAvailable) return intro+`<div class="card">${emptyState("L'agenda sarà disponibile appena il database verrà aggiornato.")}</div>`;
   if(state.agendaView==="mese") return intro+renderAgendaMonth();
   if(state.agendaView==="anno") return intro+renderAgendaYear();
@@ -2740,6 +3174,7 @@ function renderAgenda(){
   const notesText=Agenda.value("w",from);
   const postits=Data.postitAvailable?Postit.forWeek(from):[];
   const minH=postitPageMinHeight(postits);
+  const fmMinH=p=>{ const h=Data.formeAvailable?formePageMinHeight(Forme.forPage(from,p)):0; return h?` style="min-height:${Math.ceil(h)}px"`:""; };
   return intro+`
     <div class="agenda-toolbar">
       <div>${monthNavHTML({prevAction:"agenda-prev-week",nextAction:"agenda-next-week",label})}${isThisWeek?"":`<button class="btn btn-ghost btn-sm" data-action="agenda-this-week">Questa settimana</button>`}</div>
@@ -2748,20 +3183,22 @@ function renderAgenda(){
       ${agendaViewsHTML()}</div>
     </div>
     <div class="notebook" data-page="${page}">
-      <section class="npage npage-week" aria-label="Settimana">
-        <div class="npage-head"><div class="npage-months">${months.map(m=>`<span>${m}</span>`).join("")}</div><div class="npage-wnum">settimana ${isoWeekNumber(from)} · ${year}</div></div>
+      <section class="npage npage-week" aria-label="Settimana"${fmMinH("giorni")}>
+        <div class="npage-head"><div class="npage-months">${months.map(m=>`<span>${m}</span>`).join("")}</div><div class="notes-head-right"><div class="npage-wnum">settimana ${isoWeekNumber(from)} · ${year}</div>${formeButtonHTML("giorni")}</div></div>
         ${days.slice(0,5).map(iso=>agendaDayHTML(iso,today)).join("")}
         <div class="nday-pair">${days.slice(5).map(iso=>agendaDayHTML(iso,today)).join("")}</div>
+        ${formeLayerHTML(from,"giorni")}
       </section>
       <div class="notebook-spine" aria-hidden="true"></div>
-      <section class="npage npage-notes" aria-label="Note della settimana">
-        <div class="npage-head"><div class="npage-months"><span>Note</span></div><div class="notes-head-right"><div class="npage-wnum">${label}</div><div class="notes-tools">${Data.postitAvailable?`<button type="button" class="notes-strike" data-action="postit-new" title="Attacca un post-it a questa settimana: scegli colore, grandezza, carta e fermaglio">＋ Post-it</button>`:""}<button type="button" class="notes-strike" data-action="notes-list" data-kind="b" title="Elenco puntato sulla riga dove sei o su quelle selezionate; ripremi per toglierlo (⌘⇧8). Anche scrivendo «- » a inizio riga">• Elenco</button><button type="button" class="notes-strike" data-action="notes-list" data-kind="n" title="Elenco numerato sulla riga dove sei o su quelle selezionate; ripremi per toglierlo (⌘⇧7). Anche scrivendo «1. » a inizio riga">1. Elenco</button><button type="button" class="notes-strike" data-action="notes-strike" title="Barra la riga dove sei, o tutte quelle selezionate; ripremi per togliere la barra (⌘⇧X)"><s>Barra</s> riga</button></div></div></div>
+      <section class="npage npage-notes" aria-label="Note della settimana"${fmMinH("note")}>
+        <div class="npage-head"><div class="npage-months"><span>Note</span></div><div class="notes-head-right"><div class="npage-wnum">${label}</div><div class="notes-tools">${formeButtonHTML("note")}${Data.postitAvailable?`<button type="button" class="notes-strike" data-action="postit-new" title="Attacca un post-it a questa settimana: scegli colore, grandezza, carta e fermaglio">＋ Post-it</button>`:""}<button type="button" class="notes-strike" data-action="notes-list" data-kind="b" title="Elenco puntato sulla riga dove sei o su quelle selezionate; ripremi per toglierlo (⌘⇧8). Anche scrivendo «- » a inizio riga">• Elenco</button><button type="button" class="notes-strike" data-action="notes-list" data-kind="n" title="Elenco numerato sulla riga dove sei o su quelle selezionate; ripremi per toglierlo (⌘⇧7). Anche scrivendo «1. » a inizio riga">1. Elenco</button><button type="button" class="notes-strike" data-action="notes-strike" title="Barra la riga dove sei, o tutte quelle selezionate; ripremi per togliere la barra (⌘⇧X)"><s>Barra</s> riga</button></div></div></div>
         ${notesFormatBarHTML()}
         <div class="notes-body" ${minH?`style="min-height:${minH}px"`:""}>
         <div class="ruled notes-edit ${notesText.trim()?"":"empty"}" contenteditable="true" role="textbox" aria-multiline="true" spellcheck="true" data-agenda="w:${from}" data-placeholder="Note della settimana…" aria-label="Note della settimana ${label}">${notesToHTML(notesText)}</div>
         ${postits.length?`<div class="postit-layer">${postits.map(p=>postitHTML(p)).join("")}</div>`:""}
         </div>
         <div class="npage-foot">settimana ${isoWeekNumber(from)}</div>
+        ${formeLayerHTML(from,"note")}
       </section>
     </div>`;
 }
@@ -2983,6 +3420,7 @@ function render(){
     case "agenda": root.innerHTML=renderAgenda();
       if(Agenda.refocus){ const el=document.getElementById("ag-new-"+Agenda.refocus); Agenda.refocus=null; if(el) el.focus(); }
       if(Agenda.scrollTo){ const el=document.getElementById(Agenda.scrollTo); Agenda.scrollTo=null; if(el) el.scrollIntoView({block:"center"}); }
+      Forme.afterRender();
       break;
     case "sport": root.innerHTML=renderCategoryPage("sport"); break;
     case "studio": root.innerHTML=renderCategoryPage("studio"); break;
@@ -3389,7 +3827,7 @@ function openMoreSheet(){
 }
 
 function exportBackup(){
-  const payload={categories:Data.CATEGORIES,entries:Data.ENTRIES,office:{days:Data.OFFICE_DAYS},diario:{days:Data.DIARIO_DAYS},todos:Data.TODOS,todoDone:Data.TODO_DONE,attachments:Data.ATTACHMENTS,agenda:{days:Data.AGENDA_DAYS,weeks:Data.AGENDA_WEEKS,postit:Data.POSTITS}};
+  const payload={categories:Data.CATEGORIES,entries:Data.ENTRIES,office:{days:Data.OFFICE_DAYS},diario:{days:Data.DIARIO_DAYS},todos:Data.TODOS,todoDone:Data.TODO_DONE,attachments:Data.ATTACHMENTS,agenda:{days:Data.AGENDA_DAYS,weeks:Data.AGENDA_WEEKS,postit:Data.POSTITS,forme:Data.FORME}};
   const blob=new Blob([JSON.stringify(payload,null,2)],{type:"application/json"});
   const url=URL.createObjectURL(blob);
   const a=document.createElement("a");
@@ -3447,6 +3885,9 @@ document.addEventListener("click",e=>{
   else if(action==="agenda-this-week") agendaGoToWeek(weekRange(todayISO()).fromISO);
   else if(action==="agenda-page"){ state.agendaPage=btn.dataset.page; render(); }
   else if(action==="agenda-convert") convertAgendaText(btn.dataset.date,btn);
+  else if(action==="forme-menu") formeMenuToggle(btn);
+  else if(action==="forma-new"){ formeMenuClose(); formaNew(btn.dataset.page,btn.dataset.kind,+btn.dataset.rot||0); }
+  else if(action.startsWith("forma-")) Forme.action(action,btn.dataset.v);
   else if(action==="postit-new") openPostitModal(null);
   else if(action==="postit-edit") openPostitModal(btn.dataset.id);
   else if(action==="diary-lock"){ DiaryLock.lock(); render(); }
@@ -3482,6 +3923,8 @@ document.addEventListener("click",e=>{
 document.addEventListener("input",e=>{
   const pid=e.target.dataset&&e.target.dataset.postitText;
   if(pid){ Postit.change(pid,{text:e.target.value}); return; }
+  const fid=e.target.dataset&&e.target.dataset.fmText;
+  if(fid){ Forme.change(fid,{text:e.target.value}); return; }
   const k=e.target.dataset&&e.target.dataset.agenda; if(!k)return;
   if(e.target.isContentEditable){
     if(e.inputType==="insertText"&&e.data===" ") notesAutoBullet(e.target);
@@ -3540,6 +3983,7 @@ document.addEventListener("focusout",e=>{
   const ds=e.target.dataset||{};
   if(ds.agenda) Agenda.flush(ds.agenda);
   if(ds.postitText) Postit.flush(ds.postitText);
+  if(ds.fmText) Forme.flush(ds.fmText);
   if(ds.agendaNew) commitAgendaLine(e.target,{refocus:false});
 });
 // Righe dell'agenda scritte ma non ancora confermate con Invio: senza questo andrebbero perse chiudendo
@@ -3547,11 +3991,11 @@ document.addEventListener("focusout",e=>{
 function pendingAgendaLines(){ return[...document.querySelectorAll("input[data-agenda-new]")].filter(i=>i.value.trim()&&!i.dataset.busy); }
 function commitPendingAgendaLines(){ for(const i of pendingAgendaLines()) commitAgendaLine(i,{refocus:false}); }
 // Uscendo dall'app il diario si richiude (una finestra di scrittura già aperta resta, per non perdere il testo).
-document.addEventListener("visibilitychange",()=>{ if(document.visibilityState==="hidden"){ Agenda.flushAll(); Postit.flushAll(); commitPendingAgendaLines(); DiaryLock.lock(); if(state.route==="diario") render(); } });
-window.addEventListener("pagehide",()=>{ Agenda.flushAll(); Postit.flushAll(); commitPendingAgendaLines(); });
+document.addEventListener("visibilitychange",()=>{ if(document.visibilityState==="hidden"){ Agenda.flushAll(); Postit.flushAll(); Forme.flushAll(); commitPendingAgendaLines(); DiaryLock.lock(); if(state.route==="diario") render(); } });
+window.addEventListener("pagehide",()=>{ Agenda.flushAll(); Postit.flushAll(); Forme.flushAll(); commitPendingAgendaLines(); });
 window.addEventListener("beforeunload",e=>{
   const lines=pendingAgendaLines().length;
-  if(Object.keys(Agenda.drafts).length||Object.keys(Postit.pending).length||lines){ Agenda.flushAll(); Postit.flushAll(); commitPendingAgendaLines(); e.preventDefault(); e.returnValue=""; }
+  if(Object.keys(Agenda.drafts).length||Object.keys(Postit.pending).length||Object.keys(Forme.pending).length||lines){ Agenda.flushAll(); Postit.flushAll(); Forme.flushAll(); commitPendingAgendaLines(); e.preventDefault(); e.returnValue=""; }
 });
 document.addEventListener("submit",e=>{
   const id=e.target.id;
