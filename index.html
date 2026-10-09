@@ -3739,7 +3739,9 @@ function readAndDownscaleImage(file,maxDim,quality){
         let{width,height}=img;
         if(width>maxDim||height>maxDim){ const s=maxDim/Math.max(width,height); width=Math.round(width*s); height=Math.round(height*s); }
         const canvas=document.createElement("canvas"); canvas.width=width; canvas.height=height;
-        canvas.getContext("2d").drawImage(img,0,0,width,height);
+        // Fondo bianco: le parti trasparenti dei PNG nel JPEG diventerebbero nere.
+        const ctx=canvas.getContext("2d"); ctx.fillStyle="#fff"; ctx.fillRect(0,0,width,height);
+        ctx.drawImage(img,0,0,width,height);
         resolve(canvas.toDataURL("image/jpeg",quality));
       };
       img.src=reader.result;
@@ -3769,7 +3771,7 @@ async function openDiaryDayModal(date){
     <div class="modal-head"><h3>📔 ${formatDateIT(date)}</h3><button class="icon-btn" data-close>✕</button></div>
     <form id="diary-form" class="modal-form">
       <div class="row"><textarea id="diary-text" rows="10" placeholder="Cosa hai in mente oggi? Scrivi pensieri, ricordi, riflessioni...">${escapeHTML(existing?existing.text:"")}</textarea></div>
-      <div class="row"><label>Foto (facoltative)</label><div id="diary-photos" class="photo-grid"></div><input type="file" id="diary-photo-input" accept="image/*" multiple hidden><button type="button" class="btn btn-outline btn-sm" style="--accent:var(--c-diario);align-self:flex-start;" id="diary-add-photo">＋ Aggiungi foto</button></div>
+      <div class="row"><label>Foto (facoltative)</label><div id="diary-photos" class="photo-grid"></div><input type="file" id="diary-photo-input" accept="image/*,.png,.jpg,.jpeg,.gif,.webp,.heic,.heif" multiple hidden><button type="button" class="btn btn-outline btn-sm" style="--accent:var(--c-diario);align-self:flex-start;" id="diary-add-photo">＋ Aggiungi foto</button></div>
       ${attachmentFieldHTML()}
       <div class="modal-actions">${existing||dayAtts.length?`<button type="button" class="btn btn-danger" id="diary-delete">Elimina giorno</button>`:"<span></span>"}<div><button type="button" class="btn btn-ghost" data-close>Annulla</button><button type="submit" class="btn btn-primary">Salva</button></div></div>
     </form>`;
