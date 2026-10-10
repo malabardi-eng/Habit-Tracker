@@ -1062,6 +1062,7 @@ const ROUTES=[
   {id:"sport",label:"Sport",icon:"🏃",group:"Attività"},
   {id:"studio",label:"Studio",icon:"📚",group:"Attività"},
   {id:"ufficio",label:"Ufficio",icon:"🏢",group:"Lavoro"},
+  {id:"lavoro_progetti",label:"Progetti di lavoro",icon:"📁",group:"Lavoro"},
   {id:"diario",label:"Diario",icon:"📔",group:"Personale"},
   {id:"storico",label:"Storico",icon:"🗓️",group:"Altro"},
   {id:"allegati",label:"Allegati",icon:"📎",group:"Altro"},
@@ -1127,6 +1128,7 @@ const Data={
   PROJECT_STEPS:[],
   PROJECT_LOG:[],
   projectsAvailable:false,
+  projectAreas:false,   // campo «area» (personale/lavoro): solo dopo progetti-lavoro-PROPOSTA.sql
   ATTACHMENTS:[],
   attachmentsAvailable:false,
   AGENDA_DAYS:{},
@@ -1176,6 +1178,8 @@ const Data={
         ]);
         this.PROJECTS=projects; this.PROJECT_STEPS=steps; this.PROJECT_LOG=log; this.projectsAvailable=true;
       }catch(_){ if(!this.projectsAvailable){ this.PROJECTS=[]; this.PROJECT_STEPS=[]; this.PROJECT_LOG=[]; } }
+      // Progetti di lavoro: il campo «area» c'è solo dopo progetti-lavoro-PROPOSTA.sql.
+      if(this.projectsAvailable&&!this.projectAreas){ try{ await sbFetch("/habit_projects?select=area&limit=1"); this.projectAreas=true; }catch(_){} }
       // Allegati: disponibili solo dopo allegati-PROPOSTA.sql; senza, l'app resta com'era.
       try{ this.ATTACHMENTS=await readAllRows("/habit_attachments?select=*","created_at,id"); this.attachmentsAvailable=true; }
       catch(_){ this.ATTACHMENTS=[]; this.attachmentsAvailable=false; }
@@ -1962,7 +1966,7 @@ function todoListCard(title,items,{empty,late=false,addDate}={}){
     ${items.length?`<div class="rlist">${items.map(i=>todoRowHTML(i)).join("")}</div>`:emptyState(empty)}</div>`;
 }
 function renderTodos(){
-  const intro=`<div class="card intro" style="--accent:var(--c-todo)"><div>Le tue cose da fare: in un giorno preciso, ricorrenti o «quando posso». Quelle non spuntate restano in evidenza finché non le segni come fatte. In «📁 Progetti» segui i lavori con un inizio e una fine: passi da spuntare e diario dei progressi, da scrivere o dettare.</div></div>`;
+  const intro=`<div class="card intro" style="--accent:var(--c-todo)"><div>Le tue cose da fare: in un giorno preciso, ricorrenti o «quando posso». Quelle non spuntate restano in evidenza finché non le segni come fatte. In «📁 Progetti» segui i progetti personali con un inizio e una fine: passi da spuntare e diario dei progressi, da scrivere o dettare. Quelli di lavoro sono in «Lavoro → 📁 Progetti di lavoro».</div></div>`;
   if(!Data.todosAvailable) return intro+`<div class="card">${emptyState("La sezione Da fare sarà disponibile appena il database verrà aggiornato.")}</div>`;
   const today=todayISO();
   const s=TodoLogic.summary(Data.TODOS,Data.TODO_DONE,today);
@@ -2004,6 +2008,8 @@ function renderTodos(){
 /* ---- Progetti (scheda di «Da fare») ---- */
 // Un progetto ha inizio e fine, passi da spuntare (danno la percentuale) e un diario dei progressi.
 const PROJECT_LOG_SHOWN=3;
+// Personali nella scheda Progetti di «Da fare», di lavoro nella voce «Progetti di lavoro» del gruppo Lavoro.
+function projectArea(p){ return p&&p.area==="lavoro"?"lavoro":"personale"; }
 const ProjectDrafts={};          // testo non ancora aggiunto, per non perderlo quando la pagina si ridisegna
 const projectLogOpen=new Set();  // progetti con tutto il diario aperto
 function daysBetweenISO(a,b){ return Math.round((new Date(b+"T12:00:00")-new Date(a+"T12:00:00"))/86400000); }
@@ -2054,25 +2060,36 @@ function projectCardHTML(p){
     </div>
   </div>`;
 }
-function renderProjects(){
+function renderProjects(area="personale"){
   if(!Data.projectsAvailable) return `<div class="card">${emptyState("I progetti saranno disponibili appena il database verrà aggiornato (progetti-PROPOSTA.sql).")}</div>`;
-  const open=Data.PROJECTS.filter(p=>!p.done_at).sort((a,b)=>a.end_date<b.end_date?-1:a.end_date>b.end_date?1:(a.created_at<b.created_at?-1:1));
-  const closed=Data.PROJECTS.filter(p=>p.done_at).sort((a,b)=>a.done_at<b.done_at?1:-1);
-  return `<div class="proj-list">${open.length?open.map(projectCardHTML).join(""):`<div class="card">${emptyState("Nessun progetto in corso. Premi «+ Nuovo progetto»: scegli inizio e fine, poi aggiungi i passi e scrivi o detta i progressi.")}</div>`}
+  const mine=Data.PROJECTS.filter(p=>projectArea(p)===area);
+  const open=mine.filter(p=>!p.done_at).sort((a,b)=>a.end_date<b.end_date?-1:a.end_date>b.end_date?1:(a.created_at<b.created_at?-1:1));
+  const closed=mine.filter(p=>p.done_at).sort((a,b)=>a.done_at<b.done_at?1:-1);
+  return `<div class="proj-list">${open.length?open.map(projectCardHTML).join(""):`<div class="card">${emptyState(`Nessun progetto${area==="lavoro"?" di lavoro":""} in corso. Premi «+ Nuovo progetto»: scegli inizio e fine, poi aggiungi i passi e scrivi o detta i progressi.`)}</div>`}
     ${closed.length?`<details class="card proj-done-list"><summary>✅ Progetti conclusi (${closed.length})</summary><div class="proj-list" style="margin-top:12px">${closed.map(projectCardHTML).join("")}</div></details>`:""}</div>`;
+}
+// Pagina «Progetti di lavoro»: identica alla scheda Progetti, con il colore di Ufficio.
+function renderWorkProjects(){
+  const intro=`<div class="card intro" style="--accent:var(--c-ufficio)"><div>I tuoi progetti di lavoro, con un inizio e una fine: passi da spuntare e diario dei progressi, da scrivere o dettare. I progetti personali (un viaggio, un libro da leggere…) restano in «Da fare → 📁 Progetti».</div></div>`;
+  if(Data.projectsAvailable&&!Data.projectAreas) return intro+`<div class="card">${emptyState("I progetti di lavoro saranno disponibili appena il database verrà aggiornato (progetti-lavoro-PROPOSTA.sql).")}</div>`;
+  const toolbar=Data.projectsAvailable?`<div class="todo-toolbar"><span></span><button class="btn btn-primary" style="background:var(--c-todo)" data-action="project-new" data-area="lavoro">+ Nuovo progetto</button></div>`:"";
+  return `<div style="--c-todo:var(--c-ufficio);--c-todo-soft:var(--c-ufficio-soft);display:flex;flex-direction:column;gap:18px">${intro}${toolbar}${renderProjects("lavoro")}</div>`;
 }
 // Inizio e fine dei progetti nell'Agenda (sola lettura; toccando si apre il progetto).
 function projectMarksForDay(iso){
   if(!Data.projectsAvailable) return[];
   const out=[];
   for(const p of Data.PROJECTS){
-    if(p.start_date===iso) out.push({p,icon:"📁",label:"Inizio progetto: "});
-    if(p.end_date===iso) out.push({p,icon:"🏁",label:"Fine progetto: "});
+    const work=projectArea(p)==="lavoro";
+    if(p.start_date===iso) out.push({p,icon:work?"💼":"📁",label:work?"Inizio progetto di lavoro: ":"Inizio progetto: "});
+    if(p.end_date===iso) out.push({p,icon:"🏁",label:work?"Fine progetto di lavoro: ":"Fine progetto: "});
   }
   return out;
 }
 function openProject(id){
-  state.todoTab="progetti"; navigate("dafare");
+  const p=Data.PROJECTS.find(x=>x.id===id);
+  if(projectArea(p)==="lavoro") navigate("lavoro_progetti");
+  else{ state.todoTab="progetti"; navigate("dafare"); }
   const el=document.getElementById("proj-"+id); if(!el) return;
   const det=el.closest("details"); if(det) det.open=true;
   el.scrollIntoView({block:"start",behavior:"smooth"});
@@ -2125,20 +2142,21 @@ function addProjectLogFromInput(id){
   ProjectDrafts["l:"+id]=ta.value;
   Data.addLog(id,text.slice(0,5000),todayISO()).then(r=>{ if(r){ delete ProjectDrafts["l:"+id]; render(); } });
 }
-function openProjectModal(id){
+function openProjectModal(id,area="personale"){
   const p=id?Data.PROJECTS.find(x=>x.id===id):null;
   if(id&&!p) return;
   const today=todayISO();
   const html=`
     <div class="modal-head"><h3>${p?"Modifica progetto":"Nuovo progetto"}</h3><button class="icon-btn" data-close>✕</button></div>
     <form id="proj-form" class="modal-form">
-      <div class="row"><label for="proj-title">Nome del progetto</label><input type="text" id="proj-title" maxlength="300" required placeholder="Es. Ristrutturare il bagno" value="${escapeHTML(p?p.title:"")}"></div>
+      <div class="row"><label for="proj-title">Nome del progetto</label><input type="text" id="proj-title" maxlength="300" required placeholder="${(p?projectArea(p):area)==="lavoro"?"Es. Nuovo gestionale per l'ufficio":"Es. Ristrutturare il bagno"}" value="${escapeHTML(p?p.title:"")}"></div>
       <div class="row-split">
         <div class="row"><label for="proj-start">Inizio</label><input type="date" id="proj-start" required value="${p?p.start_date:today}"></div>
         <div class="row"><label for="proj-end">Fine</label><input type="date" id="proj-end" required value="${p?p.end_date:TodoLogic.addDaysISO(today,30)}"></div>
       </div>
       <div class="row"><label for="proj-notes">Descrizione (facoltativa)</label><textarea id="proj-notes" rows="3" maxlength="5000" placeholder="Obiettivo, persone coinvolte, link…">${escapeHTML(p?p.notes:"")}</textarea></div>
       ${p?"":`<div class="row"><label for="proj-steps">Passi (facoltativi, uno per riga)</label><textarea id="proj-steps" rows="4" placeholder="Chiedere i preventivi&#10;Scegliere le piastrelle&#10;Fissare i lavori"></textarea><span class="hint">Potrai aggiungerne altri dopo, nel riquadro del progetto.</span></div>`}
+      ${p&&Data.projectAreas?`<div class="row"><label for="proj-area">Dove si trova</label><select id="proj-area"><option value="personale" ${projectArea(p)==="personale"?"selected":""}>Personale — in «Da fare → Progetti»</option><option value="lavoro" ${projectArea(p)==="lavoro"?"selected":""}>Lavoro — in «Progetti di lavoro»</option></select></div>`:""}
       ${p?`<div class="row"><label><input type="checkbox" id="proj-done" ${p.done_at?"checked":""}> Progetto concluso</label><span class="hint">Un progetto concluso passa in fondo, tra i «Progetti conclusi».</span></div>`:""}
       <div class="modal-actions">${p?`<button type="button" class="btn btn-danger" id="proj-delete">Elimina</button>`:"<span></span>"}<div><button type="button" class="btn btn-ghost" data-close>Annulla</button><button type="submit" class="btn btn-primary">Salva</button></div></div>
     </form>`;
@@ -2156,6 +2174,9 @@ function openProjectModal(id){
     if(end<start){ alert("La fine viene prima dell'inizio."); return; }
     const payload={title,start_date:start,end_date:end,notes:$("proj-notes").value.trim()};
     if(p){ const done=$("proj-done").checked; if(done!==!!p.done_at) payload.done_at=done?new Date().toISOString():null; }
+    if(p&&$("proj-area")) payload.area=$("proj-area").value;
+    else if(!p&&area==="lavoro") payload.area="lavoro";
+    const moved=p&&payload.area&&payload.area!==projectArea(p);
     const steps=p?[]:$("proj-steps").value.split("\n").map(l=>l.replace(/^\s*[-•*]\s*/,"").trim()).filter(Boolean);
     closeModal();
     const saved=await Data.saveProject(p?p.id:null,payload);
@@ -2166,7 +2187,7 @@ function openProjectModal(id){
       }catch(err){ alert("Progetto salvato, ma non sono riuscito a salvare i passi: "+err.message); }
       render();
     }
-    if(saved&&!p){ state.todoTab="progetti"; render(); openProject(saved.id); }
+    if(saved&&(!p||moved)) openProject(saved.id);
   });
 }
 
@@ -3655,7 +3676,7 @@ function renderTabbar(){
     const r=ROUTES.find(x=>x.id===id);
     return `<button class="tab-item ${state.route===id?"active":""}" data-route="${id}"><span class="tab-icon">${r.icon}</span>${r.label}</button>`;
   }).join("");
-  const moreActive=state.route==="agenda"||state.route==="storico"||state.route==="allegati"||state.route==="impostazioni";
+  const moreActive=state.route==="agenda"||state.route==="lavoro_progetti"||state.route==="storico"||state.route==="allegati"||state.route==="impostazioni";
   document.getElementById("tabbar").innerHTML=tabs+`<button class="tab-item ${moreActive?"active":""}" data-action="open-more-sheet"><span class="tab-icon">•••</span>Altro</button>`;
 }
 
@@ -3684,6 +3705,7 @@ function render(){
     case "sport": root.innerHTML=renderCategoryPage("sport"); break;
     case "studio": root.innerHTML=renderCategoryPage("studio"); break;
     case "ufficio": root.innerHTML=renderOffice(); break;
+    case "lavoro_progetti": root.innerHTML=renderWorkProjects(); break;
     case "diario": root.innerHTML=renderDiary(); { const pw=document.getElementById("diary-pw")||document.getElementById("diary-pw-new"); if(pw&&!DiaryLock.busy) pw.focus(); } break;
     case "storico": root.innerHTML=renderHistory(state.historyFilters); break;
     case "allegati": root.innerHTML=renderAttachments(); break;
@@ -4080,6 +4102,7 @@ function openMoreSheet(){
   const html=`
     <div class="modal-head"><h3>Altro</h3><button class="icon-btn" data-close>✕</button></div>
     <button type="button" class="sheet-item" data-route="agenda" data-close><span class="sheet-icon">📒</span>Agenda</button>
+    <button type="button" class="sheet-item" data-route="lavoro_progetti" data-close><span class="sheet-icon">📁</span>Progetti di lavoro</button>
     <button type="button" class="sheet-item" data-route="storico" data-close><span class="sheet-icon">🗓️</span>Storico</button>
     <button type="button" class="sheet-item" data-route="allegati" data-close><span class="sheet-icon">📎</span>Allegati</button>
     <button type="button" class="sheet-item" data-route="impostazioni" data-close><span class="sheet-icon">⚙️</span>Impostazioni</button>`;
@@ -4131,7 +4154,7 @@ document.addEventListener("click",e=>{
   else if(action==="diario-next-month"){ const s=state.diarioMonth; const now=new Date(); if(!(s.year===now.getFullYear()&&s.month===now.getMonth())){ s.month++; if(s.month>11){s.month=0;s.year++;} render(); } }
   else if(action==="open-more-sheet") openMoreSheet();
   else if(action==="todo-tab"){ if(SpeechInput.rec) SpeechInput.stop(); state.todoTab=btn.dataset.tab; render(); }
-  else if(action==="project-new") openProjectModal(null);
+  else if(action==="project-new") openProjectModal(null,btn.dataset.area||"personale");
   else if(action==="project-edit") openProjectModal(btn.dataset.id);
   else if(action==="project-open") openProject(btn.dataset.id);
   else if(action==="project-step-add") addProjectStepFromInput(btn.dataset.id);
