@@ -318,6 +318,46 @@ button.attach-name:hover{text-decoration:underline;}
 .todo-day .todo-check{width:20px;height:20px;font-size:.66rem;}
 .todo-day .rtitle{font-size:.8rem;overflow-wrap:anywhere;}
 .todo-day .ractions{display:none;}
+/* progetti */
+.proj-list{display:flex;flex-direction:column;gap:14px;}
+.proj{border-left:4px solid var(--c-todo);}
+.proj.done{border-left-color:var(--ink-faint);}
+.proj-head{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;}
+.proj-title{font-size:1.02rem;font-weight:700;margin:0;overflow-wrap:anywhere;}
+.proj-dates{font-family:var(--font-mono);font-size:.76rem;color:var(--ink-soft);margin-top:3px;}
+.proj-notes{margin-top:6px;}
+.proj-bars{display:flex;flex-direction:column;gap:6px;margin:12px 0 4px;}
+.proj-bar{display:grid;grid-template-columns:7.5em 1fr 3.2em;align-items:center;gap:8px;font-size:.74rem;color:var(--ink-soft);}
+.proj-bar b{text-align:right;font-family:var(--font-mono);color:var(--ink);}
+.proj-track{height:10px;border-radius:999px;background:var(--surface-2);overflow:hidden;border:1px solid var(--line);}
+.proj-fill{height:100%;border-radius:999px;background:var(--c-todo);}
+.proj-fill.time{background:var(--ink-faint);}
+.proj-fill.late{background:var(--c-danger);}
+.proj-sec{margin-top:14px;}
+.proj-sec h4{margin:0 0 4px;font-size:.8rem;color:var(--ink-soft);text-transform:uppercase;letter-spacing:.04em;}
+.proj-step{display:flex;align-items:center;gap:9px;padding:5px 0;border-bottom:1px solid var(--line);}
+.proj-step .todo-check{width:22px;height:22px;font-size:.7rem;}
+.proj-step-title{flex:1;min-width:0;background:none;border:none;padding:0;text-align:left;font-size:.88rem;cursor:pointer;overflow-wrap:anywhere;}
+.proj-step.done .proj-step-title{text-decoration:line-through;color:var(--ink-faint);}
+.proj-add{display:flex;gap:8px;align-items:flex-start;margin-top:8px;}
+.proj-add input,.proj-add textarea{flex:1;min-width:0;padding:8px 10px;border-radius:var(--r-sm);border:1px solid var(--line);background:var(--surface);font-size:.86rem;resize:vertical;}
+.proj-add input:focus,.proj-add textarea:focus{outline:none;border-color:var(--c-todo);box-shadow:0 0 0 3px var(--c-todo-soft);}
+.proj-add-btns{display:flex;flex-direction:column;gap:6px;}
+.proj-mic{font-size:1.05rem;line-height:1;padding:8px 10px;}
+.proj-mic.on{background:var(--c-danger);border-color:var(--c-danger);color:#fff;animation:projPulse 1.2s ease-in-out infinite;}
+@keyframes projPulse{50%{opacity:.6;}}
+@media (prefers-reduced-motion: reduce){.proj-mic.on{animation:none;}}
+.proj-log{display:flex;flex-direction:column;}
+.proj-entry{display:flex;gap:10px;padding:7px 0;border-bottom:1px solid var(--line);align-items:flex-start;}
+.proj-entry-date{font-family:var(--font-mono);font-size:.74rem;color:var(--ink-soft);white-space:nowrap;padding-top:2px;}
+.proj-entry .rdesc{flex:1;min-width:0;white-space:pre-wrap;overflow-wrap:anywhere;margin:0;}
+.proj-entry .icon-btn{padding:2px 5px;}
+.proj-more{margin-top:6px;}
+.proj-done-list summary{cursor:pointer;font-weight:600;color:var(--ink-soft);padding:4px 0;}
+.ag-item.ag-proj .ag-title{color:var(--paper-soft);font-style:italic;}
+.ag-proj-icon{width:18px;text-align:center;font-size:.78rem;flex-shrink:0;}
+.mev.proj{background:transparent;color:var(--paper-soft);font-style:italic;padding-left:2px;}
+@media (max-width:600px){.proj-bar{grid-template-columns:6.2em 1fr 3em;}}
 .weekday-picks{display:flex;flex-wrap:wrap;gap:6px;}
 .weekday-picks label{display:flex;align-items:center;gap:4px;font-size:.8rem;padding:5px 9px;border:1px solid var(--line);border-radius:999px;cursor:pointer;font-weight:500;color:var(--ink);}
 .hint{font-size:.72rem;color:var(--ink-faint);}
@@ -716,7 +756,7 @@ button.attach-name:hover{text-decoration:underline;}
     return {
       token,
       async request(path, opts = {}) {
-        if (!/^\/(finanze_(categorie|impostazioni|metodi|movimenti)|habit_(activities|entries|office_days|diario_days|diario_photos|todos|todo_done|attachments|agenda_days|agenda_weeks|agenda_postit|agenda_forme|impostazioni|push_subscriptions)|rpc\/habit_avviso_prova)(\?|$)/.test(path)) throw new Error('Percorso non valido.');
+        if (!/^\/(finanze_(categorie|impostazioni|metodi|movimenti)|habit_(activities|entries|office_days|diario_days|diario_photos|todos|todo_done|projects|project_steps|project_log|attachments|agenda_days|agenda_weeks|agenda_postit|agenda_forme|impostazioni|push_subscriptions)|rpc\/habit_avviso_prova)(\?|$)/.test(path)) throw new Error('Percorso non valido.');
         const method=(opts.method || 'GET').toUpperCase();
         if (!['GET','POST','PATCH','DELETE'].includes(method)) throw new Error('Metodo non consentito.');
         if (method !== 'GET' && !config.allowMutations) {
@@ -1083,6 +1123,10 @@ const Data={
   TODOS:[],
   TODO_DONE:[],
   todosAvailable:false,
+  PROJECTS:[],
+  PROJECT_STEPS:[],
+  PROJECT_LOG:[],
+  projectsAvailable:false,
   ATTACHMENTS:[],
   attachmentsAvailable:false,
   AGENDA_DAYS:{},
@@ -1123,6 +1167,15 @@ const Data={
         ]);
         this.TODOS=todos||[]; this.TODO_DONE=done||[]; this.todosAvailable=true;
       }catch(_){ this.todosAvailable=false; }
+      // Progetti: disponibili solo dopo progetti-PROPOSTA.sql; le tre tabelle arrivano insieme.
+      try{
+        const[projects,steps,log]=await Promise.all([
+          readAllRows("/habit_projects?select=*","end_date,created_at,id"),
+          readAllRows("/habit_project_steps?select=*","project_id,position,created_at,id"),
+          readAllRows("/habit_project_log?select=*","project_id,entry_date.desc,created_at.desc,id")
+        ]);
+        this.PROJECTS=projects; this.PROJECT_STEPS=steps; this.PROJECT_LOG=log; this.projectsAvailable=true;
+      }catch(_){ if(!this.projectsAvailable){ this.PROJECTS=[]; this.PROJECT_STEPS=[]; this.PROJECT_LOG=[]; } }
       // Allegati: disponibili solo dopo allegati-PROPOSTA.sql; senza, l'app resta com'era.
       try{ this.ATTACHMENTS=await readAllRows("/habit_attachments?select=*","created_at,id"); this.attachmentsAvailable=true; }
       catch(_){ this.ATTACHMENTS=[]; this.attachmentsAvailable=false; }
@@ -1342,6 +1395,34 @@ const Data={
       catch(e){ alert("Non sono riuscito ad annullare la spunta: "+e.message); }
     }else await this.updateTodo(id,{done_at:null});
   },
+
+  // Progetti: ogni scrittura va subito nel database; in caso di errore resta tutto com'era.
+  async projectWrite(table,list,{id,body,method}){
+    try{
+      if(method==="DELETE"){ await sbFetch(`/${table}?id=eq.${encodeURIComponent(id)}`,{method}); return true; }
+      const res=await sbFetch(id?`/${table}?id=eq.${encodeURIComponent(id)}`:`/${table}`,{method:id?"PATCH":"POST",body,prefer:"return=representation"});
+      const row=res&&res[0]; if(!row) throw new Error("risposta vuota");
+      const i=list.findIndex(x=>x.id===row.id); if(i===-1) list.push(row); else list[i]=row;
+      return row;
+    }catch(e){ alert("Non sono riuscito a salvare: "+e.message); return null; }
+  },
+  async saveProject(id,payload){ const r=await this.projectWrite("habit_projects",this.PROJECTS,{id,body:payload}); render(); return r; },
+  async deleteProject(id){
+    if(!await this.projectWrite("habit_projects",null,{id,method:"DELETE"})) return false;
+    this.PROJECTS=this.PROJECTS.filter(p=>p.id!==id); this.PROJECT_STEPS=this.PROJECT_STEPS.filter(s=>s.project_id!==id); this.PROJECT_LOG=this.PROJECT_LOG.filter(l=>l.project_id!==id);
+    render(); return true;
+  },
+  async addStep(projectId,title){
+    const pos=Math.max(0,...this.PROJECT_STEPS.filter(s=>s.project_id===projectId).map(s=>s.position+1));
+    const r=await this.projectWrite("habit_project_steps",this.PROJECT_STEPS,{body:{project_id:projectId,title,position:pos}}); render(); return r;
+  },
+  async updateStep(id,payload){ const r=await this.projectWrite("habit_project_steps",this.PROJECT_STEPS,{id,body:payload}); render(); return r; },
+  async deleteStep(id){ if(await this.projectWrite("habit_project_steps",null,{id,method:"DELETE"})){ this.PROJECT_STEPS=this.PROJECT_STEPS.filter(s=>s.id!==id); render(); } },
+  async addLog(projectId,text,entryDate){
+    const r=await this.projectWrite("habit_project_log",this.PROJECT_LOG,{body:{project_id:projectId,text,entry_date:entryDate}}); render(); return r;
+  },
+  async updateLog(id,payload){ const r=await this.projectWrite("habit_project_log",this.PROJECT_LOG,{id,body:payload}); render(); return r; },
+  async deleteLog(id){ if(await this.projectWrite("habit_project_log",null,{id,method:"DELETE"})){ this.PROJECT_LOG=this.PROJECT_LOG.filter(l=>l.id!==id); render(); } },
 
   // Agenda: kind "d" = testo di un giorno, "w" = note della settimana (chiave: il lunedì).
   // Un testo vuoto cancella la riga. Non chiama render(): chi scrive non deve perdere il cursore.
@@ -1881,15 +1962,16 @@ function todoListCard(title,items,{empty,late=false,addDate}={}){
     ${items.length?`<div class="rlist">${items.map(i=>todoRowHTML(i)).join("")}</div>`:emptyState(empty)}</div>`;
 }
 function renderTodos(){
-  const intro=`<div class="card intro" style="--accent:var(--c-todo)"><div>Le tue cose da fare: in un giorno preciso, ricorrenti o «quando posso». Quelle non spuntate restano in evidenza finché non le segni come fatte.</div></div>`;
+  const intro=`<div class="card intro" style="--accent:var(--c-todo)"><div>Le tue cose da fare: in un giorno preciso, ricorrenti o «quando posso». Quelle non spuntate restano in evidenza finché non le segni come fatte. In «📁 Progetti» segui i lavori con un inizio e una fine: passi da spuntare e diario dei progressi, da scrivere o dettare.</div></div>`;
   if(!Data.todosAvailable) return intro+`<div class="card">${emptyState("La sezione Da fare sarà disponibile appena il database verrà aggiornato.")}</div>`;
   const today=todayISO();
   const s=TodoLogic.summary(Data.TODOS,Data.TODO_DONE,today);
   const tab=state.todoTab;
-  const seg=`<div class="seg" role="tablist">${[["oggi","Oggi"],["settimana","Settimana"],["quando","Quando posso"]].map(([id,l])=>`<button type="button" role="tab" aria-selected="${tab===id}" class="${tab===id?"active":""}" data-action="todo-tab" data-tab="${id}">${l}</button>`).join("")}</div>`;
-  const toolbar=`<div class="todo-toolbar">${seg}<button class="btn btn-primary" style="background:var(--c-todo)" data-action="todo-new" data-date="${tab==="quando"?"":today}">+ Nuova cosa da fare</button></div>`;
+  const seg=`<div class="seg" role="tablist">${[["oggi","Oggi"],["settimana","Settimana"],["quando","Quando posso"],["progetti","📁 Progetti"]].map(([id,l])=>`<button type="button" role="tab" aria-selected="${tab===id}" class="${tab===id?"active":""}" data-action="todo-tab" data-tab="${id}">${l}</button>`).join("")}</div>`;
+  const toolbar=`<div class="todo-toolbar">${seg}${tab==="progetti"?(Data.projectsAvailable?`<button class="btn btn-primary" style="background:var(--c-todo)" data-action="project-new">+ Nuovo progetto</button>`:""):`<button class="btn btn-primary" style="background:var(--c-todo)" data-action="todo-new" data-date="${tab==="quando"?"":today}">+ Nuova cosa da fare</button>`}</div>`;
   let body="";
-  if(tab==="oggi"){
+  if(tab==="progetti") body=renderProjects();
+  else if(tab==="oggi"){
     const doneToday=doneTodayItems();
     body=`<div class="stat-row">
         ${statTile("⏰","In ritardo",s.in_ritardo.length,"dafare","da recuperare")}
@@ -1919,6 +2001,175 @@ function renderTodos(){
   }
   return intro+toolbar+body;
 }
+/* ---- Progetti (scheda di «Da fare») ---- */
+// Un progetto ha inizio e fine, passi da spuntare (danno la percentuale) e un diario dei progressi.
+const PROJECT_LOG_SHOWN=3;
+const ProjectDrafts={};          // testo non ancora aggiunto, per non perderlo quando la pagina si ridisegna
+const projectLogOpen=new Set();  // progetti con tutto il diario aperto
+function daysBetweenISO(a,b){ return Math.round((new Date(b+"T12:00:00")-new Date(a+"T12:00:00"))/86400000); }
+function shortDateIT(iso){ return new Date(iso+"T12:00:00").toLocaleDateString("it-IT",{day:"numeric",month:"short",year:"numeric"}); }
+function projectSteps(id){ return Data.PROJECT_STEPS.filter(s=>s.project_id===id).sort((a,b)=>a.position-b.position||(a.created_at<b.created_at?-1:1)); }
+function projectLog(id){ return Data.PROJECT_LOG.filter(l=>l.project_id===id).sort((a,b)=>a.entry_date!==b.entry_date?(a.entry_date<b.entry_date?1:-1):(a.created_at<b.created_at?1:-1)); }
+function projectStats(p,today=todayISO()){
+  const steps=projectSteps(p.id), done=steps.filter(s=>s.done_at).length;
+  const total=daysBetweenISO(p.start_date,p.end_date)+1;
+  const elapsed=Math.min(total,Math.max(0,daysBetweenISO(p.start_date,today)+1));
+  const left=daysBetweenISO(today,p.end_date);
+  let status;
+  if(p.done_at) status={text:"concluso il "+shortDateIT(isoOf(new Date(p.done_at))),cls:""};
+  else if(today<p.start_date){ const n=daysBetweenISO(today,p.start_date); status={text:n===1?"inizia domani":`inizia tra ${n} giorni`,cls:""}; }
+  else if(left<0) status={text:`scaduto da ${-left} ${left===-1?"giorno":"giorni"}`,cls:"chip-late"};
+  else status={text:left===0?"finisce oggi":left===1?"manca 1 giorno":`mancano ${left} giorni`,cls:"chip-time"};
+  return{steps,done,pct:steps.length?Math.round(done*100/steps.length):null,timePct:Math.round(elapsed*100/total),late:!p.done_at&&left<0,status};
+}
+function projectCardHTML(p){
+  const st=projectStats(p), log=projectLog(p.id), allLog=projectLogOpen.has(p.id);
+  const shown=allLog?log:log.slice(0,PROJECT_LOG_SHOWN);
+  const bar=(label,pct,cls,title)=>`<div class="proj-bar" title="${title}"><span>${label}</span><div class="proj-track" role="progressbar" aria-label="${label}" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${pct}"><div class="proj-fill ${cls}" style="width:${pct}%"></div></div><b>${pct}%</b></div>`;
+  const steps=st.steps.map(s=>`<div class="proj-step ${s.done_at?"done":""}">
+      <button type="button" class="todo-check ${s.done_at?"done":""}" data-action="project-step-toggle" data-id="${s.id}" aria-label="${s.done_at?"Segna di nuovo da fare":"Segna come fatto"}: ${escapeHTML(s.title)}">${s.done_at?"✓":""}</button>
+      <button type="button" class="proj-step-title" data-action="project-step-edit" data-id="${s.id}" title="Rinomina o elimina">${escapeHTML(s.title)}</button>
+    </div>`).join("");
+  const entries=shown.map(l=>`<div class="proj-entry"><span class="proj-entry-date">${shortDateIT(l.entry_date)}</span><div class="rdesc">${linkifyHTML(l.text)}</div><button type="button" class="icon-btn" data-action="project-log-edit" data-id="${l.id}" title="Modifica o elimina">✏️</button></div>`).join("");
+  const mic=SpeechInput.supported()?`<button type="button" class="btn btn-outline btn-sm proj-mic" style="--accent:var(--c-todo)" data-action="project-mic" data-id="${p.id}" title="Detta il progresso: tocca, parla, tocca di nuovo per fermare" aria-label="Detta il progresso">🎤</button>`:"";
+  return `<div class="card proj ${p.done_at?"done":""}" id="proj-${p.id}">
+    <div class="proj-head"><div><h3 class="proj-title">📁 ${escapeHTML(p.title)}</h3>
+      <div class="proj-dates">dal ${shortDateIT(p.start_date)} al ${shortDateIT(p.end_date)}</div>
+      <div class="todo-meta"><span class="chip ${st.status.cls}">${st.status.text}</span>${st.steps.length?`<span class="chip">${st.done} di ${st.steps.length} passi</span>`:""}</div></div>
+      <button type="button" class="icon-btn" data-action="project-edit" data-id="${p.id}" title="Modifica, concludi o elimina il progetto">✏️</button></div>
+    ${p.notes?`<div class="rdesc proj-notes">${linkifyHTML(p.notes)}</div>`:""}
+    <div class="proj-bars">
+      ${st.pct===null?`<div class="hint">Aggiungi i passi qui sotto: spuntandoli vedrai la percentuale dei progressi.</div>`:bar("Progressi",st.pct,"","Passi fatti sul totale")}
+      ${p.done_at?"":bar("Tempo passato",st.timePct,st.late?"late":"time","Giorni passati sul totale del progetto")}
+    </div>
+    <div class="proj-sec"><h4>Passi</h4>${steps||`<div class="hint">Nessun passo ancora.</div>`}
+      <div class="proj-add"><input type="text" maxlength="300" data-project-step="${p.id}" placeholder="Nuovo passo e Invio…" aria-label="Nuovo passo del progetto ${escapeHTML(p.title)}" value="${escapeHTML(ProjectDrafts["s:"+p.id]||"")}"><button type="button" class="btn btn-outline btn-sm" style="--accent:var(--c-todo)" data-action="project-step-add" data-id="${p.id}">＋</button></div>
+    </div>
+    <div class="proj-sec"><h4>Diario dei progressi</h4>
+      <div class="proj-add"><textarea rows="2" maxlength="5000" id="proj-log-${p.id}" data-project-log="${p.id}" placeholder="Cosa hai fatto? Scrivi o detta…" aria-label="Nuovo progresso del progetto ${escapeHTML(p.title)}">${escapeHTML(ProjectDrafts["l:"+p.id]||"")}</textarea>
+        <div class="proj-add-btns">${mic}<button type="button" class="btn btn-primary btn-sm" style="background:var(--c-todo)" data-action="project-log-add" data-id="${p.id}">Aggiungi</button></div></div>
+      ${SpeechInput.supported()?"":`<span class="hint">Per dettare usa il microfono della tastiera.</span>`}
+      <div class="proj-log">${entries||`<div class="hint" style="padding-top:6px">Ancora nessun progresso scritto.</div>`}</div>
+      ${log.length>PROJECT_LOG_SHOWN?`<button type="button" class="btn btn-ghost btn-sm proj-more" data-action="project-log-all" data-id="${p.id}">${allLog?"Mostra solo gli ultimi":`Mostra tutti (${log.length})`}</button>`:""}
+    </div>
+  </div>`;
+}
+function renderProjects(){
+  if(!Data.projectsAvailable) return `<div class="card">${emptyState("I progetti saranno disponibili appena il database verrà aggiornato (progetti-PROPOSTA.sql).")}</div>`;
+  const open=Data.PROJECTS.filter(p=>!p.done_at).sort((a,b)=>a.end_date<b.end_date?-1:a.end_date>b.end_date?1:(a.created_at<b.created_at?-1:1));
+  const closed=Data.PROJECTS.filter(p=>p.done_at).sort((a,b)=>a.done_at<b.done_at?1:-1);
+  return `<div class="proj-list">${open.length?open.map(projectCardHTML).join(""):`<div class="card">${emptyState("Nessun progetto in corso. Premi «+ Nuovo progetto»: scegli inizio e fine, poi aggiungi i passi e scrivi o detta i progressi.")}</div>`}
+    ${closed.length?`<details class="card proj-done-list"><summary>✅ Progetti conclusi (${closed.length})</summary><div class="proj-list" style="margin-top:12px">${closed.map(projectCardHTML).join("")}</div></details>`:""}</div>`;
+}
+// Inizio e fine dei progetti nell'Agenda (sola lettura; toccando si apre il progetto).
+function projectMarksForDay(iso){
+  if(!Data.projectsAvailable) return[];
+  const out=[];
+  for(const p of Data.PROJECTS){
+    if(p.start_date===iso) out.push({p,icon:"📁",label:"Inizio progetto: "});
+    if(p.end_date===iso) out.push({p,icon:"🏁",label:"Fine progetto: "});
+  }
+  return out;
+}
+function openProject(id){
+  state.todoTab="progetti"; navigate("dafare");
+  const el=document.getElementById("proj-"+id); if(!el) return;
+  const det=el.closest("details"); if(det) det.open=true;
+  el.scrollIntoView({block:"start",behavior:"smooth"});
+}
+// Dettatura con il riconoscimento vocale del browser (Chrome, Safari). Il testo si aggiunge al riquadro.
+const SpeechInput={
+  rec:null, target:null, btn:null, base:"",
+  supported(){ return !!(window.SpeechRecognition||window.webkitSpeechRecognition); },
+  toggle(btn,textarea){
+    if(this.rec){ const same=this.target&&this.target.id===textarea.id; this.stop(); if(same) return; }
+    const R=window.SpeechRecognition||window.webkitSpeechRecognition;
+    const rec=new R(); rec.lang="it-IT"; rec.continuous=true; rec.interimResults=true;
+    this.rec=rec; this.target=textarea; this.btn=btn;
+    this.base=textarea.value&&!/\s$/.test(textarea.value)?textarea.value+" ":textarea.value;
+    rec.onresult=e=>{
+      let fin="", tmp="";
+      for(let i=0;i<e.results.length;i++){ const t=e.results[i][0].transcript; if(e.results[i].isFinal) fin+=t; else tmp+=t; }
+      const ta=document.getElementById(textarea.id)||textarea;  // la pagina può essersi ridisegnata
+      ta.value=this.base+fin+tmp; ProjectDrafts["l:"+textarea.dataset.projectLog]=this.base+fin;
+    };
+    rec.onerror=e=>{
+      if(e.error==="not-allowed"||e.error==="service-not-allowed") alert("Il microfono non è consentito per questa pagina. Puoi dettare con il microfono della tastiera, oppure consentirlo nelle impostazioni del browser.");
+      else if(e.error!=="no-speech"&&e.error!=="aborted") alert("Dettatura interrotta ("+e.error+"). Riprova, oppure usa il microfono della tastiera.");
+    };
+    rec.onend=()=>{ if(this.rec===rec) this.stop(); };
+    try{ rec.start(); }catch(_){ this.stop(); alert("Non riesco ad avviare la dettatura. Usa il microfono della tastiera."); return; }
+    btn.classList.add("on"); btn.setAttribute("aria-pressed","true"); btn.textContent="■";
+  },
+  stop(){
+    const rec=this.rec; this.rec=null;
+    if(rec){ try{ rec.stop(); }catch(_){} }
+    const ta=this.target&&document.getElementById(this.target.id);
+    if(ta&&ta.value) ProjectDrafts["l:"+ta.dataset.projectLog]=ta.value;
+    const btn=this.target&&document.querySelector(`[data-action="project-mic"][data-id="${this.target.dataset.projectLog}"]`);
+    if(btn){ btn.classList.remove("on"); btn.removeAttribute("aria-pressed"); btn.textContent="🎤"; }
+    this.target=null; this.btn=null;
+  }
+};
+function addProjectStepFromInput(id){
+  const input=document.querySelector(`[data-project-step="${id}"]`); if(!input) return;
+  const title=input.value.trim(); if(!title) return;
+  // Il testo resta nella bozza finché il database non conferma: con un errore di rete non si perde.
+  ProjectDrafts["s:"+id]=input.value;
+  Data.addStep(id,title.slice(0,300)).then(r=>{ if(r){ delete ProjectDrafts["s:"+id]; render(); const el=document.querySelector(`[data-project-step="${id}"]`); if(el) el.focus(); } });
+}
+function addProjectLogFromInput(id){
+  if(SpeechInput.rec) SpeechInput.stop();
+  const ta=document.getElementById("proj-log-"+id); if(!ta) return;
+  const text=ta.value.trim(); if(!text){ ta.focus(); return; }
+  ProjectDrafts["l:"+id]=ta.value;
+  Data.addLog(id,text.slice(0,5000),todayISO()).then(r=>{ if(r){ delete ProjectDrafts["l:"+id]; render(); } });
+}
+function openProjectModal(id){
+  const p=id?Data.PROJECTS.find(x=>x.id===id):null;
+  if(id&&!p) return;
+  const today=todayISO();
+  const html=`
+    <div class="modal-head"><h3>${p?"Modifica progetto":"Nuovo progetto"}</h3><button class="icon-btn" data-close>✕</button></div>
+    <form id="proj-form" class="modal-form">
+      <div class="row"><label for="proj-title">Nome del progetto</label><input type="text" id="proj-title" maxlength="300" required placeholder="Es. Ristrutturare il bagno" value="${escapeHTML(p?p.title:"")}"></div>
+      <div class="row-split">
+        <div class="row"><label for="proj-start">Inizio</label><input type="date" id="proj-start" required value="${p?p.start_date:today}"></div>
+        <div class="row"><label for="proj-end">Fine</label><input type="date" id="proj-end" required value="${p?p.end_date:TodoLogic.addDaysISO(today,30)}"></div>
+      </div>
+      <div class="row"><label for="proj-notes">Descrizione (facoltativa)</label><textarea id="proj-notes" rows="3" maxlength="5000" placeholder="Obiettivo, persone coinvolte, link…">${escapeHTML(p?p.notes:"")}</textarea></div>
+      ${p?"":`<div class="row"><label for="proj-steps">Passi (facoltativi, uno per riga)</label><textarea id="proj-steps" rows="4" placeholder="Chiedere i preventivi&#10;Scegliere le piastrelle&#10;Fissare i lavori"></textarea><span class="hint">Potrai aggiungerne altri dopo, nel riquadro del progetto.</span></div>`}
+      ${p?`<div class="row"><label><input type="checkbox" id="proj-done" ${p.done_at?"checked":""}> Progetto concluso</label><span class="hint">Un progetto concluso passa in fondo, tra i «Progetti conclusi».</span></div>`:""}
+      <div class="modal-actions">${p?`<button type="button" class="btn btn-danger" id="proj-delete">Elimina</button>`:"<span></span>"}<div><button type="button" class="btn btn-ghost" data-close>Annulla</button><button type="submit" class="btn btn-primary">Salva</button></div></div>
+    </form>`;
+  openModal(html);
+  modalEl.querySelectorAll("[data-close]").forEach(b=>b.addEventListener("click",closeModal));
+  const $=sel=>document.getElementById(sel);
+  if(p) $("proj-delete").addEventListener("click",async()=>{
+    if(confirm(`Eliminare il progetto «${p.title}» con tutti i suoi passi e il diario dei progressi?`)){ closeModal(); await Data.deleteProject(p.id); }
+  });
+  $("proj-form").addEventListener("submit",async e=>{
+    e.preventDefault();
+    const title=$("proj-title").value.trim(), start=$("proj-start").value, end=$("proj-end").value;
+    if(!title){ alert("Scrivi il nome del progetto."); return; }
+    if(!start||!end){ alert("Scegli la data di inizio e quella di fine."); return; }
+    if(end<start){ alert("La fine viene prima dell'inizio."); return; }
+    const payload={title,start_date:start,end_date:end,notes:$("proj-notes").value.trim()};
+    if(p){ const done=$("proj-done").checked; if(done!==!!p.done_at) payload.done_at=done?new Date().toISOString():null; }
+    const steps=p?[]:$("proj-steps").value.split("\n").map(l=>l.replace(/^\s*[-•*]\s*/,"").trim()).filter(Boolean);
+    closeModal();
+    const saved=await Data.saveProject(p?p.id:null,payload);
+    if(saved&&steps.length){
+      try{
+        const rows=await sbFetch("/habit_project_steps",{method:"POST",body:steps.map((t,i)=>({project_id:saved.id,title:t.slice(0,300),position:i})),prefer:"return=representation"});
+        Data.PROJECT_STEPS.push(...rows);
+      }catch(err){ alert("Progetto salvato, ma non sono riuscito a salvare i passi: "+err.message); }
+      render();
+    }
+    if(saved&&!p){ state.todoTab="progetti"; render(); openProject(saved.id); }
+  });
+}
+
 function todoDashboardCardHTML(){
   if(!Data.todosAvailable)return "";
   const s=TodoLogic.summary(Data.TODOS,Data.TODO_DONE,todayISO());
@@ -3088,13 +3339,14 @@ function agendaDayHTML(iso,today){
       <button type="button" class="ag-title" data-action="todo-edit" data-id="${t.id}" title="Modifica o elimina">${t.due_time?`<span class="ag-time">${t.due_time.slice(0,5)}</span>`:""}${(st=>st?`<span class="${nfClasses(st)}">${escapeHTML(t.title)}</span>`:escapeHTML(t.title))(AgendaStyles.get(t.id))}${t.recurrence?` <span title="${escapeHTML(describeRecurrenceIT(t.recurrence))}">🔁</span>`:""}</button>
     </div>`;
   }).join("");
-  const fillers=Math.max(0,2-items.length);
+  const marks=projectMarksForDay(iso).map(m=>`<div class="ag-item ag-proj"><span class="ag-proj-icon" aria-hidden="true">${m.icon}</span><button type="button" class="ag-title" data-action="project-open" data-id="${m.p.id}" title="Apri il progetto">${m.label}${escapeHTML(m.p.title)}</button></div>`).join("");
+  const fillers=Math.max(0,2-items.length-projectMarksForDay(iso).length);
   const legacy=Agenda.value("d",iso);
   const legacyHTML=legacy?`<div class="ag-legacy"><div class="rdesc">${linkifyHTML(legacy)}</div><button type="button" class="btn btn-outline btn-sm" style="--accent:var(--c-todo)" data-action="agenda-convert" data-date="${iso}">↪ Trasforma in righe con spunta</button></div>`:"";
   return `<div class="nday ${iso===today?"today":""}" id="nday-${iso}">
     <label class="nday-label" for="ag-new-${iso}">${name.charAt(0).toUpperCase()+name.slice(1)}<b>${d.getDate()}</b></label>
     ${legacyHTML}
-    <div class="ag-lines">${rows}
+    <div class="ag-lines">${marks}${rows}
       <input type="text" class="ag-new" id="ag-new-${iso}" data-agenda-new="${iso}" maxlength="306" autocomplete="off" placeholder="${items.length?"":"Scrivi e premi Invio…"}" aria-label="Nuovo appuntamento di ${name} ${formatDateIT(iso)}">
       ${'<div class="ag-filler"></div>'.repeat(fillers)}
     </div>
@@ -3104,6 +3356,7 @@ function agendaDayHTML(iso,today){
 function agendaDayEvents(iso){
   const ev=agendaItemsForDay(iso).map(i=>({time:i.todo.due_time?i.todo.due_time.slice(0,5):"",title:i.todo.title,done:!!i.done,late:!!i.late,st:AgendaStyles.get(i.todo.id)}));
   for(const l of Agenda.value("d",iso).split("\n").map(l=>l.trim()).filter(Boolean)) ev.push({time:"",title:l,text:true});
+  for(const m of projectMarksForDay(iso)) ev.unshift({time:"",title:m.icon+" "+m.p.title,proj:true});
   return ev;
 }
 function agendaViewsHTML(){
@@ -3118,7 +3371,7 @@ function renderAgendaMonth(){
     const d=new Date(iso+"T12:00:00"), dow=(d.getDay()+6)%7;
     if(dow===0) weeks.push(iso);
     const ev=agendaDayEvents(iso);
-    const evHTML=ev.slice(0,3).map(e=>`<span class="mev ${e.done?"done":""} ${e.late?"late":""} ${e.text?"text":""} ${nfClasses((e.st||"").split(" ").filter(x=>!/^z/.test(x)).join(" "))}">${e.time?`<b>${e.time}</b>`:""}${escapeHTML(e.title)}</span>`).join("");
+    const evHTML=ev.slice(0,3).map(e=>`<span class="mev ${e.done?"done":""} ${e.late?"late":""} ${e.text?"text":""} ${e.proj?"proj":""} ${nfClasses((e.st||"").split(" ").filter(x=>!/^z/.test(x)).join(" "))}">${e.time?`<b>${e.time}</b>`:""}${escapeHTML(e.title)}</span>`).join("");
     const long=d.toLocaleDateString("it-IT",{weekday:"long",day:"numeric",month:"long"});
     cells.push(`<button type="button" class="mcell ${iso.slice(0,7)!==first.slice(0,7)?"out":""} ${iso===today?"today":""} ${dow>=5?"weekend":""}" data-action="agenda-open-day" data-date="${iso}" aria-label="${long}${ev.length?`, ${ev.length} ${ev.length===1?"voce":"voci"}`:""}">`+
       `<strong class="mnum">${d.getDate()}</strong>${evHTML}${ev.length>3?`<span class="mmore d">+${ev.length-3} altre</span>`:""}${ev.length>2?`<span class="mmore m">+${ev.length-2}</span>`:""}</button>`);
@@ -3835,7 +4088,7 @@ function openMoreSheet(){
 }
 
 function exportBackup(){
-  const payload={categories:Data.CATEGORIES,entries:Data.ENTRIES,office:{days:Data.OFFICE_DAYS},diario:{days:Data.DIARIO_DAYS},todos:Data.TODOS,todoDone:Data.TODO_DONE,attachments:Data.ATTACHMENTS,agenda:{days:Data.AGENDA_DAYS,weeks:Data.AGENDA_WEEKS,postit:Data.POSTITS,forme:Data.FORME}};
+  const payload={categories:Data.CATEGORIES,entries:Data.ENTRIES,office:{days:Data.OFFICE_DAYS},diario:{days:Data.DIARIO_DAYS},todos:Data.TODOS,todoDone:Data.TODO_DONE,projects:{projects:Data.PROJECTS,steps:Data.PROJECT_STEPS,log:Data.PROJECT_LOG},attachments:Data.ATTACHMENTS,agenda:{days:Data.AGENDA_DAYS,weeks:Data.AGENDA_WEEKS,postit:Data.POSTITS,forme:Data.FORME}};
   const blob=new Blob([JSON.stringify(payload,null,2)],{type:"application/json"});
   const url=URL.createObjectURL(blob);
   const a=document.createElement("a");
@@ -3877,7 +4130,32 @@ document.addEventListener("click",e=>{
   else if(action==="diario-prev-month"){ const s=state.diarioMonth; s.month--; if(s.month<0){s.month=11;s.year--;} render(); }
   else if(action==="diario-next-month"){ const s=state.diarioMonth; const now=new Date(); if(!(s.year===now.getFullYear()&&s.month===now.getMonth())){ s.month++; if(s.month>11){s.month=0;s.year++;} render(); } }
   else if(action==="open-more-sheet") openMoreSheet();
-  else if(action==="todo-tab"){ state.todoTab=btn.dataset.tab; render(); }
+  else if(action==="todo-tab"){ if(SpeechInput.rec) SpeechInput.stop(); state.todoTab=btn.dataset.tab; render(); }
+  else if(action==="project-new") openProjectModal(null);
+  else if(action==="project-edit") openProjectModal(btn.dataset.id);
+  else if(action==="project-open") openProject(btn.dataset.id);
+  else if(action==="project-step-add") addProjectStepFromInput(btn.dataset.id);
+  else if(action==="project-step-toggle"){
+    const s=Data.PROJECT_STEPS.find(x=>x.id===btn.dataset.id); if(!s) return;
+    btn.disabled=true; Data.updateStep(s.id,{done_at:s.done_at?null:new Date().toISOString()}).finally(()=>{ btn.disabled=false; });
+  }
+  else if(action==="project-step-edit"){
+    const s=Data.PROJECT_STEPS.find(x=>x.id===btn.dataset.id); if(!s) return;
+    const t=prompt("Rinomina il passo (lascia vuoto per eliminarlo):",s.title);
+    if(t===null) return;
+    if(!t.trim()){ if(confirm(`Eliminare il passo «${s.title}»?`)) Data.deleteStep(s.id); }
+    else if(t.trim()!==s.title) Data.updateStep(s.id,{title:t.trim().slice(0,300)});
+  }
+  else if(action==="project-log-add") addProjectLogFromInput(btn.dataset.id);
+  else if(action==="project-log-edit"){
+    const l=Data.PROJECT_LOG.find(x=>x.id===btn.dataset.id); if(!l) return;
+    const t=prompt(`Progresso del ${shortDateIT(l.entry_date)} (lascia vuoto per eliminarlo):`,l.text);
+    if(t===null) return;
+    if(!t.trim()){ if(confirm("Eliminare questa nota dei progressi?")) Data.deleteLog(l.id); }
+    else if(t.trim()!==l.text) Data.updateLog(l.id,{text:t.trim().slice(0,5000)});
+  }
+  else if(action==="project-log-all"){ const id=btn.dataset.id; if(projectLogOpen.has(id)) projectLogOpen.delete(id); else projectLogOpen.add(id); render(); }
+  else if(action==="project-mic"){ const ta=document.getElementById("proj-log-"+btn.dataset.id); if(ta) SpeechInput.toggle(btn,ta); }
   else if(action==="todo-new") openTodoModal({date:btn.dataset.date});
   else if(action==="todo-edit") openTodoModal({id:btn.dataset.id});
   else if(action==="todo-done"||action==="todo-undo"){
@@ -3929,6 +4207,9 @@ document.addEventListener("click",e=>{
   }
 });
 document.addEventListener("input",e=>{
+  const ds=e.target.dataset||{};
+  if(ds.projectStep){ ProjectDrafts["s:"+ds.projectStep]=e.target.value; return; }
+  if(ds.projectLog){ ProjectDrafts["l:"+ds.projectLog]=e.target.value; if(SpeechInput.target&&SpeechInput.target.id===e.target.id) SpeechInput.base=e.target.value; return; }
   const pid=e.target.dataset&&e.target.dataset.postitText;
   if(pid){ Postit.change(pid,{text:e.target.value}); return; }
   const fid=e.target.dataset&&e.target.dataset.fmText;
@@ -3939,6 +4220,12 @@ document.addEventListener("input",e=>{
     notesRenumber(e.target); notesSave(e.target);
   }
   else Agenda.edit(k,e.target.value);
+});
+// Progetti: Invio nel campo del passo lo aggiunge; ⌘Invio nel diario aggiunge il progresso.
+document.addEventListener("keydown",e=>{
+  if(e.isComposing||e.key!=="Enter"||!e.target.dataset) return;
+  if(e.target.dataset.projectStep){ e.preventDefault(); addProjectStepFromInput(e.target.dataset.projectStep); }
+  else if(e.target.dataset.projectLog&&(e.metaKey||e.ctrlKey)){ e.preventDefault(); addProjectLogFromInput(e.target.dataset.projectLog); }
 });
 // Note della settimana: testo semplice più barra, elenchi e formato (⌘B, ⌘I e la barra «Formato»).
 document.addEventListener("keydown",e=>{
