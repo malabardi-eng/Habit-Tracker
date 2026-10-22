@@ -28,6 +28,7 @@
   --c-diario:#1B9C6E; --c-diario-soft:#E3FAF1;
   --c-danger:#D64545; --c-danger-soft:#FDEDEE;
   --c-todo:#0E8A9A; --c-todo-soft:#E0F6F8;
+  --c-salute:#D23F6A; --c-salute-soft:#FDE9EF;
   --shadow:0 6px 20px rgba(16,35,63,.07); --shadow-sm:0 2px 8px rgba(16,35,63,.05);
   --r-lg:18px; --r-md:12px; --r-sm:9px;
   --font-display:'Sora',system-ui,sans-serif;
@@ -47,6 +48,7 @@
     --c-diario:#34C48F; --c-diario-soft:rgba(52,196,143,.14);
     --c-danger:#FF7A70; --c-danger-soft:rgba(255,122,112,.14);
     --c-todo:#3CC6D6; --c-todo-soft:rgba(60,198,214,.14);
+    --c-salute:#FF7EA2; --c-salute-soft:rgba(255,126,162,.14);
     --shadow:0 6px 24px rgba(0,0,0,.35); --shadow-sm:0 2px 10px rgba(0,0,0,.3);
   }
 }
@@ -62,6 +64,7 @@
   --c-diario:#34C48F; --c-diario-soft:rgba(52,196,143,.14);
   --c-danger:#FF7A70; --c-danger-soft:rgba(255,122,112,.14);
   --c-todo:#3CC6D6; --c-todo-soft:rgba(60,198,214,.14);
+  --c-salute:#FF7EA2; --c-salute-soft:rgba(255,126,162,.14);
   --shadow:0 6px 24px rgba(0,0,0,.35); --shadow-sm:0 2px 10px rgba(0,0,0,.3);
 }
 *{box-sizing:border-box;}
@@ -239,7 +242,7 @@ h1,h2,h3{font-family:var(--font-display);text-wrap:balance;margin:0;}
 
 /* month calendar (office + diario share this) */
 .cal-head{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;font-size:.68rem;color:var(--ink-faint);text-align:center;padding:0 2px;margin-bottom:6px;font-family:var(--font-mono);}
-.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;}
+.cal-grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:6px;}
 .cal-cell{min-height:62px;border-radius:var(--r-sm);border:1px solid var(--line);background:var(--surface);display:flex;flex-direction:column;align-items:flex-start;justify-content:space-between;gap:4px;padding:7px 8px;cursor:pointer;text-align:left;transition:border-color .15s,background .15s;}
 .cal-cell:hover{border-color:var(--accent,var(--c-sport));}
 .cal-cell.empty,.cal-cell.future{cursor:default;border:1px dashed var(--line);background:transparent;}
@@ -249,7 +252,7 @@ h1,h2,h3{font-family:var(--font-display);text-wrap:balance;margin:0;}
 .cal-cell.today{border-color:var(--accent,var(--c-sport));box-shadow:0 0 0 2px var(--accent-soft,var(--c-sport-soft));}
 .cal-cell.today .cal-day{color:var(--accent,var(--c-sport));}
 .cal-cell.filled{background:var(--accent-soft,var(--c-sport-soft));}
-.cal-bottom{display:flex;align-items:center;gap:4px;font-size:.68rem;font-weight:700;color:var(--accent,var(--c-sport));font-family:var(--font-mono);}
+.cal-bottom{display:flex;flex-wrap:wrap;align-items:center;gap:4px;font-size:.68rem;font-weight:700;color:var(--accent,var(--c-sport));font-family:var(--font-mono);}
 
 /* office slots in modal */
 .slot-row{display:flex;flex-direction:column;gap:8px;padding:10px 11px;border:1px solid var(--line);border-radius:var(--r-sm);}
@@ -589,6 +592,20 @@ a.attach-name{color:var(--c-todo);text-decoration:underline;}
 .fm-mi svg{width:26px;height:26px;}
 @media (max-width:420px){.fm-menu{grid-template-columns:repeat(4,68px);}}
 /* lucchetto del diario */
+.seg.seg-salute button.active{background:var(--c-salute);}
+.health-allergy{border-left:4px solid var(--c-danger);display:flex;flex-wrap:wrap;gap:8px;align-items:center;font-size:.88rem;}
+.chip-allergy{background:var(--c-danger-soft);color:var(--c-danger);border-color:transparent;cursor:pointer;font-weight:600;font-size:.78rem;padding:3px 10px;}
+.chip-salute{background:var(--c-salute-soft);color:var(--c-salute);border-color:transparent;}
+.todo-check.salute:hover{border-color:var(--c-salute);}
+.todo-check.salute.done{background:var(--c-salute);border-color:var(--c-salute);}
+.health-mini{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:4px;}
+.health-check{display:flex;align-items:flex-start;gap:9px;font-size:.84rem;cursor:pointer;line-height:1.35;}
+.health-check input{margin-top:2px;accent-color:var(--c-salute);}
+.health-times{display:flex;flex-wrap:wrap;gap:8px;align-items:center;}
+.health-times .ht{display:flex;align-items:center;gap:2px;}
+.health-times input{width:7.6em;}
+.health-sec{font-size:.72rem;font-weight:700;color:var(--ink-soft);text-transform:uppercase;letter-spacing:.06em;margin:12px 0 2px;}
+.health-dose-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px;}
 .diary-lock{display:flex;flex-direction:column;align-items:center;text-align:center;gap:10px;padding:34px 20px;}
 .diary-lock .lock-icon{font-size:2.4rem;line-height:1;}
 .diary-lock form{display:flex;flex-direction:column;gap:8px;width:100%;max-width:300px;}
@@ -662,7 +679,8 @@ a.attach-name{color:var(--c-todo);text-decoration:underline;}
 .modal-form{display:flex;flex-direction:column;gap:13px;}
 .row{display:flex;flex-direction:column;gap:5px;}
 .row-split{display:flex;gap:11px;}
-.row-split .row{flex:1;}
+.row-split .row{flex:1;min-width:0;}
+.row-split .row input{min-width:0;width:100%;}
 .row label{font-size:.76rem;color:var(--ink-soft);font-weight:600;}
 .row input,.row select,.row textarea{padding:9px 11px;border-radius:var(--r-sm);border:1px solid var(--line);font-size:.88rem;background:var(--surface);resize:vertical;}
 .row input:focus,.row select:focus,.row textarea:focus{outline:none;border-color:var(--c-sport);box-shadow:0 0 0 3px var(--c-sport-soft);}
@@ -739,7 +757,7 @@ a.attach-name{color:var(--c-todo);text-decoration:underline;}
   'use strict';
   // Allegati: spazio file privato, nomi generati dall'app (uuid + estensione ammessa).
   const FILE_BUCKET = 'habit-allegati';
-  const FILE_KEY = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\.(docx|md|pdf|epub|mp4|mp3|pptx|xlsx)$/;
+  const FILE_KEY = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\.(docx|md|pdf|epub|mp4|mp3|pptx|xlsx|jpg|jpeg|png)$/;
   function createAccess(client, config) {
     let identity = null;
     async function token() {
@@ -760,7 +778,7 @@ a.attach-name{color:var(--c-todo);text-decoration:underline;}
     return {
       token,
       async request(path, opts = {}) {
-        if (!/^\/(finanze_(categorie|impostazioni|metodi|movimenti)|habit_(activities|entries|office_days|diario_days|diario_photos|todos|todo_done|projects|project_steps|project_log|project_links|attachments|agenda_days|agenda_weeks|agenda_postit|agenda_forme|impostazioni|push_subscriptions)|rpc\/habit_avviso_prova)(\?|$)/.test(path)) throw new Error('Percorso non valido.');
+        if (!/^\/(finanze_(categorie|impostazioni|metodi|movimenti)|habit_(activities|entries|office_days|diario_days|diario_photos|todos|todo_done|projects|project_steps|project_log|project_links|attachments|agenda_days|agenda_weeks|agenda_postit|agenda_forme|impostazioni|push_subscriptions|health_visits|health_exams|health_meds|health_doses|health_allergies)|rpc\/habit_avviso_prova)(\?|$)/.test(path)) throw new Error('Percorso non valido.');
         const method=(opts.method || 'GET').toUpperCase();
         if (!['GET','POST','PATCH','DELETE'].includes(method)) throw new Error('Metodo non consentito.');
         if (method !== 'GET' && !config.allowMutations) {
@@ -1068,6 +1086,7 @@ const ROUTES=[
   {id:"ufficio",label:"Ufficio",icon:"🏢",group:"Lavoro"},
   {id:"lavoro_progetti",label:"Progetti di lavoro",icon:"📁",group:"Lavoro"},
   {id:"diario",label:"Diario",icon:"📔",group:"Personale"},
+  {id:"salute",label:"Salute",icon:"🩺",group:"Personale"},
   {id:"storico",label:"Storico",icon:"🗓️",group:"Altro"},
   {id:"allegati",label:"Allegati",icon:"📎",group:"Altro"},
   {id:"impostazioni",label:"Impostazioni",icon:"⚙️",group:"Altro"}
@@ -1091,12 +1110,20 @@ const ATTACH_TYPES={
   mp4:{mime:"video/mp4",icon:"🎬",inline:true},
   mp3:{mime:"audio/mpeg",icon:"🎵",inline:true},
   pptx:{mime:"application/vnd.openxmlformats-officedocument.presentationml.presentation",icon:"📽️",inline:false,nuovo:true},
-  xlsx:{mime:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",icon:"📊",inline:false,nuovo:true}
+  xlsx:{mime:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",icon:"📊",inline:false,nuovo:true},
+  jpg:{mime:"image/jpeg",icon:"🖼️",inline:true,foto:true},
+  jpeg:{mime:"image/jpeg",icon:"🖼️",inline:true,foto:true},
+  png:{mime:"image/png",icon:"🖼️",inline:true,foto:true}
 };
-// PowerPoint ed Excel («nuovo») solo dopo progetti-allegati-PROPOSTA.sql, che li ammette nello spazio file.
-function attachType(name){ const t=ATTACH_TYPES[attachExt(name)]; return t&&(!t.nuovo||Data.projectFilesAvailable)?t:null; }
+// PowerPoint ed Excel («nuovo») solo dopo progetti-allegati-PROPOSTA.sql, che li ammette nello spazio file;
+// le foto JPEG e PNG («foto») solo dopo salute-PROPOSTA.sql.
+function attachType(name){ const t=ATTACH_TYPES[attachExt(name)]; return t&&(!t.nuovo||Data.projectFilesAvailable)&&(!t.foto||Data.healthAvailable)?t:null; }
 function attachAccept(){ return Object.keys(ATTACH_TYPES).filter(e=>attachType("x."+e)).map(e=>"."+e).join(","); }
-function attachKinds(){ return Data.projectFilesAvailable?"PDF, Word, PowerPoint, Excel, Markdown, EPUB, MP4 o MP3":"PDF, EPUB, Word, Markdown, MP4 o MP3"; }
+function attachKinds(){
+  const k=Data.projectFilesAvailable?["PDF","Word","PowerPoint","Excel","Markdown","EPUB","MP4","MP3"]:["PDF","EPUB","Word","Markdown","MP4","MP3"];
+  if(Data.healthAvailable) k.push("foto JPEG/PNG");
+  return k.slice(0,-1).join(", ")+" o "+k[k.length-1];
+}
 const ATTACH_MAX_BYTES=50*1024*1024;
 function attachExt(name){ const m=/\.([a-z0-9]+)$/i.exec(name||""); return m?m[1].toLowerCase():""; }
 function attachIcon(name){ return (ATTACH_TYPES[attachExt(name)]||{}).icon||"📎"; }
@@ -1151,6 +1178,8 @@ const Data={
   formeAvailable:false,
   SETTINGS:{},
   settingsAvailable:false,
+  HEALTH:{visits:[],exams:[],meds:[],doses:[],allergies:[]},
+  healthAvailable:false,   // sezione Salute: solo dopo salute-PROPOSTA.sql
 
   async init(){
     await this.loadAll();
@@ -1224,11 +1253,22 @@ const Data={
         ]);
         this.POSTITS=Postit.mergeLoaded(notes); this.postitAvailable=true;
         this.SETTINGS=Object.fromEntries(settings.map(r=>[r.chiave,r.valore])); this.settingsAvailable=true;
-        DiaryLock.remember();
+        DiaryLock.remember(); HealthLock.remember();
       }catch(_){ if(!this.settingsAvailable){ this.postitAvailable=false; } }
       // Forme, riquadri di testo e immagini: disponibili solo dopo forme-PROPOSTA.sql (le immagini si scaricano a parte).
       try{ this.FORME=Forme.mergeLoaded(await readAllRows(`/habit_agenda_forme?select=${FORMA_COLS}`,"week_start,z,id")); this.formeAvailable=true; }
       catch(_){ if(!this.formeAvailable) this.FORME=[]; }
+      // Salute: le cinque tabelle e gli allegati di visite ed esami arrivano insieme (salute-PROPOSTA.sql).
+      try{
+        const[visits,exams,meds,doses,allergies]=await Promise.all([
+          readAllRows("/habit_health_visits?select=*","visit_date.desc,visit_time.desc.nullslast,id"),
+          readAllRows("/habit_health_exams?select=*","created_at,id"),
+          readAllRows("/habit_health_meds?select=*","created_at,id"),
+          readAllRows("/habit_health_doses?select=*","taken_on.desc,taken_time.desc.nullslast,id"),
+          readAllRows("/habit_health_allergies?select=*","created_at,id")
+        ]);
+        this.HEALTH={visits,exams,meds,doses,allergies}; this.healthAvailable=true;
+      }catch(_){ if(!this.healthAvailable) this.HEALTH={visits:[],exams:[],meds:[],doses:[],allergies:[]}; }
       this.online=true;
       // Verification build: do not persist personal data in the old cache.
     }catch(e){
@@ -1452,6 +1492,18 @@ const Data={
   async saveProjectLink(id,payload){ const r=await this.projectWrite("habit_project_links",this.PROJECT_LINKS,{id,body:payload}); render(); return r; },
   async deleteProjectLink(id){ if(await this.projectWrite("habit_project_links",null,{id,method:"DELETE"})){ this.PROJECT_LINKS=this.PROJECT_LINKS.filter(l=>l.id!==id); render(); return true; } return false; },
 
+  // Salute: come i progetti, ogni scrittura va subito nel database; in caso di errore resta tutto com'era.
+  async healthSave(kind,id,payload){ const r=await this.projectWrite("habit_health_"+kind,this.HEALTH[kind],{id,body:payload}); render(); return r; },
+  async healthDelete(kind,id){
+    if(!await this.projectWrite("habit_health_"+kind,null,{id,method:"DELETE"})) return false;
+    this.HEALTH[kind]=this.HEALTH[kind].filter(x=>x.id!==id);
+    // Come nel database: le prese seguono la medicina, i collegamenti alla visita si sciolgono.
+    if(kind==="meds") this.HEALTH.doses=this.HEALTH.doses.filter(d=>d.med_id!==id);
+    if(kind==="visits"){ for(const x of [...this.HEALTH.exams,...this.HEALTH.meds]) if(x.visit_id===id) x.visit_id=null; this.ATTACHMENTS=this.ATTACHMENTS.filter(a=>a.visit_id!==id); }
+    if(kind==="exams") this.ATTACHMENTS=this.ATTACHMENTS.filter(a=>a.exam_id!==id);
+    render(); return true;
+  },
+
   // Agenda: kind "d" = testo di un giorno, "w" = note della settimana (chiave: il lunedì).
   // Un testo vuoto cancella la riga. Non chiama render(): chi scrive non deve perdere il cursore.
   async saveAgenda(kind,id,text){
@@ -1465,11 +1517,11 @@ const Data={
     }
   },
 
-  attachmentsFor(section,{entryId,day,projectId}={}){
-    return this.ATTACHMENTS.filter(a=>entryId?a.entry_id===entryId:projectId?a.project_id===projectId:(a.section===section&&a.day===day));
+  attachmentsFor(section,{entryId,day,projectId,visitId,examId}={}){
+    return this.ATTACHMENTS.filter(a=>entryId?a.entry_id===entryId:projectId?a.project_id===projectId:visitId?a.visit_id===visitId:examId?a.exam_id===examId:(a.section===section&&a.day===day));
   },
   // Prima il file nello spazio privato, poi l'elenco; se l'elenco fallisce il file viene tolto.
-  async addAttachment(section,file,{entryId,day,projectId}={}){
+  async addAttachment(section,file,{entryId,day,projectId,visitId,examId}={}){
     const ext=attachExt(file.name), type=attachType(file.name);
     if(!type) throw new Error(`«${file.name}»: tipo non ammesso`);
     if(!file.size||file.size>ATTACH_MAX_BYTES) throw new Error(`«${file.name}»: file vuoto o più grande di 50 MB`);
@@ -1477,7 +1529,7 @@ const Data={
     try{ await personalAccess.file("upload",path,{body:file,contentType:type.mime}); }
     catch(e){ throw new Error(`«${file.name}»: ${e.message}`); }
     let row;
-    try{ const res=await sbFetch("/habit_attachments",{method:"POST",body:Object.assign({section,entry_id:entryId||null,day:day||null,name:file.name.slice(0,255),path,size:file.size},projectId?{project_id:projectId}:{}),prefer:"return=representation"}); row=res[0]; }
+    try{ const res=await sbFetch("/habit_attachments",{method:"POST",body:Object.assign({section,entry_id:entryId||null,day:day||null,name:file.name.slice(0,255),path,size:file.size},projectId?{project_id:projectId}:{},visitId?{visit_id:visitId}:{},examId?{exam_id:examId}:{}),prefer:"return=representation"}); row=res[0]; }
     catch(e){ personalAccess.file("remove",path).catch(()=>{}); throw new Error(`«${file.name}»: ${e.message}`); }
     this.ATTACHMENTS.push(row);
     return row;
@@ -1531,7 +1583,7 @@ function updateSyncUI(mode){
 /* =========================================================
    CHART BUILDERS
    ========================================================= */
-const COLOR_VAR={sport:"--c-sport",studio:"--c-studio",ufficio:"--c-ufficio",diario:"--c-diario",dafare:"--c-todo"};
+const COLOR_VAR={sport:"--c-sport",studio:"--c-studio",ufficio:"--c-ufficio",diario:"--c-diario",dafare:"--c-todo",salute:"--c-salute"};
 
 function donutChartHTML(segments,{size=148,thickness=22,centerLabel="",centerSub=""}={}){
   const total=segments.reduce((s,x)=>s+x.value,0)||1;
@@ -1602,7 +1654,7 @@ function heatmapHTML(counts,{year}={}){
 }
 
 // generic month calendar, shared by Ufficio and Diario
-function monthCalendarHTML(year,month,{accentVar,action,cellFor}){
+function monthCalendarHTML(year,month,{accentVar,action,cellFor,allowFuture=false}){
   const todayIso=todayISO();
   const first=new Date(year,month,1);
   const startDow=(first.getDay()+6)%7;
@@ -1612,7 +1664,7 @@ function monthCalendarHTML(year,month,{accentVar,action,cellFor}){
   for(let d=1;d<=daysInMonth;d++){
     const iso=isoOf(new Date(year,month,d));
     const isToday=iso===todayIso;
-    const isFuture=iso>todayIso;
+    const isFuture=!allowFuture&&iso>todayIso;
     const info=cellFor(iso); // {filled:bool, bottomHTML:string}
     if(isFuture){
       cells+=`<div class="cal-cell future"><span class="cal-day">${d}</span></div>`;
@@ -1823,17 +1875,18 @@ function renderOffice(){
     <div class="card"><div class="card-header"><h3>Note recenti</h3></div>${recentNotes.length?notesHTML:emptyState("Nessuna nota registrata. Clicca su un giorno nel calendario per aggiungerne una.")}</div>`;
 }
 
-/* ---- Lucchetto del diario ----
+/* ---- Lucchetti del diario e della salute ----
    La password non viene mai salvata: nel database c'è solo la sua impronta (PBKDF2), valida su tutti i dispositivi.
-   È un lucchetto, non una cifratura: i testi restano leggibili a chi entra nel database con l'account personale. */
+   È un lucchetto, non una cifratura: i testi restano leggibili a chi entra nel database con l'account personale.
+   Diario e Salute hanno ciascuno la sua password (chiavi «diario_lucchetto» e «salute_lucchetto»). */
 function bytesToB64(buf){ return btoa(String.fromCharCode(...new Uint8Array(buf))); }
 function b64ToBytes(text){ return Uint8Array.from(atob(text),c=>c.charCodeAt(0)); }
-const DiaryLock={
-  open:false, msg:"", busy:false,
-  config(){ return Data.SETTINGS.diario_lucchetto||null; },
-  // Visto attivo almeno una volta su questo dispositivo: se poi la lettura fallisce il diario resta chiuso.
-  remember(){ try{ if(this.config()) localStorage.setItem("diario-lucchetto","1"); }catch(_){} },
-  seenBefore(){ try{ return localStorage.getItem("diario-lucchetto")==="1"; }catch(_){ return false; } },
+function makeLock(key,deviceKey){ return {
+  open:false, msg:"", busy:false, settingsMsg:"",
+  config(){ return Data.SETTINGS[key]||null; },
+  // Visto attivo almeno una volta su questo dispositivo: se poi la lettura fallisce la sezione resta chiusa.
+  remember(){ try{ if(this.config()) localStorage.setItem(deviceKey,"1"); }catch(_){} },
+  seenBefore(){ try{ return localStorage.getItem(deviceKey)==="1"; }catch(_){ return false; } },
   // "aperto" | "chiuso" | "da-scegliere" | "non-verificabile" | "non-attivo" (database non ancora aggiornato)
   status(){
     if(Data.settingsAvailable) return this.config()?(this.open?"aperto":"chiuso"):"da-scegliere";
@@ -1850,63 +1903,85 @@ const DiaryLock={
   async setPassword(password){
     const salt=crypto.getRandomValues(new Uint8Array(16)), iter=210000;
     const valore={v:1,iter,salt:bytesToB64(salt),hash:await this.digest(password,salt,iter)};
-    await sbFetch("/habit_impostazioni?on_conflict=chiave",{method:"POST",body:{chiave:"diario_lucchetto",valore,updated_at:new Date().toISOString()},prefer:"resolution=merge-duplicates"});
-    Data.SETTINGS.diario_lucchetto=valore; this.remember();
+    await sbFetch("/habit_impostazioni?on_conflict=chiave",{method:"POST",body:{chiave:key,valore,updated_at:new Date().toISOString()},prefer:"resolution=merge-duplicates"});
+    Data.SETTINGS[key]=valore; this.remember();
   },
   lock(){ this.open=false; this.msg=""; }
+}; }
+const DiaryLock=makeLock("diario_lucchetto","diario-lucchetto");
+const HealthLock=makeLock("salute_lucchetto","salute-lucchetto");
+// Testi e campi dei due lucchetti. Per il diario gli id restano quelli di sempre («diary-…»).
+const LOCK_UI={
+  diario:{lock:DiaryLock,p:"diary",accent:"--c-diario",title:"Diario privato",ask:"Scrivi la password del diario per aprirlo.",openLabel:"Apri il diario",
+    pwLabel:"Password del diario",chooseTitle:"Scegli la password del diario",chooseText:"Da ora il Diario si apre solo con questa password, ogni volta che entri nella sezione. Vale su iPhone e Mac. Almeno 4 caratteri.",
+    saveLabel:"Salva e apri il diario",forgot:"Password dimenticata? Chiedi a Claude o Codex di azzerarla: i giorni scritti restano tutti.",
+    closedTitle:"Diario chiuso",closedText:"Non riesco a controllare la password del diario: verifica la connessione e riapri la sezione.",
+    cardTitle:"🔒 Password del diario",none:"Nessuna password ancora: la scegli la prima volta che apri il Diario.",changed:"✓ Password del diario cambiata."},
+  salute:{lock:HealthLock,p:"health",accent:"--c-salute",title:"Salute privata",ask:"Scrivi la password della sezione Salute per aprirla.",openLabel:"Apri Salute",
+    pwLabel:"Password della sezione Salute",chooseTitle:"Scegli la password della sezione Salute",chooseText:"Visite, esami, medicine e allergie sono dati delicati: da ora la sezione si apre solo con questa password, ogni volta che entri. Vale su iPhone e Mac ed è diversa da quella del Diario (puoi anche usare la stessa). Almeno 4 caratteri.",
+    saveLabel:"Salva e apri Salute",forgot:"Password dimenticata? Chiedi a Claude o Codex di azzerarla: visite, esami e medicine restano tutti.",
+    closedTitle:"Salute chiusa",closedText:"Non riesco a controllare la password della sezione Salute: verifica la connessione e riapri la sezione.",
+    cardTitle:"🔒 Password della sezione Salute",none:"Nessuna password ancora: la scegli la prima volta che apri Salute.",changed:"✓ Password della sezione Salute cambiata."}
 };
-function diaryLockHTML(){
-  const st=DiaryLock.status();
+function lockUIByPrefix(p){ return Object.values(LOCK_UI).find(u=>u.p===p); }
+function sectionLockHTML(ui){
+  const L=ui.lock, p=ui.p, st=L.status();
   if(st==="aperto"||st==="non-attivo") return "";
-  const msg=`<p class="lock-msg" role="status">${escapeHTML(DiaryLock.msg)}</p>`, dis=DiaryLock.busy?"disabled":"";
+  const msg=`<p class="lock-msg" role="status">${escapeHTML(L.msg)}</p>`, dis=L.busy?"disabled":"";
   let body;
-  if(st==="chiuso") body=`<h3>Diario privato</h3><p class="card-text">Scrivi la password del diario per aprirlo.</p>
-    <form id="diary-unlock-form" autocomplete="off"><input type="password" id="diary-pw" autocomplete="current-password" aria-label="Password del diario" placeholder="Password" required><button type="submit" class="btn btn-primary" style="--accent:var(--c-diario)" ${dis}>Apri il diario</button></form>${msg}
-    <p class="hint">Password dimenticata? Chiedi a Claude o Codex di azzerarla: i giorni scritti restano tutti.</p>`;
-  else if(st==="da-scegliere") body=`<h3>Scegli la password del diario</h3><p class="card-text">Da ora il Diario si apre solo con questa password, ogni volta che entri nella sezione. Vale su iPhone e Mac. Almeno 4 caratteri.</p>
-    <form id="diary-setup-form" autocomplete="off"><input type="password" id="diary-pw-new" autocomplete="new-password" aria-label="Nuova password del diario" placeholder="Nuova password" minlength="4" required><input type="password" id="diary-pw-again" autocomplete="new-password" aria-label="Ripeti la password" placeholder="Ripeti la password" minlength="4" required><button type="submit" class="btn btn-primary" ${dis}>Salva e apri il diario</button></form>${msg}`;
-  else body=`<h3>Diario chiuso</h3><p class="card-text">Non riesco a controllare la password del diario: verifica la connessione e riapri la sezione.</p>`;
-  return `<div class="card diary-lock"><div class="lock-icon" aria-hidden="true">🔒</div>${body}</div>`;
+  if(st==="chiuso") body=`<h3>${ui.title}</h3><p class="card-text">${ui.ask}</p>
+    <form id="${p}-unlock-form" autocomplete="off"><input type="password" id="${p}-pw" autocomplete="current-password" aria-label="${ui.pwLabel}" placeholder="Password" required><button type="submit" class="btn btn-primary" style="--accent:var(${ui.accent})" ${dis}>${ui.openLabel}</button></form>${msg}
+    <p class="hint">${ui.forgot}</p>`;
+  else if(st==="da-scegliere") body=`<h3>${ui.chooseTitle}</h3><p class="card-text">${ui.chooseText}</p>
+    <form id="${p}-setup-form" autocomplete="off"><input type="password" id="${p}-pw-new" autocomplete="new-password" aria-label="Nuova ${ui.pwLabel.toLowerCase()}" placeholder="Nuova password" minlength="4" required><input type="password" id="${p}-pw-again" autocomplete="new-password" aria-label="Ripeti la password" placeholder="Ripeti la password" minlength="4" required><button type="submit" class="btn btn-primary" ${dis}>${ui.saveLabel}</button></form>${msg}`;
+  else body=`<h3>${ui.closedTitle}</h3><p class="card-text">${ui.closedText}</p>`;
+  // Il riquadro usa i colori del diario: per Salute li sostituisco (per il diario sarebbe un riferimento circolare).
+  const colors=ui.accent==="--c-diario"?"":` style="--c-diario:var(${ui.accent});--c-diario-soft:var(${ui.accent}-soft)"`;
+  return `<div class="card diary-lock"${colors}><div class="lock-icon" aria-hidden="true">🔒</div>${body}</div>`;
 }
-async function diaryLockSubmit(form){
-  if(DiaryLock.busy) return;
+function diaryLockHTML(){ return sectionLockHTML(LOCK_UI.diario); }
+async function lockSubmit(ui,form){
+  const L=ui.lock, p=ui.p;
+  if(L.busy) return;
   const val=id=>{ const el=document.getElementById(id); const v=el?el.value:""; if(el) el.value=""; return v; };
-  DiaryLock.busy=true; DiaryLock.msg="";
+  L.busy=true; L.msg="";
   try{
-    if(form.id==="diary-unlock-form"){
-      if(await DiaryLock.check(val("diary-pw"))) DiaryLock.open=true;
-      else{ await new Promise(r=>setTimeout(r,700)); DiaryLock.msg="Password non corretta."; }
+    if(form.id===p+"-unlock-form"){
+      if(await L.check(val(p+"-pw"))) L.open=true;
+      else{ await new Promise(r=>setTimeout(r,700)); L.msg="Password non corretta."; }
     }else{
-      const a=val("diary-pw-new"), b=val("diary-pw-again");
-      if(a.length<4) DiaryLock.msg="La password deve avere almeno 4 caratteri.";
-      else if(a!==b) DiaryLock.msg="Le due password non coincidono.";
-      else{ await DiaryLock.setPassword(a); DiaryLock.open=true; }
+      const a=val(p+"-pw-new"), b=val(p+"-pw-again");
+      if(a.length<4) L.msg="La password deve avere almeno 4 caratteri.";
+      else if(a!==b) L.msg="Le due password non coincidono.";
+      else{ await L.setPassword(a); L.open=true; }
     }
-  }catch(e){ DiaryLock.msg="Non sono riuscito a salvare: "+e.message; }
-  finally{ DiaryLock.busy=false; render(); }
+  }catch(e){ L.msg="Non sono riuscito a salvare: "+e.message; }
+  finally{ L.busy=false; render(); }
 }
-function diaryPasswordCardHTML(){
-  const st=DiaryLock.status();
+function lockPasswordCardHTML(ui){
+  const L=ui.lock, p=ui.p, st=L.status();
   const body=st==="non-attivo"?`<p class="card-text">Il lucchetto sarà disponibile appena il database verrà aggiornato.</p>`
     :st==="non-verificabile"?`<p class="card-text">Non riesco a leggere l'impostazione: controlla la connessione.</p>`
-    :st==="da-scegliere"?`<p class="card-text">Nessuna password ancora: la scegli la prima volta che apri il Diario.</p>`
-    :`<form id="diary-change-form" class="modal-form" autocomplete="off">
-        <div class="row"><label for="diary-pw-old">Password attuale</label><input type="password" id="diary-pw-old" autocomplete="current-password" required></div>
-        <div class="row"><label for="diary-pw-new2">Nuova password</label><input type="password" id="diary-pw-new2" autocomplete="new-password" minlength="4" required></div>
-        <div class="row"><label for="diary-pw-again2">Ripeti la nuova password</label><input type="password" id="diary-pw-again2" autocomplete="new-password" minlength="4" required></div>
+    :st==="da-scegliere"?`<p class="card-text">${ui.none}</p>`
+    :`<form id="${p}-change-form" class="modal-form" autocomplete="off">
+        <div class="row"><label for="${p}-pw-old">Password attuale</label><input type="password" id="${p}-pw-old" autocomplete="current-password" required></div>
+        <div class="row"><label for="${p}-pw-new2">Nuova password</label><input type="password" id="${p}-pw-new2" autocomplete="new-password" minlength="4" required></div>
+        <div class="row"><label for="${p}-pw-again2">Ripeti la nuova password</label><input type="password" id="${p}-pw-again2" autocomplete="new-password" minlength="4" required></div>
         <div class="settings-actions"><button type="submit" class="btn btn-primary">Cambia password</button></div>
-      </form>${DiaryLock.settingsMsg?`<p class="hint" role="status">${escapeHTML(DiaryLock.settingsMsg)}</p>`:""}`;
-  return `<div class="card"><div class="card-header"><h3>🔒 Password del diario</h3></div>${body}</div>`;
+      </form>${L.settingsMsg?`<p class="hint" role="status">${escapeHTML(L.settingsMsg)}</p>`:""}`;
+  return `<div class="card"><div class="card-header"><h3>${ui.cardTitle}</h3></div>${body}</div>`;
 }
-async function diaryChangeSubmit(){
+function diaryPasswordCardHTML(){ return lockPasswordCardHTML(LOCK_UI.diario); }
+async function lockChangeSubmit(ui){
+  const L=ui.lock, p=ui.p;
   const val=id=>{ const el=document.getElementById(id); const v=el.value; el.value=""; return v; };
-  const old=val("diary-pw-old"), a=val("diary-pw-new2"), b=val("diary-pw-again2");
+  const old=val(p+"-pw-old"), a=val(p+"-pw-new2"), b=val(p+"-pw-again2");
   try{
-    if(!await DiaryLock.check(old)) DiaryLock.settingsMsg="La password attuale non è corretta.";
-    else if(a.length<4) DiaryLock.settingsMsg="La nuova password deve avere almeno 4 caratteri.";
-    else if(a!==b) DiaryLock.settingsMsg="Le due nuove password non coincidono.";
-    else{ await DiaryLock.setPassword(a); DiaryLock.settingsMsg="✓ Password del diario cambiata."; }
-  }catch(e){ DiaryLock.settingsMsg="Non sono riuscito a salvare: "+e.message; }
+    if(!await L.check(old)) L.settingsMsg="La password attuale non è corretta.";
+    else if(a.length<4) L.settingsMsg="La nuova password deve avere almeno 4 caratteri.";
+    else if(a!==b) L.settingsMsg="Le due nuove password non coincidono.";
+    else{ await L.setPassword(a); L.settingsMsg=ui.changed; }
+  }catch(e){ L.settingsMsg="Non sono riuscito a salvare: "+e.message; }
   render();
 }
 
@@ -3583,6 +3658,504 @@ function renderAgenda(){
     </div>`;
 }
 
+/* =========================================================
+   SALUTE — visite, esami, medicine e allergie (salute-PROPOSTA.sql)
+   Visite ed esami diventano cose da fare: così compaiono nell'Agenda, in «Da fare», nel «Buongiorno»
+   e, con l'orario, ricevono l'avviso sull'iPhone. Le medicine regolari sono cose da fare ricorrenti,
+   una per orario: la spunta «presa» è quella di «Da fare». Quelle al bisogno si segnano in habit_health_doses.
+   ========================================================= */
+const VISIT_KINDS={famiglia:"Medico di famiglia",specialista:"Specialista",pronto_soccorso:"Pronto soccorso",altro:"Altro"};
+const SPECIALTIES=["Allergologia","Cardiologia","Dermatologia","Endocrinologia","Fisiatria","Gastroenterologia","Ginecologia","Neurologia","Oculistica","Odontoiatria","Ortopedia","Otorinolaringoiatria","Pneumologia","Psicologia","Reumatologia","Urologia"];
+const ALLERGY_SEVERITY={"":"Gravità non indicata",lieve:"Lieve",moderata:"Moderata",grave:"Grave"};
+const MED_TIMES_MAX=8;
+
+function healthTodo(id){ return id?Data.TODOS.find(t=>t.id===id)||null:null; }
+function visitLabel(v){ return v.kind==="specialista"?(v.specialty||"Specialista"):VISIT_KINDS[v.kind]||"Visita"; }
+function visitTodoTitle(v){ return ("🩺 Visita: "+visitLabel(v)+(v.doctor?" · "+v.doctor:"")).slice(0,300); }
+function examTodoTitle(e){ return ("🧪 "+e.title).slice(0,300); }
+function medTodoTitle(m){ return ("💊 "+m.name+(m.dose?" · "+m.dose:"")).slice(0,300); }
+function hhmm(t){ return t?String(t).slice(0,5):""; }
+function healthWhen(iso,time){ return shortDateIT(iso)+(time?" · "+hhmm(time):""); }
+function healthExcerpt(text,n=160){ text=String(text||""); return text.length>n?text.slice(0,n)+"…":text; }
+function nowHHMM(){ const d=new Date(); return String(d.getHours()).padStart(2,"0")+":"+String(d.getMinutes()).padStart(2,"0"); }
+// Un esame è fatto se ha la data «fatto il» oppure se è stato spuntato in «Da fare».
+function examDoneOn(e){ if(e.done_on) return e.done_on; const t=healthTodo(e.todo_id); return t&&t.done_at?isoOf(new Date(t.done_at)):null; }
+function examVisit(e){ return e.visit_id?Data.HEALTH.visits.find(v=>v.id===e.visit_id)||null:null; }
+function medTodos(m){ return (m.todo_ids||[]).map(healthTodo).filter(Boolean); }
+function medActive(m,today=todayISO()){ return m.status==="in_corso"&&(!m.end_date||m.end_date>=today); }
+function medTimes(m){ return [...new Set((m.times||[]).map(hhmm))].sort(); }
+function medDays(m){ return [...new Set(m.weekdays||[])].map(Number).sort(); }
+function medScheduleText(m){
+  if(m.kind==="al_bisogno") return "al bisogno";
+  const days=medDays(m).length?medDays(m).map(d=>WEEKDAY_SHORT[d-1]).join(", "):"ogni giorno";
+  const times=medTimes(m); return days+(times.length?" alle "+times.join(", "):"");
+}
+function healthTicks(){ return new Set(Data.TODO_DONE.map(d=>d.todo_id+"|"+d.occurrence)); }
+// Medicine regolari di un giorno, in ordine di orario, con la loro spunta.
+function medDoseItems(iso,ticks=healthTicks()){
+  const out=[];
+  for(const m of Data.HEALTH.meds) for(const t of medTodos(m)) if(TodoLogic.occursOn(t,iso)){
+    const item={med:m,todo:t,occurrence:t.recurrence?iso:"",done:t.recurrence?ticks.has(t.id+"|"+iso):!!t.done_at};
+    // Il giorno in cui cambi gli orari la vecchia (già spuntata) e la nuova possono avere lo stesso orario: ne resta una.
+    const twin=out.findIndex(o=>o.med===m&&hhmm(o.todo.due_time)===hhmm(t.due_time));
+    if(twin===-1) out.push(item); else if(item.done&&!out[twin].done) out[twin]=item;
+  }
+  return out.sort((a,b)=>(a.todo.due_time||"99:99")<(b.todo.due_time||"99:99")?-1:1);
+}
+function dosesOn(iso){ return Data.HEALTH.doses.filter(d=>d.taken_on===iso).sort((a,b)=>(a.taken_time||"")<(b.taken_time||"")?-1:1); }
+function medAdherence(m,days=30){
+  const today=todayISO(), from=TodoLogic.addDaysISO(today,-(days-1)), ticks=healthTicks(); let due=0,taken=0;
+  for(const t of medTodos(m)) if(t.recurrence) for(let d=t.due_date>from?t.due_date:from; d<=today; d=TodoLogic.addDaysISO(d,1))
+    if(TodoLogic.occursOn(t,d)){ due++; if(ticks.has(t.id+"|"+d)) taken++; }
+  return {due,taken};
+}
+function healthVisitsOn(iso){ return Data.HEALTH.visits.filter(v=>v.visit_date===iso).sort((a,b)=>hhmm(a.visit_time)<hhmm(b.visit_time)?-1:1); }
+function healthExamsOn(iso){ return Data.HEALTH.exams.filter(e=>e.due_date===iso||examDoneOn(e)===iso); }
+
+/* ---- Collegamento con «Da fare» ---- */
+function todoDiffers(t,p){
+  const norm=(k,v)=>v==null?null:k==="due_time"?hhmm(v):k==="recurrence"?JSON.stringify(v):v;
+  return Object.keys(p).some(k=>norm(k,t[k])!==norm(k,p[k]));
+}
+// Crea, aggiorna o toglie la cosa da fare collegata; restituisce il suo id (o null).
+async function syncItemTodo(t,want,payload){
+  if(!want){ if(t) await Data.deleteTodo(t.id); return null; }
+  if(t){ if(todoDiffers(t,payload)) await Data.updateTodo(t.id,payload); return t.id; }
+  const row=await Data.addTodo(payload); return row?row.id:null;
+}
+// Una visita passata (o con esito/prescrizione già scritti) è segnata come fatta: non resta «in ritardo».
+async function syncVisitTodo(v,want){
+  const t=healthTodo(v.todo_id);
+  const payload={title:visitTodoTitle(v),notes:[v.place,v.reason].filter(Boolean).join(" — ").slice(0,5000),due_date:v.visit_date,due_time:v.visit_time?hhmm(v.visit_time):null,recurrence:null};
+  if(v.visit_date<todayISO()||v.outcome||v.prescription) payload.done_at=t&&t.done_at||new Date().toISOString();
+  const id=await syncItemTodo(t,want,payload);
+  if(id!==(v.todo_id||null)) await Data.healthSave("visits",v.id,{todo_id:id});
+}
+async function syncExamTodo(e,want){
+  const t=healthTodo(e.todo_id), v=examVisit(e);
+  const payload={title:examTodoTitle(e),notes:v?`Prescritto: ${visitLabel(v)}, ${formatDateIT(v.visit_date)}`:"",due_date:e.due_date||null,due_time:e.due_date&&e.due_time?hhmm(e.due_time):null,recurrence:null,
+    done_at:e.done_on?(t&&t.done_at||new Date(e.done_on+"T12:00:00").toISOString()):null};
+  const id=await syncItemTodo(t,want,payload);
+  if(id!==(e.todo_id||null)) await Data.healthSave("exams",e.id,{todo_id:id});
+}
+async function saveExam(id,payload,want){
+  const saved=await Data.healthSave("exams",id,payload); if(!saved) return null;
+  await syncExamTodo(saved,want); return saved;
+}
+// Medicina regolare in corso: una cosa da fare ricorrente per orario (una sola senza orario), da oggi in poi.
+// Cambiando orari, giorni o date le vecchie si chiudono (le spunte restano nello storico) e se ne creano di nuove;
+// quelle mai spuntate si eliminano.
+async function syncMedTodos(m,prev){
+  const today=todayISO(), yesterday=TodoLogic.addDaysISO(today,-1);
+  const old=medTodos(m), times=medTimes(m), days=medDays(m);
+  const want=m.kind==="regolare"&&medActive(m,today);
+  const same=prev&&want&&prev.kind==="regolare"&&medActive(prev,today)&&old.length===(times.length||1)
+    &&medTimes(prev).join()===times.join()&&medDays(prev).join()===days.join()
+    &&(prev.end_date||"")===(m.end_date||"")&&prev.start_date===m.start_date;
+  if(same){
+    for(const t of old) if(t.title!==medTodoTitle(m)||t.notes!==(m.reason||"")) await Data.updateTodo(t.id,{title:medTodoTitle(m),notes:m.reason||""});
+    return m.todo_ids||[];
+  }
+  const keep=[];
+  // Sospesa: l'ultimo giorno è quello di fine (al più oggi); orari cambiati: ieri, da oggi valgono i nuovi.
+  const stop=!want&&m.end_date?(m.end_date<today?m.end_date:today):want?yesterday:today;
+  for(const t of old){
+    const ticks=Data.TODO_DONE.filter(d=>d.todo_id===t.id).map(d=>d.occurrence).sort();
+    if(!t.recurrence){ if(t.done_at) keep.push(t.id); else await Data.deleteTodo(t.id); continue; }
+    if(!ticks.length){ await Data.deleteTodo(t.id); continue; }
+    let until=stop; const last=ticks[ticks.length-1];
+    if(last>until) until=last;
+    if(t.recurrence.until&&t.recurrence.until<until) until=t.recurrence.until;
+    if(until<t.due_date) until=t.due_date;
+    if(t.recurrence.until!==until) await Data.updateTodo(t.id,{recurrence:Object.assign({},t.recurrence,{until})});
+    keep.push(t.id);
+  }
+  if(want){
+    const from=m.start_date>today?m.start_date:today;
+    if(!m.end_date||m.end_date>=from){
+      const rec=days.length?{freq:"weekly",interval:1,weekdays:days}:{freq:"daily",interval:1};
+      if(m.end_date) rec.until=m.end_date;
+      for(const time of (times.length?times:[null])){
+        const row=await Data.addTodo({title:medTodoTitle(m),notes:m.reason||"",due_date:from,due_time:time,recurrence:rec});
+        if(row) keep.push(row.id);
+      }
+    }
+  }
+  return keep;
+}
+async function saveMed(id,payload){
+  const prev=id?Object.assign({},Data.HEALTH.meds.find(x=>x.id===id)):null;
+  const saved=await Data.healthSave("meds",id,payload); if(!saved) return null;
+  const ids=await syncMedTodos(saved,prev);
+  if(ids.join()!==(saved.todo_ids||[]).join()) return await Data.healthSave("meds",saved.id,{todo_ids:ids});
+  return saved;
+}
+async function deleteHealthItem(kind,item){
+  const files=kind==="visits"?(a=>a.visit_id===item.id):kind==="exams"?(a=>a.exam_id===item.id):null;
+  if(files){
+    const errs=await Data.removeAttachmentsWhere(files);
+    if(errs.length){ render(); alert("Non sono riuscito a eliminare alcuni file, quindi resta tutto com'era:\n"+errs.join("\n")); return false; }
+  }
+  const todos=kind==="meds"?medTodos(item):[healthTodo(item.todo_id)].filter(Boolean);
+  for(const t of todos) await Data.deleteTodo(t.id);
+  return Data.healthDelete(kind,item.id);
+}
+
+/* ---- Pagina ---- */
+function healthAllergyBarHTML(){
+  const list=Data.HEALTH.allergies;
+  if(!list.length) return "";
+  return `<div class="card health-allergy"><b>⚠️ Allergie e intolleranze:</b>${list.map(a=>`<button type="button" class="chip chip-allergy" data-action="health-allergy-edit" data-id="${a.id}" title="${escapeHTML(a.reaction||"Apri")}">${escapeHTML(a.substance)}${a.severity?` · ${ALLERGY_SEVERITY[a.severity].toLowerCase()}`:""}</button>`).join("")}</div>`;
+}
+function healthTickHTML(i){
+  return `<button type="button" class="todo-check salute ${i.done?"done":""}" data-action="health-tick" data-id="${i.todo.id}" data-occ="${i.occurrence}" data-done="${i.done?1:0}" title="${i.done?"Segna come non presa":"Segna come presa"}" aria-label="${i.done?"Segna come non presa":"Segna come presa"}: ${escapeHTML(i.med.name)}">${i.done?"✓":""}</button>`;
+}
+function medDoseRowHTML(i,{late=false}={}){
+  return `<div class="todo-row ${i.done?"done":""}">${healthTickHTML(i)}<div class="rmain" data-action="health-med-edit" data-id="${i.med.id}" style="cursor:pointer"><div class="rtitle">${escapeHTML(i.med.name)}${i.med.dose?` <span class="rdur">${escapeHTML(i.med.dose)}</span>`:""}</div>
+    <div class="todo-meta">${i.todo.due_time?`<span class="chip chip-time">🕒 ${hhmm(i.todo.due_time)}</span>`:""}${late&&!i.done?`<span class="chip chip-late">non presa</span>`:""}</div></div></div>`;
+}
+function doseRowHTML(d,{back=""}={}){
+  const m=Data.HEALTH.meds.find(x=>x.id===d.med_id);
+  return `<div class="rrow"><span class="badge" style="--accent-soft:var(--c-salute-soft)">💊</span><div class="rmain"><div class="rtitle">${escapeHTML(m?m.name:"Medicina")}${m&&m.dose?` <span class="rdur">${escapeHTML(m.dose)}</span>`:""}</div><div class="rdesc">${back?"":shortDateIT(d.taken_on)+" · "}${d.taken_time?"alle "+hhmm(d.taken_time):"al bisogno"}${d.note?" — "+escapeHTML(d.note):""}</div></div><div class="ractions"><button type="button" class="icon-btn" data-action="health-dose-delete" data-id="${d.id}" title="Elimina questa presa">🗑️</button></div></div>`;
+}
+function visitRowHTML(v){
+  const exams=Data.HEALTH.exams.filter(e=>e.visit_id===v.id), files=Data.attachmentsFor("salute",{visitId:v.id}).length;
+  const parts=[["Perché",v.reason],["Esito",v.outcome],["Prescritto",v.prescription]].filter(([,t])=>t);
+  return `<div class="rrow"><span class="badge" style="--accent-soft:var(--c-salute-soft)">${v.kind==="pronto_soccorso"?"🚑":"🩺"}</span><div class="rmain" data-action="health-visit-edit" data-id="${v.id}" style="cursor:pointer">
+    <div class="rtitle">${escapeHTML(visitLabel(v))}${v.doctor?` · ${escapeHTML(v.doctor)}`:""}${attBadge(files)}</div>
+    <div class="todo-meta"><span class="chip chip-salute">📅 ${healthWhen(v.visit_date,v.visit_time)}</span>${v.place?`<span class="chip">📍 ${escapeHTML(v.place)}</span>`:""}${exams.length?`<span class="chip">🧪 ${exams.length} ${exams.length===1?"esame":"esami"}</span>`:""}</div>
+    ${parts.map(([l,t])=>`<div class="rdesc"><b>${l}:</b> ${linkifyHTML(healthExcerpt(t))}</div>`).join("")}
+  </div><div class="ractions"><button type="button" class="icon-btn" data-action="health-visit-edit" data-id="${v.id}" title="Apri la visita">✏️</button></div></div>`;
+}
+function examRowHTML(e){
+  const done=examDoneOn(e), v=examVisit(e), files=Data.attachmentsFor("salute",{examId:e.id}).length, late=!done&&e.due_date&&e.due_date<todayISO();
+  return `<div class="todo-row ${done?"done":""}"><button type="button" class="todo-check salute ${done?"done":""}" data-action="health-exam-toggle" data-id="${e.id}" title="${done?"Segna come da fare":"Segna come fatto oggi"}" aria-label="${done?"Segna come da fare":"Segna come fatto"}: ${escapeHTML(e.title)}">${done?"✓":""}</button>
+    <div class="rmain" data-action="health-exam-edit" data-id="${e.id}" style="cursor:pointer"><div class="rtitle">${escapeHTML(e.title)}${attBadge(files)}</div>
+    <div class="todo-meta">${done?`<span class="chip">✓ fatto il ${formatDateIT(done)}</span>`:e.due_date?`<span class="chip ${late?"chip-late":"chip-salute"}">📅 ${healthWhen(e.due_date,e.due_time)}</span>`:`<span class="chip">da prenotare</span>`}${v?`<span class="chip">🩺 ${escapeHTML(visitLabel(v))}, ${formatDateIT(v.visit_date)}</span>`:""}</div>
+    ${e.result?`<div class="rdesc"><b>Esito:</b> ${linkifyHTML(healthExcerpt(e.result))}</div>`:""}</div>
+    <div class="ractions"><button type="button" class="icon-btn" data-action="health-exam-edit" data-id="${e.id}" title="Apri l'esame">✏️</button></div></div>`;
+}
+function medRowHTML(m){
+  const today=todayISO(), chips=[`<span class="chip chip-salute">${m.kind==="al_bisogno"?"al bisogno":"🕒 "+escapeHTML(medScheduleText(m))}</span>`];
+  if(m.start_date) chips.push(`<span class="chip">dal ${formatDateIT(m.start_date)}${m.end_date?` al ${formatDateIT(m.end_date)}`:""}</span>`);
+  else if(m.end_date) chips.push(`<span class="chip">fino al ${formatDateIT(m.end_date)}</span>`);
+  if(m.kind==="regolare"&&medActive(m)){ const a=medAdherence(m); if(a.due) chips.push(`<span class="chip" title="Spunte negli ultimi 30 giorni">✓ ${a.taken}/${a.due} ultimi 30 giorni</span>`); }
+  if(m.kind==="al_bisogno"){ const ds=Data.HEALTH.doses.filter(d=>d.med_id===m.id); if(ds.length) chips.push(`<span class="chip">presa ${ds.length} ${ds.length===1?"volta":"volte"}, l'ultima il ${formatDateIT(ds[0].taken_on)}</span>`); }
+  if(m.status==="sospesa") chips.push(`<span class="chip">sospesa</span>`);
+  return `<div class="rrow"><span class="badge" style="--accent-soft:var(--c-salute-soft)">💊</span><div class="rmain" data-action="health-med-edit" data-id="${m.id}" style="cursor:pointer"><div class="rtitle">${escapeHTML(m.name)}${m.dose?` <span class="rdur">${escapeHTML(m.dose)}</span>`:""}</div>
+    <div class="todo-meta">${chips.join("")}</div>${m.reason?`<div class="rdesc">Per: ${escapeHTML(healthExcerpt(m.reason,120))}</div>`:""}</div>
+    <div class="ractions">${m.kind==="al_bisogno"&&medActive(m)?`<button type="button" class="btn btn-outline btn-sm" style="--accent:var(--c-salute)" data-action="health-dose-new" data-med="${m.id}">＋ Presa</button>`:""}<button type="button" class="icon-btn" data-action="health-med-edit" data-id="${m.id}" title="Modifica">✏️</button></div></div>`;
+}
+function healthCard(title,body,{empty,action=""}={}){
+  return `<div class="card"><div class="card-header"><h3>${title}</h3>${action}</div>${body||emptyState(empty)}</div>`;
+}
+function healthListOf(items,row){ return items.length?`<div class="rlist">${items.map(row).join("")}</div>`:""; }
+function healthAddBtn(action,label,extra=""){ return `<button type="button" class="btn btn-outline btn-sm" style="--accent:var(--c-salute)" data-action="${action}" ${extra}>${label}</button>`; }
+
+function renderHealthCalendar(){
+  const today=todayISO(), H=Data.HEALTH, ticks=healthTicks();
+  const next=H.visits.filter(v=>v.visit_date>=today).sort((a,b)=>(a.visit_date+hhmm(a.visit_time))<(b.visit_date+hhmm(b.visit_time))?-1:1)[0];
+  const todo=H.exams.filter(e=>!examDoneOn(e));
+  const items=medDoseItems(today,ticks), dosesToday=dosesOn(today);
+  const prn=H.meds.filter(m=>m.kind==="al_bisogno"&&medActive(m));
+  const{year,month}=state.healthMonth, label=monthLabelOf(year,month);
+  const cal=monthCalendarHTML(year,month,{accentVar:"--c-salute",action:"health-day",allowFuture:true,cellFor:iso=>{
+    const v=healthVisitsOn(iso).length, ex=healthExamsOn(iso).length;
+    const taken=iso<=today?medDoseItems(iso,ticks).filter(i=>i.done).length+dosesOn(iso).length:0;
+    const bottom=`${v?`<span title="${v} visit${v===1?"a":"e"}">🩺</span>`:""}${ex?`<span title="${ex} esam${ex===1?"e":"i"}">🧪</span>`:""}${taken?`<span title="${taken} medicine prese">💊${taken}</span>`:""}`;
+    return{filled:!!(v||ex||taken),bottomHTML:bottom};
+  }});
+  const isNow=year===new Date().getFullYear()&&month===new Date().getMonth();
+  const upcoming=[...H.visits.filter(v=>v.visit_date>=today).map(v=>({d:v.visit_date+hhmm(v.visit_time),html:visitRowHTML(v)})),
+    ...todo.filter(e=>e.due_date&&e.due_date>=today).map(e=>({d:e.due_date+hhmm(e.due_time),html:examRowHTML(e)}))].sort((a,b)=>a.d<b.d?-1:1).slice(0,8);
+  const todayVisits=healthVisitsOn(today);
+  return `<div class="stat-row">
+      ${statTile("🩺","Prossima visita",next?shortDateIT(next.visit_date):"—","salute",next?escapeHTML(visitLabel(next)):"nessuna in programma")}
+      ${statTile("🧪","Esami da fare",todo.length,"salute","da fare o prenotare")}
+      ${statTile("💊","Medicine in corso",H.meds.filter(m=>medActive(m)).length,"salute","regolari e al bisogno")}
+      ${statTile("✅","Prese oggi",items.length?`${items.filter(i=>i.done).length}/${items.length}`:dosesToday.length,"salute",items.length?"medicine di oggi":"al bisogno")}
+    </div>
+    <div class="card"><div class="card-header"><h3>💊 Oggi</h3>${prn.length?healthAddBtn("health-dose-new","＋ Ho preso una medicina al bisogno",`data-date="${today}"`):""}</div>
+      ${todayVisits.length?`<div class="rlist">${todayVisits.map(visitRowHTML).join("")}</div>`:""}
+      ${items.length?`<div class="rlist">${items.map(i=>medDoseRowHTML(i)).join("")}</div>`:""}
+      ${dosesToday.length?`<div class="health-sec">Al bisogno</div><div class="rlist">${dosesToday.map(d=>doseRowHTML(d,{back:today})).join("")}</div>`:""}
+      ${!items.length&&!dosesToday.length&&!todayVisits.length?emptyState(H.meds.length?"Nessuna medicina regolare da prendere oggi.":"Aggiungi le medicine che prendi nella scheda «💊 Medicine»: qui le spunterai ogni giorno."):""}
+    </div>
+    <div class="card"><div class="card-header"><h3>Calendario</h3>${monthNavHTML({prevAction:"health-prev-month",nextAction:"health-next-month",label})}</div>${cal}
+      <p class="hint" style="margin-top:10px">🩺 visita · 🧪 esame · 💊 medicine prese. Tocca un giorno per vedere, spuntare o aggiungere.${isNow?"":` <button type="button" class="btn btn-ghost btn-sm" data-action="health-this-month">Torna a questo mese</button>`}</p></div>
+    ${healthCard("📅 In arrivo",upcoming.length?`<div class="rlist">${upcoming.map(u=>u.html).join("")}</div>`:"",{empty:"Nessuna visita o esame in programma."})}`;
+}
+function renderHealthVisits(){
+  const today=todayISO(), all=Data.HEALTH.visits;
+  const key=v=>v.visit_date+hhmm(v.visit_time);
+  const next=all.filter(v=>v.visit_date>=today).sort((a,b)=>key(a)<key(b)?-1:1), past=all.filter(v=>v.visit_date<today).sort((a,b)=>key(a)<key(b)?1:-1);
+  return healthCard("📅 Prossime visite",healthListOf(next,visitRowHTML),{empty:"Nessuna visita in programma."})
+    +healthCard("🗂️ Visite passate",healthListOf(past,visitRowHTML),{empty:"Nessuna visita registrata."});
+}
+function renderHealthExams(){
+  const all=Data.HEALTH.exams;
+  const todo=all.filter(e=>!examDoneOn(e)).sort((a,b)=>((a.due_date||"9999")+hhmm(a.due_time))<((b.due_date||"9999")+hhmm(b.due_time))?-1:1);
+  const done=all.filter(e=>examDoneOn(e)).sort((a,b)=>examDoneOn(a)<examDoneOn(b)?1:-1);
+  return healthCard("🧪 Da fare",healthListOf(todo,examRowHTML),{empty:"Nessun esame da fare."})
+    +healthCard("✅ Fatti",healthListOf(done,examRowHTML),{empty:"Quando fai un esame spuntalo e allega il referto (PDF o foto)."});
+}
+function renderHealthMeds(){
+  const H=Data.HEALTH, today=todayISO();
+  const active=H.meds.filter(m=>medActive(m,today)), regular=active.filter(m=>m.kind==="regolare"), prn=active.filter(m=>m.kind==="al_bisogno");
+  const past=H.meds.filter(m=>!medActive(m,today)).sort((a,b)=>(a.end_date||"")<(b.end_date||"")?1:-1);
+  const allergies=[...H.allergies].sort((a,b)=>a.substance.localeCompare(b.substance,"it"));
+  const allergyRow=a=>`<div class="rrow"><span class="badge" style="--accent-soft:var(--c-danger-soft)">⚠️</span><div class="rmain" data-action="health-allergy-edit" data-id="${a.id}" style="cursor:pointer"><div class="rtitle">${escapeHTML(a.substance)}</div><div class="todo-meta">${a.severity?`<span class="chip ${a.severity==="grave"?"chip-late":""}">${ALLERGY_SEVERITY[a.severity]}</span>`:""}${a.since?`<span class="chip">dal ${formatDateIT(a.since)}</span>`:""}</div>${a.reaction?`<div class="rdesc">Reazione: ${escapeHTML(a.reaction)}</div>`:""}${a.notes?`<div class="rdesc">${linkifyHTML(a.notes)}</div>`:""}</div><div class="ractions"><button type="button" class="icon-btn" data-action="health-allergy-edit" data-id="${a.id}" title="Modifica">✏️</button></div></div>`;
+  return healthCard("⚠️ Allergie e intolleranze",healthListOf(allergies,allergyRow),{empty:"Nessuna allergia registrata.",action:healthAddBtn("health-allergy-new","＋ Allergia")})
+    +healthCard("💊 Medicine che prendo ora",healthListOf(regular,medRowHTML),{empty:"Nessuna medicina regolare in corso.",action:healthAddBtn("health-med-new","＋ Medicina")})
+    +healthCard("🩹 Al bisogno",healthListOf(prn,medRowHTML),{empty:"Nessuna medicina al bisogno. Aggiungila con «＋ Medicina» e scegli «Al bisogno»: poi segni ogni volta che la prendi."})
+    +(H.doses.length?healthCard("📜 Ultime prese al bisogno",healthListOf(H.doses.slice(0,10),d=>doseRowHTML(d))):"")
+    +healthCard("🗄️ Prese in passato",healthListOf(past,medRowHTML),{empty:"Qui finiscono le medicine sospese o terminate, con il periodo in cui le hai prese."});
+}
+function renderHealth(){
+  if(!Data.healthAvailable) return `<div class="card intro" style="--accent:var(--c-salute)"><div>La sezione Salute: visite, esami, medicine e allergie.</div></div><div class="card">${emptyState("La sezione Salute sarà disponibile appena il database verrà aggiornato.")}</div>`;
+  const lock=sectionLockHTML(LOCK_UI.salute); if(lock) return lock;
+  const tab=state.healthTab;
+  const intro=`<div class="card intro" style="--accent:var(--c-salute)"><div class="intro-actions"><div>Visite dal medico di famiglia o dallo specialista (perché ci vai, sintomi, cosa ti ha prescritto, referti in PDF o foto), esami da fare, medicine di ogni giorno o al bisogno e allergie. Visite, esami e medicine compaiono anche nell'Agenda e in «Da fare»: con l'orario arriva l'avviso sull'iPhone.</div>${HealthLock.status()==="aperto"?`<button class="btn btn-outline btn-sm" style="--accent:var(--c-salute)" data-action="health-lock" title="Si richiude anche da solo quando esci dalla sezione">🔒 Chiudi</button>`:""}</div></div>`;
+  const seg=`<div class="seg seg-salute" role="tablist">${[["calendario","Calendario"],["visite","🩺 Visite"],["esami","🧪 Esami"],["medicine","💊 Medicine"]].map(([id,l])=>`<button type="button" role="tab" aria-selected="${tab===id}" class="${tab===id?"active":""}" data-action="health-tab" data-tab="${id}">${l}</button>`).join("")}</div>`;
+  const add={calendario:["health-visit-new","+ Nuova visita"],visite:["health-visit-new","+ Nuova visita"],esami:["health-exam-new","+ Nuovo esame"],medicine:["health-med-new","+ Nuova medicina"]}[tab];
+  const toolbar=`<div class="todo-toolbar">${seg}<button class="btn btn-primary" style="background:var(--c-salute)" data-action="${add[0]}">${add[1]}</button></div>`;
+  const body=tab==="visite"?renderHealthVisits():tab==="esami"?renderHealthExams():tab==="medicine"?renderHealthMeds():renderHealthCalendar();
+  return intro+healthAllergyBarHTML()+toolbar+body;
+}
+
+/* ---- Finestre ---- */
+function healthTA(id,label,val,ph,rows=3,max=5000){ return `<div class="row"><label for="${id}">${label}</label><textarea id="${id}" rows="${rows}" maxlength="${max}" placeholder="${ph}">${escapeHTML(val||"")}</textarea></div>`; }
+function visitOptionsHTML(selected){
+  const vs=[...Data.HEALTH.visits].sort((a,b)=>a.visit_date<b.visit_date?1:-1);
+  return `<option value="">Nessuna</option>`+vs.map(v=>`<option value="${v.id}" ${v.id===selected?"selected":""}>${formatDateIT(v.visit_date)} · ${escapeHTML(visitLabel(v))}${v.doctor?" · "+escapeHTML(v.doctor):""}</option>`).join("");
+}
+function bindModalClose(){ modalEl.querySelectorAll("[data-close]").forEach(b=>b.addEventListener("click",closeModal)); }
+function modalBusy(form,text){ const btn=form.querySelector('button[type="submit"]'); btn.disabled=true; btn.textContent=text; return ()=>{ btn.disabled=false; btn.textContent="Salva"; }; }
+
+function openVisitModal(id,{date}={}){
+  const v=id?Data.HEALTH.visits.find(x=>x.id===id):null; if(id&&!v) return;
+  const today=todayISO(), day=v?v.visit_date:(date||today);
+  const exams=v?Data.HEALTH.exams.filter(e=>e.visit_id===v.id):[], meds=v?Data.HEALTH.meds.filter(m=>m.visit_id===v.id):[];
+  const remind=v?!!healthTodo(v.todo_id):day>=today;
+  openModal(`
+    <div class="modal-head"><h3>${v?"Visita":"Nuova visita"}</h3><button class="icon-btn" data-close>✕</button></div>
+    <form id="visit-form" class="modal-form">
+      <div class="row-split"><div class="row"><label for="visit-date">Giorno</label><input type="date" id="visit-date" value="${day}" required></div><div class="row"><label for="visit-time">Ora (facoltativa)</label><input type="time" id="visit-time" value="${v?hhmm(v.visit_time):""}"></div></div>
+      <div class="row-split"><div class="row"><label for="visit-kind">Da chi</label><select id="visit-kind">${Object.entries(VISIT_KINDS).map(([k,l])=>`<option value="${k}" ${(v?v.kind:"famiglia")===k?"selected":""}>${l}</option>`).join("")}</select></div>
+        <div class="row" id="visit-spec-row"><label for="visit-spec">Specialità</label><input id="visit-spec" list="visit-spec-list" maxlength="100" autocomplete="off" value="${escapeHTML(v?v.specialty:"")}" placeholder="Es. Cardiologia"><datalist id="visit-spec-list">${SPECIALTIES.map(x=>`<option value="${x}">`).join("")}</datalist></div></div>
+      <div class="row-split"><div class="row"><label for="visit-doctor">Medico (facoltativo)</label><input id="visit-doctor" maxlength="200" value="${escapeHTML(v?v.doctor:"")}" placeholder="Es. dott.ssa Rossi"></div><div class="row"><label for="visit-place">Dove (facoltativo)</label><input id="visit-place" maxlength="300" value="${escapeHTML(v?v.place:"")}" placeholder="Es. Ospedale, studio…"></div></div>
+      ${healthTA("visit-reason","Perché ci vai",v&&v.reason,"Es. controllo annuale, dolore al ginocchio…",2)}
+      ${healthTA("visit-symptoms","Sintomi",v&&v.symptoms,"Cosa senti, da quando…")}
+      ${healthTA("visit-outcome","Esito / diagnosi",v&&v.outcome,"Cosa ha detto il medico")}
+      ${healthTA("visit-prescription","Cosa ti ha prescritto",v&&v.prescription,"Terapia, consigli, controlli…")}
+      <div class="row"><label for="visit-new-exams">Esami da fare</label>${exams.length?`<div class="health-mini">${exams.map(e=>`<span class="chip ${examDoneOn(e)?"":"chip-salute"}">${examDoneOn(e)?"✓":"🧪"} ${escapeHTML(e.title)}</span>`).join("")}</div>`:""}<textarea id="visit-new-exams" rows="2" maxlength="3000" placeholder="${exams.length?"Altri esami, uno per riga":"Uno per riga, es. Esami del sangue"}"></textarea><span class="hint">Ogni riga diventa un esame da fare (anche in «Da fare → Quando posso»). Data, esito e referto li aggiungi nella scheda Esami.</span></div>
+      <div class="row"><label>Medicine prescritte</label>${meds.length?`<div class="health-mini">${meds.map(m=>`<span class="chip chip-salute">💊 ${escapeHTML(m.name)}</span>`).join("")}</div>`:""}<button type="button" class="btn btn-outline btn-sm" style="--accent:var(--c-salute);align-self:flex-start" id="visit-add-med">＋ Aggiungi una medicina prescritta</button><span class="hint">Salva la visita e apre la scheda della medicina, già collegata.</span></div>
+      ${healthTA("visit-notes","Note (facoltative)",v&&v.notes,"",2)}
+      <label class="health-check"><input type="checkbox" id="visit-remind" ${remind?"checked":""}><span>Mostrala nell'Agenda e in «Da fare» <span class="hint">(con l'ora arriva l'avviso sull'iPhone 15 minuti prima)</span></span></label>
+      ${attachmentFieldHTML("Referti, ricette e foto (facoltativi)")}
+      <div class="modal-actions">${v?`<button type="button" class="btn btn-danger" id="visit-delete">Elimina</button>`:"<span></span>"}<div><button type="button" class="btn btn-ghost" data-close>Annulla</button><button type="submit" class="btn btn-primary">Salva</button></div></div>
+    </form>`,{wide:true});
+  bindModalClose();
+  const $=x=>document.getElementById(x), form=$("visit-form");
+  const sync=()=>{ $("visit-spec-row").hidden=$("visit-kind").value!=="specialista"; };
+  $("visit-kind").addEventListener("change",sync); sync();
+  let remindTouched=!!v;
+  $("visit-remind").addEventListener("change",()=>{ remindTouched=true; });
+  $("visit-date").addEventListener("change",()=>{ if(!remindTouched) $("visit-remind").checked=$("visit-date").value>=todayISO(); });
+  const attField=setupAttachmentField(v?Data.attachmentsFor("salute",{visitId:v.id}):[]);
+  let after=null;
+  $("visit-add-med").addEventListener("click",()=>{ after="med"; form.requestSubmit(); });
+  if(v) $("visit-delete").addEventListener("click",async()=>{
+    const n=Data.attachmentsFor("salute",{visitId:v.id}).length;
+    if(!confirm(`Eliminare questa visita${n?` e i suoi ${n} allegati`:""}? Gli esami e le medicine collegati restano.`)) return;
+    closeModal(); await deleteHealthItem("visits",v);
+  });
+  form.addEventListener("submit",async e=>{
+    e.preventDefault();
+    const kind=$("visit-kind").value, val=x=>$(x).value.trim();
+    const payload={visit_date:$("visit-date").value,visit_time:$("visit-time").value||null,kind,specialty:kind==="specialista"?val("visit-spec"):"",doctor:val("visit-doctor"),place:val("visit-place"),
+      reason:val("visit-reason"),symptoms:val("visit-symptoms"),outcome:val("visit-outcome"),prescription:val("visit-prescription"),notes:val("visit-notes")};
+    if(!payload.visit_date){ alert("Scegli il giorno della visita."); after=null; return; }
+    const newExams=$("visit-new-exams").value.split("\n").map(l=>l.trim()).filter(Boolean).map(l=>l.slice(0,300));
+    const remindOn=$("visit-remind").checked, next=after; after=null;
+    const undo=modalBusy(form,"Salvataggio…");
+    const saved=await Data.healthSave("visits",v?v.id:null,payload);
+    if(!saved){ undo(); return; }
+    await syncVisitTodo(saved,remindOn);
+    for(const title of newExams) await saveExam(null,{visit_id:saved.id,title},true);
+    const errors=await attField.commit("salute",{visitId:saved.id},(i,n)=>{ form.querySelector('button[type="submit"]').textContent=`Caricamento ${i}/${n}…`; });
+    closeModal(); render();
+    if(errors.length) alert("Alcuni allegati non sono stati salvati:\n"+errors.join("\n"));
+    if(next==="med") openMedModal(null,{visitId:saved.id});
+  });
+}
+
+function openExamModal(id,{date,visitId}={}){
+  const ex=id?Data.HEALTH.exams.find(x=>x.id===id):null; if(id&&!ex) return;
+  const done=ex?examDoneOn(ex):null, remind=ex?!!healthTodo(ex.todo_id):true;
+  openModal(`
+    <div class="modal-head"><h3>${ex?"Esame":"Nuovo esame"}</h3><button class="icon-btn" data-close>✕</button></div>
+    <form id="exam-form" class="modal-form">
+      <div class="row"><label for="exam-title">Esame</label><input id="exam-title" maxlength="300" required value="${escapeHTML(ex?ex.title:"")}" placeholder="Es. Esami del sangue, ecografia addome…"></div>
+      <div class="row-split"><div class="row"><label for="exam-date">Quando (facoltativo)</label><input type="date" id="exam-date" value="${ex?ex.due_date||"":date||""}"></div><div class="row"><label for="exam-time">Ora (facoltativa)</label><input type="time" id="exam-time" value="${ex?hhmm(ex.due_time):""}"></div></div>
+      <span class="hint">Senza data resta «da prenotare» (in «Da fare → Quando posso»).</span>
+      <div class="row"><label for="exam-visit">Prescritto nella visita</label><select id="exam-visit">${visitOptionsHTML(ex?ex.visit_id:visitId||"")}</select></div>
+      <div class="row"><label for="exam-done">Fatto il (lascia vuoto se è ancora da fare)</label><input type="date" id="exam-done" value="${done||""}" max="${todayISO()}"></div>
+      ${healthTA("exam-result","Esito / valori (facoltativo)",ex&&ex.result,"Es. colesterolo 190, tutto nella norma…")}
+      <label class="health-check"><input type="checkbox" id="exam-remind" ${remind?"checked":""}><span>Mostralo nell'Agenda e in «Da fare» <span class="hint">(con l'ora arriva l'avviso sull'iPhone)</span></span></label>
+      ${attachmentFieldHTML("Referti (PDF o foto, facoltativi)")}
+      <div class="modal-actions">${ex?`<button type="button" class="btn btn-danger" id="exam-delete">Elimina</button>`:"<span></span>"}<div><button type="button" class="btn btn-ghost" data-close>Annulla</button><button type="submit" class="btn btn-primary">Salva</button></div></div>
+    </form>`,{wide:true});
+  bindModalClose();
+  const $=x=>document.getElementById(x), form=$("exam-form");
+  const attField=setupAttachmentField(ex?Data.attachmentsFor("salute",{examId:ex.id}):[]);
+  if(ex) $("exam-delete").addEventListener("click",async()=>{
+    const n=Data.attachmentsFor("salute",{examId:ex.id}).length;
+    if(!confirm(`Eliminare questo esame${n?` e i suoi ${n} referti`:""}?`)) return;
+    closeModal(); await deleteHealthItem("exams",ex);
+  });
+  form.addEventListener("submit",async e=>{
+    e.preventDefault();
+    const title=$("exam-title").value.trim(); if(!title){ alert("Scrivi il nome dell'esame."); return; }
+    const due=$("exam-date").value||null;
+    const payload={title,due_date:due,due_time:due?($("exam-time").value||null):null,visit_id:$("exam-visit").value||null,done_on:$("exam-done").value||null,result:$("exam-result").value.trim()};
+    const undo=modalBusy(form,"Salvataggio…");
+    const saved=await saveExam(ex?ex.id:null,payload,$("exam-remind").checked);
+    if(!saved){ undo(); return; }
+    const errors=await attField.commit("salute",{examId:saved.id},(i,n)=>{ form.querySelector('button[type="submit"]').textContent=`Caricamento ${i}/${n}…`; });
+    closeModal(); render();
+    if(errors.length) alert("Alcuni referti non sono stati salvati:\n"+errors.join("\n"));
+  });
+}
+async function toggleExam(id){
+  const ex=Data.HEALTH.exams.find(x=>x.id===id); if(!ex) return;
+  const t=healthTodo(ex.todo_id);
+  if(examDoneOn(ex)){
+    if(await Data.healthSave("exams",id,{done_on:null})&&t&&!t.recurrence&&t.done_at) await Data.uncompleteTodo(t.id,null);
+  }else if(await Data.healthSave("exams",id,{done_on:todayISO()})&&t&&!t.recurrence&&!t.done_at) await Data.completeTodo(t.id,null);
+}
+
+function medTimeInputHTML(v=""){ return `<span class="ht"><input type="time" class="med-time" value="${v}" aria-label="Orario"><button type="button" class="icon-btn" data-med-time-del title="Togli questo orario">✕</button></span>`; }
+function openMedModal(id,{visitId}={}){
+  const m=id?Data.HEALTH.meds.find(x=>x.id===id):null; if(id&&!m) return;
+  const today=todayISO(), times=m?medTimes(m):["08:00"], days=m?medDays(m):[];
+  openModal(`
+    <div class="modal-head"><h3>${m?"Medicina":"Nuova medicina"}</h3><button class="icon-btn" data-close>✕</button></div>
+    <form id="med-form" class="modal-form">
+      <div class="row-split"><div class="row"><label for="med-name">Nome</label><input id="med-name" maxlength="200" required value="${escapeHTML(m?m.name:"")}" placeholder="Es. Cardioaspirina"></div><div class="row"><label for="med-dose">Dose (facoltativa)</label><input id="med-dose" maxlength="200" value="${escapeHTML(m?m.dose:"")}" placeholder="Es. 1 compressa da 100 mg"></div></div>
+      <div class="row"><label for="med-reason">Per cosa (facoltativo)</label><input id="med-reason" maxlength="1000" value="${escapeHTML(m?m.reason:"")}" placeholder="Es. pressione, mal di testa…"></div>
+      <div class="row"><label for="med-kind">Come la prendi</label><select id="med-kind"><option value="regolare" ${!m||m.kind==="regolare"?"selected":""}>Regolarmente</option><option value="al_bisogno" ${m&&m.kind==="al_bisogno"?"selected":""}>Al bisogno (ogni tanto)</option></select></div>
+      <div id="med-regular" class="modal-form">
+        <div class="row"><label>Orari</label><div class="health-times" id="med-times">${times.map(medTimeInputHTML).join("")}<button type="button" class="btn btn-ghost btn-sm" id="med-time-add">＋ Orario</button></div><span class="hint">Una spunta per ogni orario. Con l'orario arriva l'avviso sull'iPhone 15 minuti prima. Senza orari resta una spunta al giorno, senza avviso.</span></div>
+        <div class="row" id="med-days-row"><label>In quali giorni</label><div class="weekday-picks">${["Lun","Mar","Mer","Gio","Ven","Sab","Dom"].map((l,i)=>`<label><input type="checkbox" value="${i+1}" ${days.includes(i+1)?"checked":""}>${l}</label>`).join("")}</div><span class="hint">Se non scegli nessun giorno vale ogni giorno.</span></div>
+      </div>
+      <div class="row-split"><div class="row"><label for="med-start" id="med-start-label">Dal giorno</label><input type="date" id="med-start" value="${m?m.start_date||"":today}"></div><div class="row"><label for="med-end">Fino al (facoltativo)</label><input type="date" id="med-end" value="${m?m.end_date||"":""}"></div></div>
+      <div class="row"><label for="med-status">Stato</label><select id="med-status"><option value="in_corso" ${!m||m.status==="in_corso"?"selected":""}>La prendo ora</option><option value="sospesa" ${m&&m.status==="sospesa"?"selected":""}>Sospesa: non la prendo più</option></select><span class="hint">Una medicina sospesa o terminata va in «Prese in passato», con il periodo in cui l'hai presa: le spunte restano.</span></div>
+      <div class="row"><label for="med-visit">Prescritta nella visita</label><select id="med-visit">${visitOptionsHTML(m?m.visit_id:visitId||"")}</select></div>
+      ${healthTA("med-notes","Note (facoltative)",m&&m.notes,"Es. a stomaco pieno, effetti collaterali…",2)}
+      <div class="modal-actions">${m?`<button type="button" class="btn btn-danger" id="med-delete">Elimina</button>`:"<span></span>"}<div><button type="button" class="btn btn-ghost" data-close>Annulla</button><button type="submit" class="btn btn-primary">Salva</button></div></div>
+    </form>`,{wide:true});
+  bindModalClose();
+  const $=x=>document.getElementById(x), form=$("med-form");
+  const sync=()=>{ const reg=$("med-kind").value==="regolare"; $("med-regular").hidden=!reg; $("med-start-label").textContent=reg?"Dal giorno":"Dal giorno (facoltativo)"; $("med-time-add").hidden=$("med-times").querySelectorAll(".med-time").length>=MED_TIMES_MAX; };
+  $("med-kind").addEventListener("change",sync);
+  $("med-time-add").addEventListener("click",()=>{ $("med-time-add").insertAdjacentHTML("beforebegin",medTimeInputHTML("")); sync(); const all=$("med-times").querySelectorAll(".med-time"); all[all.length-1].focus(); });
+  $("med-times").addEventListener("click",e=>{ const b=e.target.closest("[data-med-time-del]"); if(b){ b.parentElement.remove(); sync(); } });
+  $("med-status").addEventListener("change",()=>{ if($("med-status").value==="sospesa"&&!$("med-end").value) $("med-end").value=todayISO(); });
+  sync();
+  if(m) $("med-delete").addEventListener("click",async()=>{
+    if(!confirm("Eliminare questa medicina e tutte le sue spunte?\n\nSe non la prendi più è meglio scegliere «Sospesa»: resta nello storico delle medicine prese.")) return;
+    closeModal(); await deleteHealthItem("meds",m);
+  });
+  form.addEventListener("submit",async e=>{
+    e.preventDefault();
+    const name=$("med-name").value.trim(); if(!name){ alert("Scrivi il nome della medicina."); return; }
+    const kind=$("med-kind").value, status=$("med-status").value;
+    const timesOut=[...new Set([...$("med-times").querySelectorAll(".med-time")].map(i=>i.value).filter(Boolean))].sort();
+    const daysOut=[...form.querySelectorAll("#med-days-row input:checked")].map(i=>Number(i.value));
+    let start=$("med-start").value||null, end=$("med-end").value||null;
+    if(kind==="regolare"&&!start){ alert("Scegli da che giorno la prendi."); return; }
+    if(status==="sospesa"&&!end) end=todayISO();
+    if(start&&end&&end<start){ alert("La data di fine viene prima dell'inizio."); return; }
+    const payload={name,dose:$("med-dose").value.trim(),reason:$("med-reason").value.trim(),kind,status,start_date:start,end_date:end,
+      times:kind==="regolare"?timesOut:[],weekdays:kind==="regolare"?daysOut:[],visit_id:$("med-visit").value||null,notes:$("med-notes").value.trim()};
+    const undo=modalBusy(form,"Salvataggio…");
+    const saved=await saveMed(m?m.id:null,payload);
+    if(!saved){ undo(); return; }
+    closeModal(); render();
+  });
+}
+
+function openDoseModal({medId,date,back}={}){
+  const meds=Data.HEALTH.meds.filter(m=>medActive(m)||m.id===medId).sort((a,b)=>(a.kind==="al_bisogno"?0:1)-(b.kind==="al_bisogno"?0:1)||a.name.localeCompare(b.name,"it"));
+  if(!meds.length){ alert("Aggiungi prima la medicina nella scheda «💊 Medicine» (scegli «Al bisogno»)."); return; }
+  const day=date||todayISO();
+  openModal(`
+    <div class="modal-head"><h3>Ho preso una medicina</h3><button class="icon-btn" data-close>✕</button></div>
+    <form id="dose-form" class="modal-form">
+      <div class="row"><label for="dose-med">Medicina</label><select id="dose-med">${meds.map(m=>`<option value="${m.id}" ${m.id===medId?"selected":""}>${escapeHTML(m.name)}${m.dose?" · "+escapeHTML(m.dose):""}${m.kind==="al_bisogno"?" (al bisogno)":""}</option>`).join("")}</select></div>
+      <div class="row-split"><div class="row"><label for="dose-date">Giorno</label><input type="date" id="dose-date" value="${day}" max="${todayISO()}" required></div><div class="row"><label for="dose-time">Ora (facoltativa)</label><input type="time" id="dose-time" value="${day===todayISO()?nowHHMM():""}"></div></div>
+      <div class="row"><label for="dose-note">Nota (facoltativa)</label><input id="dose-note" maxlength="500" placeholder="Es. mal di testa, mezza compressa…"></div>
+      <div class="modal-actions"><span></span><div><button type="button" class="btn btn-ghost" data-close>Annulla</button><button type="submit" class="btn btn-primary">Salva</button></div></div>
+    </form>`);
+  bindModalClose();
+  const $=x=>document.getElementById(x), form=$("dose-form");
+  form.addEventListener("submit",async e=>{
+    e.preventDefault();
+    const taken=$("dose-date").value; if(!taken){ alert("Scegli il giorno."); return; }
+    const undo=modalBusy(form,"Salvataggio…");
+    const saved=await Data.healthSave("doses",null,{med_id:$("dose-med").value,taken_on:taken,taken_time:$("dose-time").value||null,note:$("dose-note").value.trim()});
+    if(!saved){ undo(); return; }
+    // Le prese al bisogno sono in ordine dalla più recente.
+    Data.HEALTH.doses.sort((a,b)=>(b.taken_on+(b.taken_time||""))<(a.taken_on+(a.taken_time||""))?-1:1);
+    closeModal(); render();
+    if(back) openHealthDayModal(back);
+  });
+}
+
+function openAllergyModal(id){
+  const a=id?Data.HEALTH.allergies.find(x=>x.id===id):null; if(id&&!a) return;
+  openModal(`
+    <div class="modal-head"><h3>${a?"Allergia":"Nuova allergia"}</h3><button class="icon-btn" data-close>✕</button></div>
+    <form id="allergy-form" class="modal-form">
+      <div class="row"><label for="allergy-substance">A cosa sei allergico</label><input id="allergy-substance" maxlength="200" required value="${escapeHTML(a?a.substance:"")}" placeholder="Es. Penicillina, ibuprofene, lattosio…"></div>
+      <div class="row-split"><div class="row"><label for="allergy-severity">Gravità</label><select id="allergy-severity">${Object.entries(ALLERGY_SEVERITY).map(([k,l])=>`<option value="${k}" ${(a?a.severity:"")===k?"selected":""}>${l}</option>`).join("")}</select></div><div class="row"><label for="allergy-since">Da quando (facoltativo)</label><input type="date" id="allergy-since" value="${a&&a.since||""}" max="${todayISO()}"></div></div>
+      <div class="row"><label for="allergy-reaction">Reazione (facoltativa)</label><input id="allergy-reaction" maxlength="1000" value="${escapeHTML(a?a.reaction:"")}" placeholder="Es. orticaria, gonfiore…"></div>
+      ${healthTA("allergy-notes","Note (facoltative)",a&&a.notes,"",2,2000)}
+      <div class="modal-actions">${a?`<button type="button" class="btn btn-danger" id="allergy-delete">Elimina</button>`:"<span></span>"}<div><button type="button" class="btn btn-ghost" data-close>Annulla</button><button type="submit" class="btn btn-primary">Salva</button></div></div>
+    </form>`);
+  bindModalClose();
+  const $=x=>document.getElementById(x), form=$("allergy-form");
+  if(a) $("allergy-delete").addEventListener("click",async()=>{ if(confirm(`Eliminare l'allergia «${a.substance}»?`)){ closeModal(); await Data.healthDelete("allergies",a.id); } });
+  form.addEventListener("submit",async e=>{
+    e.preventDefault();
+    const substance=$("allergy-substance").value.trim(); if(!substance){ alert("Scrivi a cosa sei allergico."); return; }
+    const undo=modalBusy(form,"Salvataggio…");
+    const saved=await Data.healthSave("allergies",a?a.id:null,{substance,severity:$("allergy-severity").value,since:$("allergy-since").value||null,reaction:$("allergy-reaction").value.trim(),notes:$("allergy-notes").value.trim()});
+    if(!saved){ undo(); return; }
+    closeModal(); render();
+  });
+}
+
+// Un giorno del calendario: visite, esami e medicine (da spuntare), con i pulsanti per aggiungere.
+function healthDayBodyHTML(iso){
+  const today=todayISO(), visits=healthVisitsOn(iso), exams=healthExamsOn(iso), items=medDoseItems(iso), doses=dosesOn(iso);
+  const prn=Data.HEALTH.meds.some(m=>m.kind==="al_bisogno"&&medActive(m));
+  const sec=(t,html)=>html?`<div class="health-sec">${t}</div><div class="rlist">${html}</div>`:"";
+  const body=sec("Visite",visits.map(visitRowHTML).join(""))+sec("Esami",exams.map(examRowHTML).join(""))
+    +sec("Medicine",items.map(i=>medDoseRowHTML(i,{late:iso<today})).join(""))+sec("Al bisogno",doses.map(d=>doseRowHTML(d,{back:iso})).join(""));
+  return (body||emptyState("Niente in questo giorno."))+`<div class="health-dose-actions">
+      ${healthAddBtn("health-visit-new","＋ Visita",`data-date="${iso}"`)}${healthAddBtn("health-exam-new","＋ Esame",`data-date="${iso}"`)}
+      ${prn&&iso<=today?healthAddBtn("health-dose-new","＋ Presa al bisogno",`data-date="${iso}" data-back="${iso}"`):""}
+    </div>`;
+}
+function openHealthDayModal(iso){
+  const label=new Date(iso+"T12:00:00").toLocaleDateString("it-IT",{weekday:"long",day:"numeric",month:"long",year:"numeric"});
+  openModal(`<div class="modal-head"><h3>${label.charAt(0).toUpperCase()+label.slice(1)}</h3><button class="icon-btn" data-close>✕</button></div><div id="health-day" data-date="${iso}">${healthDayBodyHTML(iso)}</div>`,{wide:true});
+  bindModalClose();
+}
+function refreshHealthDay(){ const box=document.getElementById("health-day"); if(box) box.innerHTML=healthDayBodyHTML(box.dataset.date); }
+
 function renderHistory(filters={}){
   const{categoryId="all",activityId="all"}=filters;
   let entries=[...Data.ENTRIES];
@@ -3605,13 +4178,18 @@ function renderHistory(filters={}){
 
 function renderAttachments(){
   if(!Data.attachmentsAvailable) return `<div class="card">${emptyState("Gli allegati non sono ancora attivi: serve l'aggiornamento del database.")}</div>`;
-  const SECTION_ICON={sport:"🏃",studio:"📚",ufficio:"🏢",diario:"📔",progetto:"📁"};
+  const SECTION_ICON={sport:"🏃",studio:"📚",ufficio:"🏢",diario:"📔",progetto:"📁",salute:"🩺"};
   const row=a=>{
     let where="",edit="";
     if(a.section==="progetto"){
       const p=Data.PROJECTS.find(x=>x.id===a.project_id);
       where=p?`${projectArea(p)==="lavoro"?"💼 ":""}${escapeHTML(p.title)}`:"(progetto rimosso)";
       if(p) edit=`<button class="icon-btn" data-action="project-open" data-id="${p.id}" title="Apri il progetto">✏️</button>`;
+    }else if(a.section==="salute"){
+      const v=a.visit_id&&Data.HEALTH.visits.find(x=>x.id===a.visit_id), ex=a.exam_id&&Data.HEALTH.exams.find(x=>x.id===a.exam_id);
+      where=v?`Visita: ${escapeHTML(visitLabel(v))} · ${formatDateIT(v.visit_date)}`:ex?`Esame: ${escapeHTML(ex.title)}`:"";
+      if(v) edit=`<button class="icon-btn" data-action="health-visit-edit" data-id="${v.id}" title="Apri la visita">✏️</button>`;
+      else if(ex) edit=`<button class="icon-btn" data-action="health-exam-edit" data-id="${ex.id}" title="Apri l'esame">✏️</button>`;
     }else if(a.entry_id){
       const e=Data.ENTRIES.find(x=>x.id===a.entry_id); const act=e&&Data.getActivity(e.categoryId,e.activityId);
       where=e?`${act?escapeHTML(act.name):"(attività rimossa)"} · ${formatDateIT(e.date)}`:"";
@@ -3623,8 +4201,9 @@ function renderAttachments(){
     return `<div class="rrow"><span class="badge" style="--accent-soft:var(--c-${a.section==="progetto"?"todo":a.section}-soft)">${attachIcon(a.path)}</span><div class="rmain"><div class="rtitle"><button class="attach-name" data-action="open-attachment" data-id="${a.id}" title="Apri">${escapeHTML(a.name)}</button></div><div class="rdesc">${SECTION_ICON[a.section]} ${where} · ${formatFileSize(a.size)}</div></div><div class="ractions">${edit}<button class="icon-btn" data-action="delete-attachment" data-id="${a.id}" title="Elimina">🗑️</button></div></div>`;
   };
   const sorted=[...Data.ATTACHMENTS].sort((a,b)=>a.created_at<b.created_at?1:-1);
-  const groups=[["Attività",["sport","studio"]],["Lavoro",["ufficio"]],["Personale",["diario"]],["Progetti",["progetto"]]].filter(([,secs])=>!secs.includes("progetto")||Data.projectFilesAvailable).map(([label,secs])=>{
+  const groups=[["Attività",["sport","studio"]],["Lavoro",["ufficio"]],["Personale",["diario"]],["Salute",["salute"]],["Progetti",["progetto"]]].filter(([,secs])=>(!secs.includes("progetto")||Data.projectFilesAvailable)&&(!secs.includes("salute")||Data.healthAvailable)).map(([label,secs])=>{
     const items=sorted.filter(a=>secs.includes(a.section));
+    if(secs.includes("salute")&&!["aperto","non-attivo"].includes(HealthLock.status())) return `<div class="card"><div class="card-header"><h3>${label}</h3><span class="card-sub">🔒 Salute chiusa</span></div>${emptyState("Referti e ricette si vedono nella sezione Salute, dopo la password.")}</div>`;
     if(secs.includes("diario")&&!["aperto","non-attivo"].includes(DiaryLock.status())) return `<div class="card"><div class="card-header"><h3>${label}</h3><span class="card-sub">🔒 diario chiuso</span></div>${emptyState("Apri il Diario con la password per vedere i suoi allegati.")}</div>`;
     return `<div class="card"><div class="card-header"><h3>${label}</h3><span class="card-sub">${items.length} ${items.length===1?"file":"file"}</span></div>${items.length?`<div class="rlist">${items.map(row).join("")}</div>`:emptyState("Nessun allegato.")}</div>`;
   }).join("");
@@ -3731,6 +4310,7 @@ function renderSettings(){
   return `
     ${avvisiCardHTML()}
     ${diaryPasswordCardHTML()}
+    ${Data.healthAvailable?lockPasswordCardHTML(LOCK_UI.salute):""}
     ${categoriesHTML}
     <div class="card">
       <div class="card-header"><h3>I tuoi dati</h3></div>
@@ -3762,7 +4342,9 @@ const state={
   agendaPage:"settimana",
   agendaView:"settimana",   // settimana | mese | anno
   agendaMonth:{year:new Date().getFullYear(),month:new Date().getMonth()},
-  agendaYear:new Date().getFullYear()
+  agendaYear:new Date().getFullYear(),
+  healthTab:"calendario",   // calendario | visite | esami | medicine
+  healthMonth:{year:new Date().getFullYear(),month:new Date().getMonth()}
 };
 const ROUTE_TITLES=Object.fromEntries(ROUTES.map(r=>[r.id,r.group?`${r.icon} ${r.label}`:r.label]));
 
@@ -3780,14 +4362,15 @@ function renderTabbar(){
     const r=ROUTES.find(x=>x.id===id);
     return `<button class="tab-item ${state.route===id?"active":""}" data-route="${id}"><span class="tab-icon">${r.icon}</span>${r.label}</button>`;
   }).join("");
-  const moreActive=state.route==="agenda"||state.route==="lavoro_progetti"||state.route==="storico"||state.route==="allegati"||state.route==="impostazioni";
+  const moreActive=state.route==="agenda"||state.route==="salute"||state.route==="lavoro_progetti"||state.route==="storico"||state.route==="allegati"||state.route==="impostazioni";
   document.getElementById("tabbar").innerHTML=tabs+`<button class="tab-item ${moreActive?"active":""}" data-action="open-more-sheet"><span class="tab-icon">•••</span>Altro</button>`;
 }
 
 function navigate(route){
   if(!ROUTE_TITLES[route]) route="dashboard";
   if(route!=="diario") DiaryLock.lock();
-  if(route!=="impostazioni") DiaryLock.settingsMsg="";
+  if(route!=="salute") HealthLock.lock();
+  if(route!=="impostazioni"){ DiaryLock.settingsMsg=""; HealthLock.settingsMsg=""; }
   state.route=route;
   render();
 }
@@ -3811,6 +4394,7 @@ function render(){
     case "ufficio": root.innerHTML=renderOffice(); break;
     case "lavoro_progetti": root.innerHTML=renderWorkProjects(); break;
     case "diario": root.innerHTML=renderDiary(); { const pw=document.getElementById("diary-pw")||document.getElementById("diary-pw-new"); if(pw&&!DiaryLock.busy) pw.focus(); } break;
+    case "salute": root.innerHTML=renderHealth(); { const pw=document.getElementById("health-pw")||document.getElementById("health-pw-new"); if(pw&&!HealthLock.busy) pw.focus(); } break;
     case "storico": root.innerHTML=renderHistory(state.historyFilters); break;
     case "allegati": root.innerHTML=renderAttachments(); break;
     case "impostazioni": root.innerHTML=renderSettings(); break;
@@ -3842,9 +4426,9 @@ function activityOptionsFor(categoryId,selected){
 }
 
 // Campo «Allegati» nei moduli: i file scelti e le rimozioni valgono solo quando premi «Salva».
-function attachmentFieldHTML(){
+function attachmentFieldHTML(label="Allegati (facoltativi)"){
   if(!Data.attachmentsAvailable) return "";
-  return `<div class="row"><label>Allegati (facoltativi)</label><div id="att-field" class="attach-list"></div><input type="file" id="att-input" accept="${attachAccept()}" multiple hidden><button type="button" class="btn btn-outline btn-sm" style="align-self:flex-start;" id="att-add">📎 Aggiungi allegato</button><span class="hint">${attachKinds()}, fino a 50 MB ciascuno. Vengono caricati quando premi Salva.</span></div>`;
+  return `<div class="row"><label>${label}</label><div id="att-field" class="attach-list"></div><input type="file" id="att-input" accept="${attachAccept()}" multiple hidden><button type="button" class="btn btn-outline btn-sm" style="align-self:flex-start;" id="att-add">📎 Aggiungi allegato</button><span class="hint">${attachKinds()}, fino a 50 MB ciascuno. Vengono caricati quando premi Salva.</span></div>`;
 }
 function setupAttachmentField(existing){
   const box=document.getElementById("att-field");
@@ -4206,6 +4790,7 @@ function openMoreSheet(){
   const html=`
     <div class="modal-head"><h3>Altro</h3><button class="icon-btn" data-close>✕</button></div>
     <button type="button" class="sheet-item" data-route="agenda" data-close><span class="sheet-icon">📒</span>Agenda</button>
+    <button type="button" class="sheet-item" data-route="salute" data-close><span class="sheet-icon">🩺</span>Salute</button>
     <button type="button" class="sheet-item" data-route="lavoro_progetti" data-close><span class="sheet-icon">📁</span>Progetti di lavoro</button>
     <button type="button" class="sheet-item" data-route="storico" data-close><span class="sheet-icon">🗓️</span>Storico</button>
     <button type="button" class="sheet-item" data-route="allegati" data-close><span class="sheet-icon">📎</span>Allegati</button>
@@ -4215,7 +4800,7 @@ function openMoreSheet(){
 }
 
 function exportBackup(){
-  const payload={categories:Data.CATEGORIES,entries:Data.ENTRIES,office:{days:Data.OFFICE_DAYS},diario:{days:Data.DIARIO_DAYS},todos:Data.TODOS,todoDone:Data.TODO_DONE,projects:{projects:Data.PROJECTS,steps:Data.PROJECT_STEPS,log:Data.PROJECT_LOG,links:Data.PROJECT_LINKS},attachments:Data.ATTACHMENTS,agenda:{days:Data.AGENDA_DAYS,weeks:Data.AGENDA_WEEKS,postit:Data.POSTITS,forme:Data.FORME}};
+  const payload={categories:Data.CATEGORIES,entries:Data.ENTRIES,office:{days:Data.OFFICE_DAYS},diario:{days:Data.DIARIO_DAYS},todos:Data.TODOS,todoDone:Data.TODO_DONE,projects:{projects:Data.PROJECTS,steps:Data.PROJECT_STEPS,log:Data.PROJECT_LOG,links:Data.PROJECT_LINKS},attachments:Data.ATTACHMENTS,agenda:{days:Data.AGENDA_DAYS,weeks:Data.AGENDA_WEEKS,postit:Data.POSTITS,forme:Data.FORME},health:Data.HEALTH};
   const blob=new Blob([JSON.stringify(payload,null,2)],{type:"application/json"});
   const url=URL.createObjectURL(blob);
   const a=document.createElement("a");
@@ -4311,6 +4896,30 @@ document.addEventListener("click",e=>{
   else if(action==="postit-new") openPostitModal(null);
   else if(action==="postit-edit") openPostitModal(btn.dataset.id);
   else if(action==="diary-lock"){ DiaryLock.lock(); render(); }
+  else if(action==="health-lock"){ HealthLock.lock(); render(); }
+  else if(action==="health-tab"){ state.healthTab=btn.dataset.tab; render(); }
+  else if(action==="health-day") openHealthDayModal(btn.dataset.date);
+  else if(action==="health-prev-month"||action==="health-next-month"){ const s=state.healthMonth; s.month+=action==="health-prev-month"?-1:1; if(s.month<0){s.month=11;s.year--;} if(s.month>11){s.month=0;s.year++;} render(); }
+  else if(action==="health-this-month"){ state.healthMonth={year:new Date().getFullYear(),month:new Date().getMonth()}; render(); }
+  else if(action==="health-visit-new") openVisitModal(null,{date:btn.dataset.date});
+  else if(action==="health-visit-edit") openVisitModal(btn.dataset.id);
+  else if(action==="health-exam-new") openExamModal(null,{date:btn.dataset.date});
+  else if(action==="health-exam-edit") openExamModal(btn.dataset.id);
+  else if(action==="health-exam-toggle"){ btn.disabled=true; toggleExam(btn.dataset.id).finally(()=>{ btn.disabled=false; refreshHealthDay(); }); }
+  else if(action==="health-med-new") openMedModal(null);
+  else if(action==="health-med-edit") openMedModal(btn.dataset.id);
+  else if(action==="health-dose-new") openDoseModal({medId:btn.dataset.med,date:btn.dataset.date,back:btn.dataset.back});
+  else if(action==="health-dose-delete"){
+    const d=Data.HEALTH.doses.find(x=>x.id===btn.dataset.id); const m=d&&Data.HEALTH.meds.find(x=>x.id===d.med_id);
+    if(d&&confirm(`Eliminare la presa di ${m?m.name:"questa medicina"} del ${formatDateIT(d.taken_on)}?`)) Data.healthDelete("doses",d.id).then(refreshHealthDay);
+  }
+  else if(action==="health-allergy-new") openAllergyModal(null);
+  else if(action==="health-allergy-edit") openAllergyModal(btn.dataset.id);
+  else if(action==="health-tick"){
+    btn.disabled=true;
+    const occ=btn.dataset.occ||null;
+    (btn.dataset.done==="1"?Data.uncompleteTodo(btn.dataset.id,occ):Data.completeTodo(btn.dataset.id,occ)).finally(()=>{ btn.disabled=false; refreshHealthDay(); });
+  }
   else if(action==="notes-strike"){ const ed=document.querySelector(".notes-edit"); if(ed) notesToggleStrike(ed); }
   else if(action==="notes-list"){ const ed=document.querySelector(".notes-edit"); if(ed) notesToggleList(ed,btn.dataset.kind); }
   else if(action==="notes-fmt"){ nfMenuClose(); const ed=document.querySelector(".notes-edit"); if(ed) notesFormat(ed,btn.dataset.kind,btn.dataset.value); }
@@ -4420,7 +5029,7 @@ document.addEventListener("focusout",e=>{
 function pendingAgendaLines(){ return[...document.querySelectorAll("input[data-agenda-new]")].filter(i=>i.value.trim()&&!i.dataset.busy); }
 function commitPendingAgendaLines(){ for(const i of pendingAgendaLines()) commitAgendaLine(i,{refocus:false}); }
 // Uscendo dall'app il diario si richiude (una finestra di scrittura già aperta resta, per non perdere il testo).
-document.addEventListener("visibilitychange",()=>{ if(document.visibilityState==="hidden"){ Agenda.flushAll(); Postit.flushAll(); Forme.flushAll(); commitPendingAgendaLines(); DiaryLock.lock(); if(state.route==="diario") render(); } });
+document.addEventListener("visibilitychange",()=>{ if(document.visibilityState==="hidden"){ Agenda.flushAll(); Postit.flushAll(); Forme.flushAll(); commitPendingAgendaLines(); DiaryLock.lock(); HealthLock.lock(); if(state.route==="diario"||state.route==="salute") render(); } });
 window.addEventListener("pagehide",()=>{ Agenda.flushAll(); Postit.flushAll(); Forme.flushAll(); commitPendingAgendaLines(); });
 window.addEventListener("beforeunload",e=>{
   const lines=pendingAgendaLines().length;
@@ -4428,8 +5037,8 @@ window.addEventListener("beforeunload",e=>{
 });
 document.addEventListener("submit",e=>{
   const id=e.target.id;
-  if(id==="diary-unlock-form"||id==="diary-setup-form"){ e.preventDefault(); diaryLockSubmit(e.target); }
-  else if(id==="diary-change-form"){ e.preventDefault(); diaryChangeSubmit(); }
+  const m=/^(diary|health)-(unlock|setup|change)-form$/.exec(id||"");
+  if(m){ e.preventDefault(); const ui=lockUIByPrefix(m[1]); if(m[2]==="change") lockChangeSubmit(ui); else lockSubmit(ui,e.target); }
 });
 document.addEventListener("change",e=>{
   if(e.target.id==="filter-category"){ state.historyFilters.categoryId=e.target.value; state.historyFilters.activityId="all"; render(); }
