@@ -605,6 +605,27 @@ a.attach-name{color:var(--c-todo);text-decoration:underline;}
 .health-times .ht{display:flex;align-items:center;gap:2px;}
 .health-times input{width:7.6em;}
 .health-sec{font-size:.72rem;font-weight:700;color:var(--ink-soft);text-transform:uppercase;letter-spacing:.06em;margin:12px 0 2px;}
+.bp-val{font-family:var(--font-mono);font-weight:700;font-size:1.02rem;}
+.bp-ok{background:var(--c-diario-soft);color:var(--c-diario);border-color:transparent;}
+.bp-warn{background:var(--c-studio-soft);color:var(--c-studio);border-color:transparent;}
+.bp-high{background:var(--c-danger-soft);color:var(--c-danger);border-color:transparent;font-weight:700;}
+.bp-avgs{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:6px;}
+.bp-avg{display:flex;flex-direction:column;align-items:flex-start;gap:1px;padding:8px 12px;border-radius:var(--r-sm);background:var(--surface-2);border:1px solid var(--line);min-width:120px;}
+.bp-avg b{font-family:var(--font-mono);font-size:1.1rem;}
+.bp-chart{margin-top:12px;}
+.bp-chart svg{width:100%;max-width:640px;height:auto;display:block;}
+.bp-sys{fill:none;stroke:var(--c-salute);stroke-width:2.5;stroke-linejoin:round;}
+.bp-dia{fill:none;stroke:var(--c-sport);stroke-width:2.5;stroke-linejoin:round;}
+.bp-sys-dot{fill:var(--c-salute);} .bp-dia-dot{fill:var(--c-sport);}
+.bp-ref{stroke:var(--ink-faint);stroke-dasharray:4 4;stroke-width:1;}
+.bp-axis{fill:var(--ink-faint);font-size:14px;font-family:var(--font-mono);}
+.bp-key{display:inline-block;width:14px;height:3px;border-radius:2px;vertical-align:middle;}
+.bp-sys-key{background:var(--c-salute);} .bp-dia-key{background:var(--c-sport);}
+.bp-nums .row input{text-align:center;font-family:var(--font-mono);font-size:1.05rem;}
+.mc-ok{color:var(--c-diario);font-weight:800;}
+.mc-miss{color:var(--c-danger);font-weight:800;}
+.mc-next{color:var(--ink-faint);letter-spacing:1px;}
+.health-medlink{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;font-size:.88rem;color:var(--ink-soft);border-left:4px solid var(--c-salute);}
 .health-dose-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px;}
 .diary-lock{display:flex;flex-direction:column;align-items:center;text-align:center;gap:10px;padding:34px 20px;}
 .diary-lock .lock-icon{font-size:2.4rem;line-height:1;}
@@ -778,7 +799,7 @@ a.attach-name{color:var(--c-todo);text-decoration:underline;}
     return {
       token,
       async request(path, opts = {}) {
-        if (!/^\/(finanze_(categorie|impostazioni|metodi|movimenti)|habit_(activities|entries|office_days|diario_days|diario_photos|todos|todo_done|projects|project_steps|project_log|project_links|attachments|agenda_days|agenda_weeks|agenda_postit|agenda_forme|impostazioni|push_subscriptions|health_visits|health_exams|health_meds|health_doses|health_allergies)|rpc\/habit_avviso_prova)(\?|$)/.test(path)) throw new Error('Percorso non valido.');
+        if (!/^\/(finanze_(categorie|impostazioni|metodi|movimenti)|habit_(activities|entries|office_days|diario_days|diario_photos|todos|todo_done|projects|project_steps|project_log|project_links|attachments|agenda_days|agenda_weeks|agenda_postit|agenda_forme|impostazioni|push_subscriptions|health_visits|health_exams|health_meds|health_doses|health_allergies|health_bp)|rpc\/habit_avviso_prova)(\?|$)/.test(path)) throw new Error('Percorso non valido.');
         const method=(opts.method || 'GET').toUpperCase();
         if (!['GET','POST','PATCH','DELETE'].includes(method)) throw new Error('Metodo non consentito.');
         if (method !== 'GET' && !config.allowMutations) {
@@ -1087,6 +1108,7 @@ const ROUTES=[
   {id:"lavoro_progetti",label:"Progetti di lavoro",icon:"📁",group:"Lavoro"},
   {id:"diario",label:"Diario",icon:"📔",group:"Personale"},
   {id:"salute",label:"Salute",icon:"🩺",group:"Personale"},
+  {id:"medicine",label:"Medicine",icon:"💊",group:"Personale"},
   {id:"storico",label:"Storico",icon:"🗓️",group:"Altro"},
   {id:"allegati",label:"Allegati",icon:"📎",group:"Altro"},
   {id:"impostazioni",label:"Impostazioni",icon:"⚙️",group:"Altro"}
@@ -1178,8 +1200,10 @@ const Data={
   formeAvailable:false,
   SETTINGS:{},
   settingsAvailable:false,
-  HEALTH:{visits:[],exams:[],meds:[],doses:[],allergies:[]},
+  HEALTH:{visits:[],exams:[],meds:[],doses:[],allergies:[],bp:[]},
+  bpAvailable:false,       // misurazioni della pressione: solo dopo pressione-PROPOSTA.sql
   healthAvailable:false,   // sezione Salute: solo dopo salute-PROPOSTA.sql
+  medSlotsAvailable:false, // pagina Medicine con prese e avvisi: solo dopo medicine-PROPOSTA.sql
 
   async init(){
     await this.loadAll();
@@ -1267,8 +1291,12 @@ const Data={
           readAllRows("/habit_health_doses?select=*","taken_on.desc,taken_time.desc.nullslast,id"),
           readAllRows("/habit_health_allergies?select=*","created_at,id")
         ]);
-        this.HEALTH={visits,exams,meds,doses,allergies}; this.healthAvailable=true;
-      }catch(_){ if(!this.healthAvailable) this.HEALTH={visits:[],exams:[],meds:[],doses:[],allergies:[]}; }
+        this.HEALTH={visits,exams,meds,doses,allergies,bp:this.HEALTH.bp||[]}; this.healthAvailable=true;
+        try{ this.HEALTH.bp=await readAllRows("/habit_health_bp?select=*","measured_on.desc,measured_at.desc,id"); this.bpAvailable=true; }
+        catch(_){ if(!this.bpAvailable) this.HEALTH.bp=[]; }
+        // Calendario e avvisi delle medicine: la colonna «slot» c'è solo dopo medicine-PROPOSTA.sql.
+        if(!this.medSlotsAvailable){ try{ await sbFetch("/habit_health_doses?select=slot&limit=1"); this.medSlotsAvailable=true; }catch(_){} }
+      }catch(_){ if(!this.healthAvailable) this.HEALTH={visits:[],exams:[],meds:[],doses:[],allergies:[],bp:[]}; }
       this.online=true;
       // Verification build: do not persist personal data in the old cache.
     }catch(e){
@@ -1665,13 +1693,13 @@ function monthCalendarHTML(year,month,{accentVar,action,cellFor,allowFuture=fals
     const iso=isoOf(new Date(year,month,d));
     const isToday=iso===todayIso;
     const isFuture=!allowFuture&&iso>todayIso;
-    const info=cellFor(iso); // {filled:bool, bottomHTML:string}
+    const info=cellFor(iso); // {filled:bool, bottomHTML:string, show: segni anche senza sfondo}
     if(isFuture){
       cells+=`<div class="cal-cell future"><span class="cal-day">${d}</span></div>`;
     }else{
       cells+=`<button type="button" class="cal-cell ${isToday?"today":""} ${info.filled?"filled":""}" data-action="${action}" data-date="${iso}">
         <span class="cal-day">${d}</span>
-        ${info.filled?`<span class="cal-bottom">${info.bottomHTML}</span>`:""}
+        ${info.filled||info.show?`<span class="cal-bottom">${info.bottomHTML}</span>`:""}
       </button>`;
     }
   }
@@ -3681,7 +3709,6 @@ function nowHHMM(){ const d=new Date(); return String(d.getHours()).padStart(2,"
 // Un esame è fatto se ha la data «fatto il» oppure se è stato spuntato in «Da fare».
 function examDoneOn(e){ if(e.done_on) return e.done_on; const t=healthTodo(e.todo_id); return t&&t.done_at?isoOf(new Date(t.done_at)):null; }
 function examVisit(e){ return e.visit_id?Data.HEALTH.visits.find(v=>v.id===e.visit_id)||null:null; }
-function medTodos(m){ return (m.todo_ids||[]).map(healthTodo).filter(Boolean); }
 function medActive(m,today=todayISO()){ return m.status==="in_corso"&&(!m.end_date||m.end_date>=today); }
 function medTimes(m){ return [...new Set((m.times||[]).map(hhmm))].sort(); }
 function medDays(m){ return [...new Set(m.weekdays||[])].map(Number).sort(); }
@@ -3690,25 +3717,55 @@ function medScheduleText(m){
   const days=medDays(m).length?medDays(m).map(d=>WEEKDAY_SHORT[d-1]).join(", "):"ogni giorno";
   const times=medTimes(m); return days+(times.length?" alle "+times.join(", "):"");
 }
-function healthTicks(){ return new Set(Data.TODO_DONE.map(d=>d.todo_id+"|"+d.occurrence)); }
-// Medicine regolari di un giorno, in ordine di orario, con la loro spunta.
-function medDoseItems(iso,ticks=healthTicks()){
+// Medicine regolari: una presa per medicina, giorno e orario previsto (habit_health_doses.slot, medicine-PROPOSTA.sql).
+// Non sono cose da fare: hanno il loro calendario («💊 Medicine») e i loro avvisi.
+function isoWeekdayOf(iso){ const d=new Date(iso+"T12:00:00").getDay(); return d===0?7:d; }
+function medScheduledOn(m,iso){
+  if(m.kind!=="regolare"||!m.start_date||iso<m.start_date) return false;
+  if(m.end_date?iso>m.end_date:m.status!=="in_corso") return false;
+  return !medDays(m).length||medDays(m).includes(isoWeekdayOf(iso));
+}
+// La presa di un orario: quella con lo stesso orario o, se l'orario è cambiato, una del giorno rimasta senza orario attuale.
+function medDoseFor(m,iso,slot){
+  const day=Data.HEALTH.doses.filter(d=>d.med_id===m.id&&d.taken_on===iso&&d.slot);
+  const exact=day.find(d=>hhmm(d.slot)===slot); if(exact) return exact;
+  const times=medTimes(m), spare=day.filter(d=>!times.includes(hhmm(d.slot))).sort((a,b)=>a.slot<b.slot?-1:1);
+  const free=times.filter(t=>!day.some(d=>hhmm(d.slot)===t));
+  return spare[free.indexOf(slot)]||null;
+}
+// Le dimenticanze contano dal giorno in cui la medicina è stata inserita: prima non si sa.
+function medTracked(m,iso){ return !m.created_at||iso>=isoOf(new Date(m.created_at)); }
+// Le prese previste di un giorno, in ordine di orario, con quella segnata (se c'è).
+function medSlotItems(iso){
   const out=[];
-  for(const m of Data.HEALTH.meds) for(const t of medTodos(m)) if(TodoLogic.occursOn(t,iso)){
-    const item={med:m,todo:t,occurrence:t.recurrence?iso:"",done:t.recurrence?ticks.has(t.id+"|"+iso):!!t.done_at};
-    // Il giorno in cui cambi gli orari la vecchia (già spuntata) e la nuova possono avere lo stesso orario: ne resta una.
-    const twin=out.findIndex(o=>o.med===m&&hhmm(o.todo.due_time)===hhmm(t.due_time));
-    if(twin===-1) out.push(item); else if(item.done&&!out[twin].done) out[twin]=item;
+  for(const m of Data.HEALTH.meds) if(medScheduledOn(m,iso)) for(const slot of medTimes(m)){ const dose=medDoseFor(m,iso,slot); if(dose||medTracked(m,iso)) out.push({med:m,iso,slot,dose,done:!!dose}); }
+  return out.sort((a,b)=>a.slot<b.slot?-1:a.slot>b.slot?1:a.med.name.localeCompare(b.med.name,"it"));
+}
+// Dimenticata: giorno passato senza presa, oppure oggi passata mezz'ora dall'orario (come il promemoria).
+function medSlotLate(i,today=todayISO()){
+  if(i.done) return false;
+  if(i.iso<today) return true;
+  return i.iso===today&&timeToMinutes(i.slot)+30<=timeToMinutes(nowHHMM());
+}
+function medSlotDue(i,today=todayISO()){ return i.iso<today||(i.iso===today&&(i.done||timeToMinutes(i.slot)<=timeToMinutes(nowHHMM()))); }
+function medStats(days=30,med=null){
+  const today=todayISO(); let due=0,taken=0; const missed=[];
+  for(let k=days-1;k>=0;k--){
+    const iso=TodoLogic.addDaysISO(today,-k);
+    for(const i of medSlotItems(iso)){ if(med&&i.med!==med) continue; if(!medSlotDue(i,today)) continue; due++; if(i.done) taken++; else if(medSlotLate(i,today)) missed.push(i); }
   }
-  return out.sort((a,b)=>(a.todo.due_time||"99:99")<(b.todo.due_time||"99:99")?-1:1);
+  return {due,taken,missed:missed.reverse()};
 }
-function dosesOn(iso){ return Data.HEALTH.doses.filter(d=>d.taken_on===iso).sort((a,b)=>(a.taken_time||"")<(b.taken_time||"")?-1:1); }
-function medAdherence(m,days=30){
-  const today=todayISO(), from=TodoLogic.addDaysISO(today,-(days-1)), ticks=healthTicks(); let due=0,taken=0;
-  for(const t of medTodos(m)) if(t.recurrence) for(let d=t.due_date>from?t.due_date:from; d<=today; d=TodoLogic.addDaysISO(d,1))
-    if(TodoLogic.occursOn(t,d)){ due++; if(ticks.has(t.id+"|"+d)) taken++; }
-  return {due,taken};
+function dosesOn(iso){ return Data.HEALTH.doses.filter(d=>!d.slot&&d.taken_on===iso).sort((a,b)=>(a.taken_time||"")<(b.taken_time||"")?-1:1); }
+function prnDoses(){ return Data.HEALTH.doses.filter(d=>!d.slot); }
+async function toggleMedDose(medId,iso,slot){
+  const m=Data.HEALTH.meds.find(x=>x.id===medId); if(!m) return;
+  const dose=medDoseFor(m,iso,slot);
+  if(dose){ await Data.healthDelete("doses",dose.id); return; }
+  const row=await Data.healthSave("doses",null,{med_id:m.id,taken_on:iso,slot,taken_time:iso===todayISO()?nowHHMM():null,note:""});
+  if(row) sortDoses();
 }
+function sortDoses(){ Data.HEALTH.doses.sort((a,b)=>(b.taken_on+(b.taken_time||""))<(a.taken_on+(a.taken_time||""))?-1:1); }
 function healthVisitsOn(iso){ return Data.HEALTH.visits.filter(v=>v.visit_date===iso).sort((a,b)=>hhmm(a.visit_time)<hhmm(b.visit_time)?-1:1); }
 function healthExamsOn(iso){ return Data.HEALTH.exams.filter(e=>e.due_date===iso||examDoneOn(e)===iso); }
 
@@ -3742,52 +3799,15 @@ async function saveExam(id,payload,want){
   const saved=await Data.healthSave("exams",id,payload); if(!saved) return null;
   await syncExamTodo(saved,want); return saved;
 }
-// Medicina regolare in corso: una cosa da fare ricorrente per orario (una sola senza orario), da oggi in poi.
-// Cambiando orari, giorni o date le vecchie si chiudono (le spunte restano nello storico) e se ne creano di nuove;
-// quelle mai spuntate si eliminano.
-async function syncMedTodos(m,prev){
-  const today=todayISO(), yesterday=TodoLogic.addDaysISO(today,-1);
-  const old=medTodos(m), times=medTimes(m), days=medDays(m);
-  const want=m.kind==="regolare"&&medActive(m,today);
-  const same=prev&&want&&prev.kind==="regolare"&&medActive(prev,today)&&old.length===(times.length||1)
-    &&medTimes(prev).join()===times.join()&&medDays(prev).join()===days.join()
-    &&(prev.end_date||"")===(m.end_date||"")&&prev.start_date===m.start_date;
-  if(same){
-    for(const t of old) if(t.title!==medTodoTitle(m)||t.notes!==(m.reason||"")) await Data.updateTodo(t.id,{title:medTodoTitle(m),notes:m.reason||""});
-    return m.todo_ids||[];
-  }
-  const keep=[];
-  // Sospesa: l'ultimo giorno è quello di fine (al più oggi); orari cambiati: ieri, da oggi valgono i nuovi.
-  const stop=!want&&m.end_date?(m.end_date<today?m.end_date:today):want?yesterday:today;
-  for(const t of old){
-    const ticks=Data.TODO_DONE.filter(d=>d.todo_id===t.id).map(d=>d.occurrence).sort();
-    if(!t.recurrence){ if(t.done_at) keep.push(t.id); else await Data.deleteTodo(t.id); continue; }
-    if(!ticks.length){ await Data.deleteTodo(t.id); continue; }
-    let until=stop; const last=ticks[ticks.length-1];
-    if(last>until) until=last;
-    if(t.recurrence.until&&t.recurrence.until<until) until=t.recurrence.until;
-    if(until<t.due_date) until=t.due_date;
-    if(t.recurrence.until!==until) await Data.updateTodo(t.id,{recurrence:Object.assign({},t.recurrence,{until})});
-    keep.push(t.id);
-  }
-  if(want){
-    const from=m.start_date>today?m.start_date:today;
-    if(!m.end_date||m.end_date>=from){
-      const rec=days.length?{freq:"weekly",interval:1,weekdays:days}:{freq:"daily",interval:1};
-      if(m.end_date) rec.until=m.end_date;
-      for(const time of (times.length?times:[null])){
-        const row=await Data.addTodo({title:medTodoTitle(m),notes:m.reason||"",due_date:from,due_time:time,recurrence:rec});
-        if(row) keep.push(row.id);
-      }
-    }
-  }
-  return keep;
-}
+// Le medicine salvate con la versione precedente avevano cose da fare nell'Agenda: si tolgono
+// (medicine-PROPOSTA.sql le ha già trasformate in prese; qui resta solo la pulizia di eventuali rimaste).
+function medLegacyTodos(m){ return (m.todo_ids||[]).map(healthTodo).filter(Boolean); }
 async function saveMed(id,payload){
-  const prev=id?Object.assign({},Data.HEALTH.meds.find(x=>x.id===id)):null;
   const saved=await Data.healthSave("meds",id,payload); if(!saved) return null;
-  const ids=await syncMedTodos(saved,prev);
-  if(ids.join()!==(saved.todo_ids||[]).join()) return await Data.healthSave("meds",saved.id,{todo_ids:ids});
+  if((saved.todo_ids||[]).length){
+    for(const t of medLegacyTodos(saved)) await Data.deleteTodo(t.id);
+    return await Data.healthSave("meds",saved.id,{todo_ids:[]});
+  }
   return saved;
 }
 async function deleteHealthItem(kind,item){
@@ -3796,7 +3816,7 @@ async function deleteHealthItem(kind,item){
     const errs=await Data.removeAttachmentsWhere(files);
     if(errs.length){ render(); alert("Non sono riuscito a eliminare alcuni file, quindi resta tutto com'era:\n"+errs.join("\n")); return false; }
   }
-  const todos=kind==="meds"?medTodos(item):[healthTodo(item.todo_id)].filter(Boolean);
+  const todos=kind==="meds"?medLegacyTodos(item):[healthTodo(item.todo_id)].filter(Boolean);
   for(const t of todos) await Data.deleteTodo(t.id);
   return Data.healthDelete(kind,item.id);
 }
@@ -3807,12 +3827,12 @@ function healthAllergyBarHTML(){
   if(!list.length) return "";
   return `<div class="card health-allergy"><b>⚠️ Allergie e intolleranze:</b>${list.map(a=>`<button type="button" class="chip chip-allergy" data-action="health-allergy-edit" data-id="${a.id}" title="${escapeHTML(a.reaction||"Apri")}">${escapeHTML(a.substance)}${a.severity?` · ${ALLERGY_SEVERITY[a.severity].toLowerCase()}`:""}</button>`).join("")}</div>`;
 }
-function healthTickHTML(i){
-  return `<button type="button" class="todo-check salute ${i.done?"done":""}" data-action="health-tick" data-id="${i.todo.id}" data-occ="${i.occurrence}" data-done="${i.done?1:0}" title="${i.done?"Segna come non presa":"Segna come presa"}" aria-label="${i.done?"Segna come non presa":"Segna come presa"}: ${escapeHTML(i.med.name)}">${i.done?"✓":""}</button>`;
-}
-function medDoseRowHTML(i,{late=false}={}){
-  return `<div class="todo-row ${i.done?"done":""}">${healthTickHTML(i)}<div class="rmain" data-action="health-med-edit" data-id="${i.med.id}" style="cursor:pointer"><div class="rtitle">${escapeHTML(i.med.name)}${i.med.dose?` <span class="rdur">${escapeHTML(i.med.dose)}</span>`:""}</div>
-    <div class="todo-meta">${i.todo.due_time?`<span class="chip chip-time">🕒 ${hhmm(i.todo.due_time)}</span>`:""}${late&&!i.done?`<span class="chip chip-late">non presa</span>`:""}</div></div></div>`;
+function medSlotRowHTML(i,{withDate=false}={}){
+  const today=todayISO(), late=medSlotLate(i,today);
+  const status=i.done?`<span class="chip">✓ ${i.dose.taken_time?"presa alle "+hhmm(i.dose.taken_time):"presa"}</span>`:late?`<span class="chip chip-late">${i.iso<today?"dimenticata":"non ancora presa"}</span>`:"";
+  return `<div class="todo-row ${i.done?"done":""}"><button type="button" class="todo-check salute ${i.done?"done":""}" data-action="med-tick" data-med="${i.med.id}" data-date="${i.iso}" data-slot="${i.slot}" title="${i.done?"Segna come non presa":"Segna come presa"}" aria-label="${i.done?"Segna come non presa":"Segna come presa"}: ${escapeHTML(i.med.name)} alle ${i.slot}">${i.done?"✓":""}</button>
+    <div class="rmain"><div class="rtitle">${escapeHTML(i.med.name)}${i.med.dose?` <span class="rdur">${escapeHTML(i.med.dose)}</span>`:""}</div>
+    <div class="todo-meta">${withDate?`<span class="chip">${shortDateIT(i.iso)}</span>`:""}<span class="chip chip-time">🕒 ${i.slot}</span>${status}</div></div></div>`;
 }
 function doseRowHTML(d,{back=""}={}){
   const m=Data.HEALTH.meds.find(x=>x.id===d.med_id);
@@ -3839,8 +3859,8 @@ function medRowHTML(m){
   const today=todayISO(), chips=[`<span class="chip chip-salute">${m.kind==="al_bisogno"?"al bisogno":"🕒 "+escapeHTML(medScheduleText(m))}</span>`];
   if(m.start_date) chips.push(`<span class="chip">dal ${formatDateIT(m.start_date)}${m.end_date?` al ${formatDateIT(m.end_date)}`:""}</span>`);
   else if(m.end_date) chips.push(`<span class="chip">fino al ${formatDateIT(m.end_date)}</span>`);
-  if(m.kind==="regolare"&&medActive(m)){ const a=medAdherence(m); if(a.due) chips.push(`<span class="chip" title="Spunte negli ultimi 30 giorni">✓ ${a.taken}/${a.due} ultimi 30 giorni</span>`); }
-  if(m.kind==="al_bisogno"){ const ds=Data.HEALTH.doses.filter(d=>d.med_id===m.id); if(ds.length) chips.push(`<span class="chip">presa ${ds.length} ${ds.length===1?"volta":"volte"}, l'ultima il ${formatDateIT(ds[0].taken_on)}</span>`); }
+  if(m.kind==="regolare"&&medActive(m)&&Data.medSlotsAvailable){ const a=medStats(30,m); if(a.due) chips.push(`<span class="chip" title="Prese segnate negli ultimi 30 giorni">✓ ${a.taken}/${a.due} ultimi 30 giorni</span>`); }
+  if(m.kind==="al_bisogno"){ const ds=Data.HEALTH.doses.filter(d=>d.med_id===m.id&&!d.slot); if(ds.length) chips.push(`<span class="chip">presa ${ds.length} ${ds.length===1?"volta":"volte"}, l'ultima il ${formatDateIT(ds[0].taken_on)}</span>`); }
   if(m.status==="sospesa") chips.push(`<span class="chip">sospesa</span>`);
   return `<div class="rrow"><span class="badge" style="--accent-soft:var(--c-salute-soft)">💊</span><div class="rmain" data-action="health-med-edit" data-id="${m.id}" style="cursor:pointer"><div class="rtitle">${escapeHTML(m.name)}${m.dose?` <span class="rdur">${escapeHTML(m.dose)}</span>`:""}</div>
     <div class="todo-meta">${chips.join("")}</div>${m.reason?`<div class="rdesc">Per: ${escapeHTML(healthExcerpt(m.reason,120))}</div>`:""}</div>
@@ -3853,17 +3873,14 @@ function healthListOf(items,row){ return items.length?`<div class="rlist">${item
 function healthAddBtn(action,label,extra=""){ return `<button type="button" class="btn btn-outline btn-sm" style="--accent:var(--c-salute)" data-action="${action}" ${extra}>${label}</button>`; }
 
 function renderHealthCalendar(){
-  const today=todayISO(), H=Data.HEALTH, ticks=healthTicks();
+  const today=todayISO(), H=Data.HEALTH;
   const next=H.visits.filter(v=>v.visit_date>=today).sort((a,b)=>(a.visit_date+hhmm(a.visit_time))<(b.visit_date+hhmm(b.visit_time))?-1:1)[0];
   const todo=H.exams.filter(e=>!examDoneOn(e));
-  const items=medDoseItems(today,ticks), dosesToday=dosesOn(today);
-  const prn=H.meds.filter(m=>m.kind==="al_bisogno"&&medActive(m));
   const{year,month}=state.healthMonth, label=monthLabelOf(year,month);
   const cal=monthCalendarHTML(year,month,{accentVar:"--c-salute",action:"health-day",allowFuture:true,cellFor:iso=>{
     const v=healthVisitsOn(iso).length, ex=healthExamsOn(iso).length;
-    const taken=iso<=today?medDoseItems(iso,ticks).filter(i=>i.done).length+dosesOn(iso).length:0;
-    const bottom=`${v?`<span title="${v} visit${v===1?"a":"e"}">🩺</span>`:""}${ex?`<span title="${ex} esam${ex===1?"e":"i"}">🧪</span>`:""}${taken?`<span title="${taken} medicine prese">💊${taken}</span>`:""}`;
-    return{filled:!!(v||ex||taken),bottomHTML:bottom};
+    const bottom=`${v?`<span title="${v} visit${v===1?"a":"e"}">🩺</span>`:""}${ex?`<span title="${ex} esam${ex===1?"e":"i"}">🧪</span>`:""}`;
+    return{filled:!!(v||ex),bottomHTML:bottom};
   }});
   const isNow=year===new Date().getFullYear()&&month===new Date().getMonth();
   const upcoming=[...H.visits.filter(v=>v.visit_date>=today).map(v=>({d:v.visit_date+hhmm(v.visit_time),html:visitRowHTML(v)})),
@@ -3873,16 +3890,12 @@ function renderHealthCalendar(){
       ${statTile("🩺","Prossima visita",next?shortDateIT(next.visit_date):"—","salute",next?escapeHTML(visitLabel(next)):"nessuna in programma")}
       ${statTile("🧪","Esami da fare",todo.length,"salute","da fare o prenotare")}
       ${statTile("💊","Medicine in corso",H.meds.filter(m=>medActive(m)).length,"salute","regolari e al bisogno")}
-      ${statTile("✅","Prese oggi",items.length?`${items.filter(i=>i.done).length}/${items.length}`:dosesToday.length,"salute",items.length?"medicine di oggi":"al bisogno")}
+      ${statTile("⚠️","Allergie",H.allergies.length,"salute","registrate")}
     </div>
-    <div class="card"><div class="card-header"><h3>💊 Oggi</h3>${prn.length?healthAddBtn("health-dose-new","＋ Ho preso una medicina al bisogno",`data-date="${today}"`):""}</div>
-      ${todayVisits.length?`<div class="rlist">${todayVisits.map(visitRowHTML).join("")}</div>`:""}
-      ${items.length?`<div class="rlist">${items.map(i=>medDoseRowHTML(i)).join("")}</div>`:""}
-      ${dosesToday.length?`<div class="health-sec">Al bisogno</div><div class="rlist">${dosesToday.map(d=>doseRowHTML(d,{back:today})).join("")}</div>`:""}
-      ${!items.length&&!dosesToday.length&&!todayVisits.length?emptyState(H.meds.length?"Nessuna medicina regolare da prendere oggi.":"Aggiungi le medicine che prendi nella scheda «💊 Medicine»: qui le spunterai ogni giorno."):""}
-    </div>
+    ${todayVisits.length?healthCard("📌 Oggi",`<div class="rlist">${todayVisits.map(visitRowHTML).join("")}</div>`):""}
+    <div class="card health-medlink"><div>💊 Le medicine si spuntano nella pagina <b>Medicine</b>, con il loro calendario e gli avvisi sull'iPhone (senza password).</div><button type="button" class="btn btn-outline btn-sm" style="--accent:var(--c-salute)" data-route="medicine">Apri Medicine</button></div>
     <div class="card"><div class="card-header"><h3>Calendario</h3>${monthNavHTML({prevAction:"health-prev-month",nextAction:"health-next-month",label})}</div>${cal}
-      <p class="hint" style="margin-top:10px">🩺 visita · 🧪 esame · 💊 medicine prese. Tocca un giorno per vedere, spuntare o aggiungere.${isNow?"":` <button type="button" class="btn btn-ghost btn-sm" data-action="health-this-month">Torna a questo mese</button>`}</p></div>
+      <p class="hint" style="margin-top:10px">🩺 visita · 🧪 esame. Tocca un giorno per vedere o aggiungere.${isNow?"":` <button type="button" class="btn btn-ghost btn-sm" data-action="health-this-month">Torna a questo mese</button>`}</p></div>
     ${healthCard("📅 In arrivo",upcoming.length?`<div class="rlist">${upcoming.map(u=>u.html).join("")}</div>`:"",{empty:"Nessuna visita o esame in programma."})}`;
 }
 function renderHealthVisits(){
@@ -3908,7 +3921,7 @@ function renderHealthMeds(){
   return healthCard("⚠️ Allergie e intolleranze",healthListOf(allergies,allergyRow),{empty:"Nessuna allergia registrata.",action:healthAddBtn("health-allergy-new","＋ Allergia")})
     +healthCard("💊 Medicine che prendo ora",healthListOf(regular,medRowHTML),{empty:"Nessuna medicina regolare in corso.",action:healthAddBtn("health-med-new","＋ Medicina")})
     +healthCard("🩹 Al bisogno",healthListOf(prn,medRowHTML),{empty:"Nessuna medicina al bisogno. Aggiungila con «＋ Medicina» e scegli «Al bisogno»: poi segni ogni volta che la prendi."})
-    +(H.doses.length?healthCard("📜 Ultime prese al bisogno",healthListOf(H.doses.slice(0,10),d=>doseRowHTML(d))):"")
+    +(prnDoses().length?healthCard("📜 Ultime prese al bisogno",healthListOf(prnDoses().slice(0,10),d=>doseRowHTML(d))):"")
     +healthCard("🗄️ Prese in passato",healthListOf(past,medRowHTML),{empty:"Qui finiscono le medicine sospese o terminate, con il periodo in cui le hai prese."});
 }
 function renderHealth(){
@@ -4038,7 +4051,9 @@ async function toggleExam(id){
 function medTimeInputHTML(v=""){ return `<span class="ht"><input type="time" class="med-time" value="${v}" aria-label="Orario"><button type="button" class="icon-btn" data-med-time-del title="Togli questo orario">✕</button></span>`; }
 function openMedModal(id,{visitId}={}){
   const m=id?Data.HEALTH.meds.find(x=>x.id===id):null; if(id&&!m) return;
-  const today=todayISO(), times=m?medTimes(m):["08:00"], days=m?medDays(m):[];
+  const today=todayISO(), times=m&&medTimes(m).length?medTimes(m):["08:00"], days=m?medDays(m):[];
+  // L'elenco delle visite è dietro la password di Salute: dalla pagina Medicine non si vede (il collegamento resta).
+  const showVisits=["aperto","non-attivo"].includes(HealthLock.status())||!!visitId;
   openModal(`
     <div class="modal-head"><h3>${m?"Medicina":"Nuova medicina"}</h3><button class="icon-btn" data-close>✕</button></div>
     <form id="med-form" class="modal-form">
@@ -4046,12 +4061,12 @@ function openMedModal(id,{visitId}={}){
       <div class="row"><label for="med-reason">Per cosa (facoltativo)</label><input id="med-reason" maxlength="1000" value="${escapeHTML(m?m.reason:"")}" placeholder="Es. pressione, mal di testa…"></div>
       <div class="row"><label for="med-kind">Come la prendi</label><select id="med-kind"><option value="regolare" ${!m||m.kind==="regolare"?"selected":""}>Regolarmente</option><option value="al_bisogno" ${m&&m.kind==="al_bisogno"?"selected":""}>Al bisogno (ogni tanto)</option></select></div>
       <div id="med-regular" class="modal-form">
-        <div class="row"><label>Orari</label><div class="health-times" id="med-times">${times.map(medTimeInputHTML).join("")}<button type="button" class="btn btn-ghost btn-sm" id="med-time-add">＋ Orario</button></div><span class="hint">Una spunta per ogni orario. Con l'orario arriva l'avviso sull'iPhone 15 minuti prima. Senza orari resta una spunta al giorno, senza avviso.</span></div>
+        <div class="row"><label>Orari</label><div class="health-times" id="med-times">${times.map(medTimeInputHTML).join("")}<button type="button" class="btn btn-ghost btn-sm" id="med-time-add">＋ Orario</button></div><span class="hint">Una presa da spuntare per ogni orario. All'orario arriva l'avviso sull'iPhone e, se dopo mezz'ora non l'hai segnata, un promemoria. Non compare nell'Agenda né in «Da fare».</span></div>
         <div class="row" id="med-days-row"><label>In quali giorni</label><div class="weekday-picks">${["Lun","Mar","Mer","Gio","Ven","Sab","Dom"].map((l,i)=>`<label><input type="checkbox" value="${i+1}" ${days.includes(i+1)?"checked":""}>${l}</label>`).join("")}</div><span class="hint">Se non scegli nessun giorno vale ogni giorno.</span></div>
       </div>
       <div class="row-split"><div class="row"><label for="med-start" id="med-start-label">Dal giorno</label><input type="date" id="med-start" value="${m?m.start_date||"":today}"></div><div class="row"><label for="med-end">Fino al (facoltativo)</label><input type="date" id="med-end" value="${m?m.end_date||"":""}"></div></div>
       <div class="row"><label for="med-status">Stato</label><select id="med-status"><option value="in_corso" ${!m||m.status==="in_corso"?"selected":""}>La prendo ora</option><option value="sospesa" ${m&&m.status==="sospesa"?"selected":""}>Sospesa: non la prendo più</option></select><span class="hint">Una medicina sospesa o terminata va in «Prese in passato», con il periodo in cui l'hai presa: le spunte restano.</span></div>
-      <div class="row"><label for="med-visit">Prescritta nella visita</label><select id="med-visit">${visitOptionsHTML(m?m.visit_id:visitId||"")}</select></div>
+      ${showVisits?`<div class="row"><label for="med-visit">Prescritta nella visita</label><select id="med-visit">${visitOptionsHTML(m?m.visit_id:visitId||"")}</select></div>`:""}
       ${healthTA("med-notes","Note (facoltative)",m&&m.notes,"Es. a stomaco pieno, effetti collaterali…",2)}
       <div class="modal-actions">${m?`<button type="button" class="btn btn-danger" id="med-delete">Elimina</button>`:"<span></span>"}<div><button type="button" class="btn btn-ghost" data-close>Annulla</button><button type="submit" class="btn btn-primary">Salva</button></div></div>
     </form>`,{wide:true});
@@ -4075,10 +4090,11 @@ function openMedModal(id,{visitId}={}){
     const daysOut=[...form.querySelectorAll("#med-days-row input:checked")].map(i=>Number(i.value));
     let start=$("med-start").value||null, end=$("med-end").value||null;
     if(kind==="regolare"&&!start){ alert("Scegli da che giorno la prendi."); return; }
+    if(kind==="regolare"&&!timesOut.length){ alert("Scegli almeno un orario: serve per la spunta e per l'avviso."); return; }
     if(status==="sospesa"&&!end) end=todayISO();
     if(start&&end&&end<start){ alert("La data di fine viene prima dell'inizio."); return; }
     const payload={name,dose:$("med-dose").value.trim(),reason:$("med-reason").value.trim(),kind,status,start_date:start,end_date:end,
-      times:kind==="regolare"?timesOut:[],weekdays:kind==="regolare"?daysOut:[],visit_id:$("med-visit").value||null,notes:$("med-notes").value.trim()};
+      times:kind==="regolare"?timesOut:[],weekdays:kind==="regolare"?daysOut:[],visit_id:$("med-visit")?($("med-visit").value||null):(m?m.visit_id:null),notes:$("med-notes").value.trim()};
     const undo=modalBusy(form,"Salvataggio…");
     const saved=await saveMed(m?m.id:null,payload);
     if(!saved){ undo(); return; }
@@ -4106,10 +4122,9 @@ function openDoseModal({medId,date,back}={}){
     const undo=modalBusy(form,"Salvataggio…");
     const saved=await Data.healthSave("doses",null,{med_id:$("dose-med").value,taken_on:taken,taken_time:$("dose-time").value||null,note:$("dose-note").value.trim()});
     if(!saved){ undo(); return; }
-    // Le prese al bisogno sono in ordine dalla più recente.
-    Data.HEALTH.doses.sort((a,b)=>(b.taken_on+(b.taken_time||""))<(a.taken_on+(a.taken_time||""))?-1:1);
+    sortDoses();  // dalla più recente
     closeModal(); render();
-    if(back) openHealthDayModal(back);
+    if(back) (state.route==="medicine"?openMedDayModal:openHealthDayModal)(back);
   });
 }
 
@@ -4139,14 +4154,11 @@ function openAllergyModal(id){
 
 // Un giorno del calendario: visite, esami e medicine (da spuntare), con i pulsanti per aggiungere.
 function healthDayBodyHTML(iso){
-  const today=todayISO(), visits=healthVisitsOn(iso), exams=healthExamsOn(iso), items=medDoseItems(iso), doses=dosesOn(iso);
-  const prn=Data.HEALTH.meds.some(m=>m.kind==="al_bisogno"&&medActive(m));
+  const visits=healthVisitsOn(iso), exams=healthExamsOn(iso);
   const sec=(t,html)=>html?`<div class="health-sec">${t}</div><div class="rlist">${html}</div>`:"";
-  const body=sec("Visite",visits.map(visitRowHTML).join(""))+sec("Esami",exams.map(examRowHTML).join(""))
-    +sec("Medicine",items.map(i=>medDoseRowHTML(i,{late:iso<today})).join(""))+sec("Al bisogno",doses.map(d=>doseRowHTML(d,{back:iso})).join(""));
+  const body=sec("Visite",visits.map(visitRowHTML).join(""))+sec("Esami",exams.map(examRowHTML).join(""));
   return (body||emptyState("Niente in questo giorno."))+`<div class="health-dose-actions">
       ${healthAddBtn("health-visit-new","＋ Visita",`data-date="${iso}"`)}${healthAddBtn("health-exam-new","＋ Esame",`data-date="${iso}"`)}
-      ${prn&&iso<=today?healthAddBtn("health-dose-new","＋ Presa al bisogno",`data-date="${iso}" data-back="${iso}"`):""}
     </div>`;
 }
 function openHealthDayModal(iso){
@@ -4154,7 +4166,153 @@ function openHealthDayModal(iso){
   openModal(`<div class="modal-head"><h3>${label.charAt(0).toUpperCase()+label.slice(1)}</h3><button class="icon-btn" data-close>✕</button></div><div id="health-day" data-date="${iso}">${healthDayBodyHTML(iso)}</div>`,{wide:true});
   bindModalClose();
 }
-function refreshHealthDay(){ const box=document.getElementById("health-day"); if(box) box.innerHTML=healthDayBodyHTML(box.dataset.date); }
+function refreshHealthDay(){
+  const box=document.getElementById("health-day"); if(box) box.innerHTML=healthDayBodyHTML(box.dataset.date);
+  const mb=document.getElementById("med-day"); if(mb) mb.innerHTML=medDayBodyHTML(mb.dataset.date);
+}
+
+/* ---- Pressione: fino a 5 misurazioni al giorno (pressione-PROPOSTA.sql) ---- */
+const BP_MAX_PER_DAY=5;
+// Fasce indicative delle linee guida europee (ESC): non sostituiscono il parere del medico.
+function bpClass(sys,dia){
+  if(sys>=180||dia>=110) return ["Molto alta","bp-high"];
+  if(sys>=140||dia>=90) return ["Alta","bp-high"];
+  if(sys>=130||dia>=85) return ["Normale-alta","bp-warn"];
+  if(sys>=120||dia>=80) return ["Normale","bp-ok"];
+  return ["Ottimale","bp-ok"];
+}
+function bpSort(a,b){ return (b.measured_on+b.measured_at)<(a.measured_on+a.measured_at)?-1:1; }
+function bpOn(iso){ return Data.HEALTH.bp.filter(r=>r.measured_on===iso).sort((a,b)=>a.measured_at<b.measured_at?-1:1); }
+function bpAverage(fromISO){
+  const rows=Data.HEALTH.bp.filter(r=>r.measured_on>=fromISO); if(!rows.length) return null;
+  const avg=k=>Math.round(rows.reduce((t,r)=>t+r[k],0)/rows.length), pulses=rows.filter(r=>r.pulse);
+  return {sys:avg("systolic"),dia:avg("diastolic"),pulse:pulses.length?Math.round(pulses.reduce((t,r)=>t+r.pulse,0)/pulses.length):null,n:rows.length};
+}
+function bpRowHTML(r,{withDate=false}={}){
+  const [label,cls]=bpClass(r.systolic,r.diastolic);
+  return `<div class="rrow"><span class="badge" style="--accent-soft:var(--c-salute-soft)">❤️</span><div class="rmain" data-action="bp-edit" data-id="${r.id}" style="cursor:pointer">
+    <div class="rtitle"><span class="bp-val">${r.systolic}/${r.diastolic}</span>${r.pulse?` <span class="rdur">♥ ${r.pulse} bpm</span>`:""}</div>
+    <div class="todo-meta">${withDate?`<span class="chip">${shortDateIT(r.measured_on)}</span>`:""}<span class="chip chip-time">🕒 ${hhmm(r.measured_at)}</span><span class="chip ${cls}">${label}</span>${r.arm?`<span class="chip">braccio ${r.arm}</span>`:""}</div>
+    ${r.note?`<div class="rdesc">${escapeHTML(r.note)}</div>`:""}</div>
+    <div class="ractions"><button type="button" class="icon-btn" data-action="bp-edit" data-id="${r.id}" title="Modifica">✏️</button></div></div>`;
+}
+// Andamento degli ultimi 30 giorni: media del giorno di massima e minima, con le linee 140 e 90.
+function bpChartHTML(){
+  const today=todayISO(), from=TodoLogic.addDaysISO(today,-29), days=[];
+  for(let k=0;k<30;k++){ const iso=TodoLogic.addDaysISO(from,k), rows=bpOn(iso); if(rows.length) days.push({k,iso,sys:rows.reduce((t,r)=>t+r.systolic,0)/rows.length,dia:rows.reduce((t,r)=>t+r.diastolic,0)/rows.length}); }
+  if(days.length<2) return "";
+  const W=600,H=170,L=30,R=8,T=8,B=20, lo=Math.min(60,...days.map(d=>d.dia))-5, hi=Math.max(160,...days.map(d=>d.sys))+5;
+  const x=k=>L+(W-L-R)*k/29, y=v=>T+(H-T-B)*(1-(v-lo)/(hi-lo));
+  const line=(key,cls)=>`<polyline class="${cls}" points="${days.map(d=>`${x(d.k).toFixed(1)},${y(d[key]).toFixed(1)}`).join(" ")}"/>`+days.map(d=>`<circle class="${cls}-dot" cx="${x(d.k).toFixed(1)}" cy="${y(d[key]).toFixed(1)}" r="3"><title>${formatDateIT(d.iso)}: ${Math.round(d.sys)}/${Math.round(d.dia)}</title></circle>`).join("");
+  const ref=v=>`<line class="bp-ref" x1="${L}" x2="${W-R}" y1="${y(v).toFixed(1)}" y2="${y(v).toFixed(1)}"/><text class="bp-axis" x="${L-4}" y="${(y(v)+3).toFixed(1)}" text-anchor="end">${v}</text>`;
+  return `<div class="bp-chart"><svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Andamento della pressione negli ultimi 30 giorni">${ref(140)}${ref(90)}
+    ${line("sys","bp-sys")}${line("dia","bp-dia")}
+    <text class="bp-axis" x="${L}" y="${H-4}">${shortDateIT(from)}</text><text class="bp-axis" x="${W-R}" y="${H-4}" text-anchor="end">oggi</text></svg>
+    <p class="hint"><span class="bp-key bp-sys-key"></span> massima · <span class="bp-key bp-dia-key"></span> minima (media del giorno) · linee tratteggiate a 140 e 90.</p></div>`;
+}
+function bpCardHTML(){
+  if(!Data.bpAvailable) return "";
+  const today=todayISO(), todayRows=bpOn(today), a7=bpAverage(TodoLogic.addDaysISO(today,-6)), a30=bpAverage(TodoLogic.addDaysISO(today,-29));
+  const avg=(a,l)=>a?`<div class="bp-avg"><span class="hint">${l}</span><b>${a.sys}/${a.dia}</b>${a.pulse?` <span class="rdur">♥ ${a.pulse}</span>`:""}<span class="hint">${a.n} misur${a.n===1?"a":"e"}</span></div>`:"";
+  const older=Data.HEALTH.bp.filter(r=>r.measured_on<today).sort(bpSort);
+  const full=todayRows.length>=BP_MAX_PER_DAY;
+  return `<div class="card"><div class="card-header"><h3>❤️ Pressione</h3>${full?`<span class="card-sub">5 misurazioni oggi</span>`:healthAddBtn("bp-new","＋ Misurazione",`data-date="${today}"`)}</div>
+    ${(a7||a30)?`<div class="bp-avgs">${avg(a7,"Media 7 giorni")}${avg(a30,"Media 30 giorni")}</div>`:""}
+    ${todayRows.length?`<div class="health-sec">Oggi</div><div class="rlist">${todayRows.map(r=>bpRowHTML(r)).join("")}</div>`:emptyState("Nessuna misurazione oggi. Puoi segnarne fino a 5 al giorno.")}
+    ${bpChartHTML()}
+    ${older.length?`<div class="health-sec">Prima</div><div class="rlist">${older.slice(0,state.bpAll?200:5).map(r=>bpRowHTML(r,{withDate:true})).join("")}</div>${older.length>5?`<button type="button" class="btn btn-ghost btn-sm" data-action="bp-all">${state.bpAll?"Mostra meno":`Mostra tutte (${older.length})`}</button>`:""}`:""}
+    <p class="hint" style="margin-top:8px">Le fasce (ottimale, normale, normale-alta, alta) sono indicative, secondo le linee guida europee: per i valori decide il medico.</p></div>`;
+}
+function openBpModal(id,{date,back}={}){
+  const r=id?Data.HEALTH.bp.find(x=>x.id===id):null; if(id&&!r) return;
+  const day=r?r.measured_on:(date||todayISO());
+  openModal(`
+    <div class="modal-head"><h3>${r?"Misurazione della pressione":"Nuova misurazione"}</h3><button class="icon-btn" data-close>✕</button></div>
+    <form id="bp-form" class="modal-form">
+      <div class="row-split"><div class="row"><label for="bp-date">Giorno</label><input type="date" id="bp-date" value="${day}" max="${todayISO()}" required></div><div class="row"><label for="bp-time">Ora</label><input type="time" id="bp-time" value="${r?hhmm(r.measured_at):(day===todayISO()?nowHHMM():"")}" required></div></div>
+      <div class="row-split bp-nums"><div class="row"><label for="bp-sys">Massima</label><input type="number" id="bp-sys" inputmode="numeric" min="50" max="300" required value="${r?r.systolic:""}" placeholder="120"></div><div class="row"><label for="bp-dia">Minima</label><input type="number" id="bp-dia" inputmode="numeric" min="30" max="200" required value="${r?r.diastolic:""}" placeholder="80"></div><div class="row"><label for="bp-pulse">Pulsazioni</label><input type="number" id="bp-pulse" inputmode="numeric" min="20" max="250" value="${r&&r.pulse?r.pulse:""}" placeholder="70"></div></div>
+      <div class="row"><label for="bp-arm">Braccio (facoltativo)</label><select id="bp-arm">${[["","Non indicato"],["sinistro","Sinistro"],["destro","Destro"]].map(([v,l])=>`<option value="${v}" ${(r?r.arm:"")===v?"selected":""}>${l}</option>`).join("")}</select></div>
+      <div class="row"><label for="bp-note">Nota (facoltativa)</label><input id="bp-note" maxlength="500" value="${escapeHTML(r?r.note:"")}" placeholder="Es. dopo la camminata, a riposo…"></div>
+      <div class="modal-actions">${r?`<button type="button" class="btn btn-danger" id="bp-delete">Elimina</button>`:"<span></span>"}<div><button type="button" class="btn btn-ghost" data-close>Annulla</button><button type="submit" class="btn btn-primary">Salva</button></div></div>
+    </form>`);
+  bindModalClose();
+  const $=x=>document.getElementById(x), form=$("bp-form");
+  const done=()=>{ closeModal(); render(); if(back) openMedDayModal(back); };
+  if(r) $("bp-delete").addEventListener("click",async()=>{ if(confirm(`Eliminare la misurazione ${r.systolic}/${r.diastolic} delle ${hhmm(r.measured_at)}?`)&&await Data.healthDelete("bp",r.id)) done(); });
+  form.addEventListener("submit",async e=>{
+    e.preventDefault();
+    const num=x=>$(x).value===""?null:Math.round(Number($(x).value));
+    const payload={measured_on:$("bp-date").value,measured_at:$("bp-time").value,systolic:num("bp-sys"),diastolic:num("bp-dia"),pulse:num("bp-pulse"),arm:$("bp-arm").value,note:$("bp-note").value.trim()};
+    if(!payload.measured_on||!payload.measured_at){ alert("Scegli giorno e ora."); return; }
+    if(!(payload.systolic>=50&&payload.systolic<=300&&payload.diastolic>=30&&payload.diastolic<=200)){ alert("Controlla i valori: massima tra 50 e 300, minima tra 30 e 200."); return; }
+    if(payload.systolic<=payload.diastolic){ alert("La massima deve essere più alta della minima: forse sono invertite?"); return; }
+    if(payload.pulse!==null&&!(payload.pulse>=20&&payload.pulse<=250)){ alert("Le pulsazioni devono essere tra 20 e 250 (oppure lascia vuoto)."); return; }
+    if(Data.HEALTH.bp.filter(x=>x.measured_on===payload.measured_on&&(!r||x.id!==r.id)).length>=BP_MAX_PER_DAY){ alert("In questo giorno ci sono già 5 misurazioni: è il massimo. Correggi o elimina una di quelle."); return; }
+    const undo=modalBusy(form,"Salvataggio…");
+    const saved=await Data.healthSave("bp",r?r.id:null,payload);
+    if(!saved){ undo(); return; }
+    Data.HEALTH.bp.sort(bpSort); done();
+  });
+}
+
+/* ---- Pagina «💊 Medicine»: senza password, solo le medicine ---- */
+function medCalCell(iso,today){
+  const c=medCalCellBase(iso,today), bp=bpOn(iso).length;
+  return bp?{filled:c.filled,show:true,bottomHTML:c.bottomHTML+`<span title="${bp} misurazion${bp===1?"e":"i"} della pressione">❤️</span>`}:c;
+}
+function medCalCellBase(iso,today){
+  const items=medSlotItems(iso), prn=dosesOn(iso).length;
+  if(!items.length) return {filled:prn>0,show:prn>0,bottomHTML:prn?`<span title="${prn} al bisogno">💊${prn}</span>`:""};
+  if(iso>today) return {filled:false,show:true,bottomHTML:`<span class="mc-next" title="${items.length} da prendere">${"•".repeat(Math.min(items.length,3))}</span>`};
+  const taken=items.filter(i=>i.done).length, late=items.filter(i=>medSlotLate(i,today)).length;
+  const mark=taken===items.length?`<span class="mc-ok" title="Tutte prese">✓</span>`:late?`<span class="mc-miss" title="${late} dimenticat${late===1?"a":"e"}">✗${items.length>1?` ${taken}/${items.length}`:""}</span>`:`<span title="Da prendere">${taken}/${items.length}</span>`;
+  return {filled:taken===items.length,show:true,bottomHTML:mark+(prn?`<span title="${prn} al bisogno">💊${prn}</span>`:"")};
+}
+function renderMedicine(){
+  const intro=`<div class="card intro" style="--accent:var(--c-salute)"><div>Le medicine che prendi e la pressione: spunta ogni presa con un tocco. All'orario arriva l'avviso sull'iPhone e, se dopo mezz'ora non l'hai ancora segnata, un promemoria. Le prese dimenticate restano in rosso nel calendario. Visite, esami e allergie sono in <b>🩺 Salute</b> (con password).</div></div>`;
+  if(!Data.healthAvailable) return intro+`<div class="card">${emptyState("Le medicine saranno disponibili appena il database verrà aggiornato.")}</div>`;
+  if(!Data.medSlotsAvailable) return intro+`<div class="card">${emptyState("Il calendario delle medicine sarà disponibile appena il database verrà aggiornato (medicine-PROPOSTA.sql).")}</div>`+bpCardHTML();
+  const today=todayISO(), H=Data.HEALTH;
+  const items=medSlotItems(today), prnToday=dosesOn(today), st=medStats(30);
+  const active=H.meds.filter(m=>medActive(m,today)), prnMeds=active.filter(m=>m.kind==="al_bisogno");
+  const regular=active.filter(m=>m.kind==="regolare"), past=H.meds.filter(m=>!medActive(m,today));
+  const{year,month}=state.medMonth, label=monthLabelOf(year,month), isNow=year===new Date().getFullYear()&&month===new Date().getMonth();
+  const cal=monthCalendarHTML(year,month,{accentVar:"--c-salute",action:"med-day",allowFuture:true,cellFor:iso=>medCalCell(iso,today)});
+  const missedRow=i=>`<div class="rrow"><span class="badge" style="--accent-soft:var(--c-danger-soft)">✗</span><div class="rmain"><div class="rtitle">${escapeHTML(i.med.name)}${i.med.dose?` <span class="rdur">${escapeHTML(i.med.dose)}</span>`:""}</div><div class="rdesc">${shortDateIT(i.iso)} alle ${i.slot}</div></div><div class="ractions"><button type="button" class="btn btn-outline btn-sm" style="--accent:var(--c-salute)" data-action="med-tick" data-med="${i.med.id}" data-date="${i.iso}" data-slot="${i.slot}" title="Segna come presa">L'avevo presa</button></div></div>`;
+  const pct=st.due?Math.round(st.taken*100/st.due)+"%":"—";
+  return intro+`<div class="todo-toolbar"><span></span><button class="btn btn-primary" style="background:var(--c-salute)" data-action="health-med-new">+ Nuova medicina</button></div>
+    <div class="stat-row">
+      ${statTile("✅","Prese oggi",items.length?`${items.filter(i=>i.done).length}/${items.length}`:"—","salute",items.length?"medicine di oggi":"nessuna oggi")}
+      ${statTile("📈","Ultimi 30 giorni",pct,"salute",st.due?`${st.taken} prese su ${st.due}`:"ancora nessun dato")}
+      ${statTile("✗","Dimenticate",st.missed.length,"salute","negli ultimi 30 giorni")}
+      ${statTile("💊","In corso",active.length,"salute","regolari e al bisogno")}
+    </div>
+    <div class="card"><div class="card-header"><h3>📌 Oggi</h3>${prnMeds.length?healthAddBtn("health-dose-new","＋ Presa al bisogno",`data-date="${today}"`):""}</div>
+      ${items.length?`<div class="rlist">${items.map(i=>medSlotRowHTML(i)).join("")}</div>`:emptyState(regular.length?"Nessuna medicina da prendere oggi.":"Aggiungi le medicine che prendi con «+ Nuova medicina»: qui le spunterai ogni giorno.")}
+      ${prnToday.length?`<div class="health-sec">Al bisogno</div><div class="rlist">${prnToday.map(d=>doseRowHTML(d,{back:today})).join("")}</div>`:""}
+    </div>
+    ${bpCardHTML()}
+    <div class="card"><div class="card-header"><h3>Calendario delle medicine</h3>${monthNavHTML({prevAction:"med-prev-month",nextAction:"med-next-month",label})}</div>${cal}
+      <p class="hint" style="margin-top:10px"><span class="mc-ok">✓</span> tutte prese · <span class="mc-miss">✗</span> dimenticata · • da prendere · 💊 al bisogno${Data.bpAvailable?" · ❤️ pressione":""}. Tocca un giorno per segnare o togliere una presa.${isNow?"":` <button type="button" class="btn btn-ghost btn-sm" data-action="med-this-month">Torna a questo mese</button>`}</p></div>
+    ${st.missed.length?healthCard("✗ Dimenticate negli ultimi 30 giorni",`<div class="rlist">${st.missed.slice(0,15).map(missedRow).join("")}</div>${st.missed.length>15?`<p class="hint">…e altre ${st.missed.length-15}: le vedi nel calendario.</p>`:""}`):""}
+    ${healthCard("💊 Le medicine che prendo",healthListOf(regular,medRowHTML)+(prnMeds.length?`<div class="health-sec">Al bisogno</div>${healthListOf(prnMeds,medRowHTML)}`:""),{empty:"Nessuna medicina in corso."})}
+    ${past.length?healthCard("🗄️ Prese in passato",healthListOf(past,medRowHTML)):""}`;
+}
+function medDayBodyHTML(iso){
+  const today=todayISO(), items=medSlotItems(iso), prn=dosesOn(iso);
+  const prnMeds=Data.HEALTH.meds.some(m=>m.kind==="al_bisogno"&&medActive(m));
+  const bps=bpOn(iso);
+  const body=(items.length?`<div class="rlist">${items.map(i=>medSlotRowHTML(i)).join("")}</div>`:"")+(prn.length?`<div class="health-sec">Al bisogno</div><div class="rlist">${prn.map(d=>doseRowHTML(d,{back:iso})).join("")}</div>`:"")
+    +(bps.length?`<div class="health-sec">Pressione</div><div class="rlist">${bps.map(r=>bpRowHTML(r)).join("")}</div>`:"");
+  return (body||emptyState(iso>today?"Nessuna medicina prevista.":"Nessuna medicina in questo giorno."))
+    +(iso<today&&items.some(i=>!i.done)?`<p class="hint" style="margin-top:8px">Se l'avevi presa e non l'avevi segnata, tocca il cerchietto: resta «presa», senza orario.</p>`:"")
+    +(iso<=today&&(prnMeds||Data.bpAvailable)?`<div class="health-dose-actions">${prnMeds?healthAddBtn("health-dose-new","＋ Presa al bisogno",`data-date="${iso}" data-back="${iso}"`):""}${Data.bpAvailable&&bps.length<BP_MAX_PER_DAY?healthAddBtn("bp-new","＋ Pressione",`data-date="${iso}" data-back="${iso}"`):""}</div>`:"");
+}
+function openMedDayModal(iso){
+  const label=new Date(iso+"T12:00:00").toLocaleDateString("it-IT",{weekday:"long",day:"numeric",month:"long",year:"numeric"});
+  openModal(`<div class="modal-head"><h3>💊 ${label.charAt(0).toUpperCase()+label.slice(1)}</h3><button class="icon-btn" data-close>✕</button></div><div id="med-day" data-date="${iso}">${medDayBodyHTML(iso)}</div>`);
+  bindModalClose();
+}
 
 function renderHistory(filters={}){
   const{categoryId="all",activityId="all"}=filters;
@@ -4296,7 +4454,7 @@ function avvisiCardHTML(){
   }[st];
   return `<div class="card">
       <div class="card-header"><h3>🔔 Avvisi sul telefono</h3></div>
-      <p class="card-text">Una notifica 15 minuti prima di ogni impegno con orario (Agenda e Da fare), anche ad app chiusa. Gli impegni già spuntati non vengono avvisati.</p>
+      <p class="card-text">Una notifica 15 minuti prima di ogni impegno con orario (Agenda e Da fare), anche ad app chiusa. Gli impegni già spuntati non vengono avvisati. Per le medicine l'avviso arriva all'orario esatto, più un promemoria mezz'ora dopo se non l'hai segnata.</p>
       ${body}
       ${Avvisi.msg?`<p class="hint" role="status">${escapeHTML(Avvisi.msg)}</p>`:""}
     </div>`;
@@ -4344,8 +4502,12 @@ const state={
   agendaMonth:{year:new Date().getFullYear(),month:new Date().getMonth()},
   agendaYear:new Date().getFullYear(),
   healthTab:"calendario",   // calendario | visite | esami | medicine
-  healthMonth:{year:new Date().getFullYear(),month:new Date().getMonth()}
+  healthMonth:{year:new Date().getFullYear(),month:new Date().getMonth()},
+  medMonth:{year:new Date().getFullYear(),month:new Date().getMonth()},
+  bpAll:false
 };
+// Toccando l'avviso di una medicina l'app si apre su «💊 Medicine» (indirizzo …/#medicine).
+if(location.hash==="#medicine"){ state.route="medicine"; try{ history.replaceState(null,"",location.pathname+location.search); }catch(_){} }
 const ROUTE_TITLES=Object.fromEntries(ROUTES.map(r=>[r.id,r.group?`${r.icon} ${r.label}`:r.label]));
 
 function renderRailNav(){
@@ -4362,7 +4524,7 @@ function renderTabbar(){
     const r=ROUTES.find(x=>x.id===id);
     return `<button class="tab-item ${state.route===id?"active":""}" data-route="${id}"><span class="tab-icon">${r.icon}</span>${r.label}</button>`;
   }).join("");
-  const moreActive=state.route==="agenda"||state.route==="salute"||state.route==="lavoro_progetti"||state.route==="storico"||state.route==="allegati"||state.route==="impostazioni";
+  const moreActive=state.route==="agenda"||state.route==="salute"||state.route==="medicine"||state.route==="lavoro_progetti"||state.route==="storico"||state.route==="allegati"||state.route==="impostazioni";
   document.getElementById("tabbar").innerHTML=tabs+`<button class="tab-item ${moreActive?"active":""}" data-action="open-more-sheet"><span class="tab-icon">•••</span>Altro</button>`;
 }
 
@@ -4395,6 +4557,7 @@ function render(){
     case "lavoro_progetti": root.innerHTML=renderWorkProjects(); break;
     case "diario": root.innerHTML=renderDiary(); { const pw=document.getElementById("diary-pw")||document.getElementById("diary-pw-new"); if(pw&&!DiaryLock.busy) pw.focus(); } break;
     case "salute": root.innerHTML=renderHealth(); { const pw=document.getElementById("health-pw")||document.getElementById("health-pw-new"); if(pw&&!HealthLock.busy) pw.focus(); } break;
+    case "medicine": root.innerHTML=renderMedicine(); break;
     case "storico": root.innerHTML=renderHistory(state.historyFilters); break;
     case "allegati": root.innerHTML=renderAttachments(); break;
     case "impostazioni": root.innerHTML=renderSettings(); break;
@@ -4790,6 +4953,7 @@ function openMoreSheet(){
   const html=`
     <div class="modal-head"><h3>Altro</h3><button class="icon-btn" data-close>✕</button></div>
     <button type="button" class="sheet-item" data-route="agenda" data-close><span class="sheet-icon">📒</span>Agenda</button>
+    <button type="button" class="sheet-item" data-route="medicine" data-close><span class="sheet-icon">💊</span>Medicine</button>
     <button type="button" class="sheet-item" data-route="salute" data-close><span class="sheet-icon">🩺</span>Salute</button>
     <button type="button" class="sheet-item" data-route="lavoro_progetti" data-close><span class="sheet-icon">📁</span>Progetti di lavoro</button>
     <button type="button" class="sheet-item" data-route="storico" data-close><span class="sheet-icon">🗓️</span>Storico</button>
@@ -4915,11 +5079,13 @@ document.addEventListener("click",e=>{
   }
   else if(action==="health-allergy-new") openAllergyModal(null);
   else if(action==="health-allergy-edit") openAllergyModal(btn.dataset.id);
-  else if(action==="health-tick"){
-    btn.disabled=true;
-    const occ=btn.dataset.occ||null;
-    (btn.dataset.done==="1"?Data.uncompleteTodo(btn.dataset.id,occ):Data.completeTodo(btn.dataset.id,occ)).finally(()=>{ btn.disabled=false; refreshHealthDay(); });
-  }
+  else if(action==="med-tick"){ btn.disabled=true; toggleMedDose(btn.dataset.med,btn.dataset.date,btn.dataset.slot).finally(()=>{ btn.disabled=false; refreshHealthDay(); }); }
+  else if(action==="med-day") openMedDayModal(btn.dataset.date);
+  else if(action==="bp-new") openBpModal(null,{date:btn.dataset.date,back:btn.dataset.back});
+  else if(action==="bp-edit"){ const back=document.getElementById("med-day"); openBpModal(btn.dataset.id,{back:back?back.dataset.date:undefined}); }
+  else if(action==="bp-all"){ state.bpAll=!state.bpAll; render(); }
+  else if(action==="med-prev-month"||action==="med-next-month"){ const s=state.medMonth; s.month+=action==="med-prev-month"?-1:1; if(s.month<0){s.month=11;s.year--;} if(s.month>11){s.month=0;s.year++;} render(); }
+  else if(action==="med-this-month"){ state.medMonth={year:new Date().getFullYear(),month:new Date().getMonth()}; render(); }
   else if(action==="notes-strike"){ const ed=document.querySelector(".notes-edit"); if(ed) notesToggleStrike(ed); }
   else if(action==="notes-list"){ const ed=document.querySelector(".notes-edit"); if(ed) notesToggleList(ed,btn.dataset.kind); }
   else if(action==="notes-fmt"){ nfMenuClose(); const ed=document.querySelector(".notes-edit"); if(ed) notesFormat(ed,btn.dataset.kind,btn.dataset.value); }
@@ -5047,6 +5213,7 @@ document.addEventListener("change",e=>{
 
 
 if(Avvisi.supported()) Avvisi.register().catch(()=>{});
+if(navigator.serviceWorker) navigator.serviceWorker.addEventListener("message",e=>{ const r=e.data&&e.data.route; if(r&&ROUTE_TITLES[r]&&Data.ready) navigate(r); else if(r&&ROUTE_TITLES[r]) state.route=r; });
 render();
 Data.init();
 
