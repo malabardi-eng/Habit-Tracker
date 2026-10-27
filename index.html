@@ -738,7 +738,7 @@ a.attach-name{color:var(--c-todo);text-decoration:underline;}
 })();
 </script>
 </head>
-<body><style>[hidden]{display:none!important}#accesso-personale{max-width:440px;margin:12vh auto;padding:28px;background:#fff;color:#17202a;border-radius:18px;font:17px system-ui}#accesso-personale input,#accesso-personale button{box-sizing:border-box;width:100%;padding:12px;margin:10px 0}#accesso-barra{padding:12px;background:#fff2cf;color:#312916;font:15px system-ui}#accesso-barra button{margin-left:16px}</style>
+<body><style>[hidden]{display:none!important}#accesso-personale{max-width:440px;margin:12vh auto;padding:28px;background:#fff;color:#17202a;border-radius:18px;font:17px system-ui}#accesso-personale input,#accesso-personale button{box-sizing:border-box;width:100%;padding:12px;margin:10px 0;font:inherit;border-radius:10px}#accesso-personale input{background:#1f2633;color:#fff;-webkit-text-fill-color:#fff;caret-color:#fff;border:1px solid #3a4456}#accesso-personale input:-webkit-autofill{-webkit-box-shadow:0 0 0 40px #1f2633 inset;-webkit-text-fill-color:#fff}#accesso-personale input:focus{outline:2px solid #4c8dff;outline-offset:1px}#accesso-personale button{background:#2f6fde;color:#fff;border:0;font-weight:600;cursor:pointer}#accesso-personale button:disabled{opacity:.6;cursor:default}#accesso-barra{padding:12px;background:#fff2cf;color:#312916;font:15px system-ui}#accesso-barra button{margin-left:16px}</style>
 <section id="accesso-personale"><h1>Il tuo accesso personale</h1><p>Accedi con il tuo account personale. La sessione resta attiva su questo browser.</p><form id="accesso-form"><label>Email<input type="email" autocomplete="username" id="accesso-email" required></label><label>Password<input id="accesso-password" type="password" autocomplete="current-password" required></label><button>Accedi</button></form><p id="accesso-messaggio" role="status">La sessione rimane attiva su questo browser. Non inviare la password nella chat.</p></section>
 <main id="app-protetta" hidden inert><div id="accesso-barra"><span id="accesso-stato"></span><button id="accesso-esci">Esci</button></div>
 <div class="app">
@@ -781,13 +781,17 @@ a.attach-name{color:var(--c-todo);text-decoration:underline;}
   const FILE_KEY = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\.(docx|md|pdf|epub|mp4|mp3|pptx|xlsx|jpg|jpeg|png)$/;
   function createAccess(client, config) {
     let identity = null;
+    // Rete lenta o server momentaneamente irraggiungibile: non è un accesso rifiutato.
+    const retryable = error => error.name === 'AuthRetryableFetchError' || error.status === 0;
     async function token() {
       const result = await client.auth.getSession();
       const session = result.data && result.data.session;
+      if (result.error && retryable(result.error)) throw result.error;
       if (result.error || !session || !session.access_token) throw new Error('Accedi per continuare.');
       // Verify the user at the server, not merely the local session payload.
       const verified = await client.auth.getUser(session.access_token);
       const user = verified.data && verified.data.user;
+      if (verified.error && retryable(verified.error)) throw verified.error;
       if (verified.error || !user || (config.email && user.email !== config.email) ||
           (config.ownerId && user.id !== config.ownerId)) {
         identity = null;
@@ -900,7 +904,7 @@ a.attach-name{color:var(--c-todo);text-decoration:underline;}
     }
     function isNetwork(error) {
       return !error || error.name === 'AuthRetryableFetchError' || error.name === 'AbortError' ||
-        error.message === 'tempo scaduto' || error.message === 'Accesso personale non verificato.' || error.status === 0 || error instanceof TypeError;
+        error.message === 'tempo scaduto' || error.status === 0 || error instanceof TypeError;
     }
     async function signIn(email, password) {
       const result = await withTimeout(client.auth.signInWithPassword({ email, password }));
@@ -908,15 +912,17 @@ a.attach-name{color:var(--c-todo);text-decoration:underline;}
       await withTimeout(access.token());
     }
     try { await withTimeout(access.token()); }
-    catch (_) {
+    catch (firstError) {
       await new Promise(resolve => {
+        let entered = false, busy = false;
+        const enter = () => { if (!entered) { entered = true; resolve(); } };
         form.onsubmit = async function (event) {
           event.preventDefault();
           const button = form.querySelector('button');
           const passwordField = document.getElementById('accesso-password');
           const email = document.getElementById('accesso-email').value.trim(), password = passwordField.value;
           passwordField.value = '';
-          button.disabled = true;
+          button.disabled = true; busy = true;
           message.textContent = 'Verifico il tuo accesso…';
           try {
             try { await signIn(email, password); }
@@ -926,11 +932,26 @@ a.attach-name{color:var(--c-todo);text-decoration:underline;}
               message.textContent = 'Il collegamento è lento, riprovo…';
               await signIn(email, password);
             }
-            resolve();
+            enter();
           } catch (error) {
+            // Con un problema di rete la password resta scritta: basta premere di nuovo «Accedi».
+            if (isNetwork(error) && !passwordField.value) passwordField.value = password;
             message.textContent = reason(error);
-          } finally { button.disabled = false; }
+          } finally { button.disabled = false; busy = false; }
         };
+        // Sessione salvata ma rete lenta all'apertura (dopo lo stop del Mac o sull'iPhone):
+        // non serve la password, riprovo da solo per circa un minuto.
+        if (isNetwork(firstError)) (async function () {
+          message.textContent = 'Il collegamento è lento, riprovo da solo… Se vuoi, puoi anche accedere qui sotto.';
+          for (const wait of [2000, 4000, 8000, 15000, 30000]) {
+            await new Promise(r => setTimeout(r, wait));
+            if (entered) return;
+            if (busy) continue;
+            try { await withTimeout(access.token()); enter(); return; }
+            catch (error) { if (!isNetwork(error)) { if (!busy && !entered) message.textContent = 'Accedi con email e password.'; return; } }
+          }
+          if (!busy && !entered) message.textContent = reason(new Error('tempo scaduto'));
+        })();
       });
     }
     admitted = true;
