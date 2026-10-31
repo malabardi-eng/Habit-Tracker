@@ -539,6 +539,27 @@ a.attach-name{color:var(--c-todo);text-decoration:underline;}
 .postit .fas-puntina,.postit .fas-molletta{pointer-events:auto;cursor:grab;touch-action:none;}
 @media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .postit{filter:brightness(.9) saturate(.95);}}
 :root[data-theme="dark"] .postit{filter:brightness(.9) saturate(.95);}
+/* polaroid: post-it con una foto intera nella cornice bianca e la didascalia sotto; si trascina dalla foto */
+.postit.polaroid{height:var(--pi-h);background:#FBFAF6;border-radius:2px;}
+.postit.polaroid::after{content:none;}
+.polaroid .fas{z-index:2;}
+.polaroid-photo{position:absolute;left:12px;right:12px;top:12px;height:var(--ph);background:#E7E4DC;cursor:grab;touch-action:none;}
+.polaroid-photo img{width:100%;height:100%;object-fit:contain;display:block;pointer-events:none;}
+.polaroid-photo img:not([src]){visibility:hidden;}
+.polaroid .postit-menu{top:16px;right:16px;z-index:3;background:rgba(251,250,246,.8);}
+.polaroid-caption{position:absolute;left:12px;right:12px;bottom:8px;height:30px;border:none;background:transparent;text-align:center;color:#2A2925;font-family:var(--pi-font,var(--font-body));font-size:1rem;padding:0 4px;}
+.polaroid-caption:focus{outline:none;}
+.polaroid-caption::placeholder{color:rgba(42,41,37,.38);}
+/* finestra della polaroid: da dove prendere la foto */
+.pl-sources{display:flex;gap:8px;flex-wrap:wrap;}
+.pl-pw{display:flex;gap:8px;flex-wrap:wrap;}
+.pl-pw input{flex:1;min-width:0;}
+.pl-day{margin-top:10px;}
+.pl-date{font-size:.78rem;color:var(--ink-faint);margin-bottom:5px;}
+.pl-thumbs{display:flex;flex-wrap:wrap;gap:7px;}
+.pl-thumb{width:66px;height:66px;padding:0;border:1px solid var(--line);border-radius:var(--r-sm);overflow:hidden;background:var(--surface-2);cursor:pointer;}
+.pl-thumb img{width:100%;height:100%;object-fit:cover;display:block;}
+.pl-thumb[aria-pressed="true"]{box-shadow:0 0 0 2px var(--surface),0 0 0 4px var(--c-todo);}
 /* finestra per scegliere com'è il post-it */
 .pi-picker{display:flex;flex-wrap:wrap;gap:8px;}
 .pi-picker label{position:relative;cursor:pointer;}
@@ -1229,6 +1250,7 @@ const Data={
   agendaAvailable:false,
   POSTITS:[],
   postitAvailable:false,
+  polaroidAvailable:false,
   FORME:[],
   formeAvailable:false,
   SETTINGS:{},
@@ -1305,9 +1327,12 @@ const Data={
       // Se la lettura fallisce resta ciò che era già stato letto: il diario non si apre per un errore di rete.
       try{
         const[notes,settings]=await Promise.all([
-          readAllRows("/habit_agenda_postit?select=*","week_start,z,id"),
+          // Polaroid solo dopo polaroid-PROPOSTA.sql (colonna «ratio»); le loro foto si scaricano a parte.
+          readAllRows(`/habit_agenda_postit?select=${POSTIT_COLS}`,"week_start,z,id").then(r=>{ this.polaroidAvailable=true; return r; },
+            ()=>readAllRows("/habit_agenda_postit?select=*","week_start,z,id")),
           readAllRows("/habit_impostazioni?select=chiave,valore","chiave")
         ]);
+        for(const r of notes){ if("ratio" in r) this.polaroidAvailable=true; if("foto" in r){ if(r.foto) Postit.photos[r.id]=r.foto; delete r.foto; } }
         this.POSTITS=Postit.mergeLoaded(notes); this.postitAvailable=true;
         this.SETTINGS=Object.fromEntries(settings.map(r=>[r.chiave,r.valore])); this.settingsAvailable=true;
         DiaryLock.remember(); HealthLock.remember();
@@ -2617,6 +2642,11 @@ const POSTIT_SIZES={s:[130,"Piccolo"],m:[170,"Medio"],l:[220,"Grande"]};
 const POSTIT_PAPERS={liscio:"Liscio",righe:"A righe",quadretti:"A quadretti"};
 const POSTIT_FASTENERS={puntina:"Puntina",nastro:"Nastro adesivo",graffetta:"Graffetta",molletta:"Molletta",nessuno:"Niente"};
 const POSTIT_PINS=["#E0393E","#2F9E5B","#2C8FD6","#F2B705","#B24BC9"];
+// Polaroid: post-it di grandezza «p» con la foto intera (larghezza fissa, altezza secondo la foto) e la didascalia nel testo.
+const POSTIT_COLS="id,week_start,text,color,size,paper,fastener,x,y,tilt,z,created_at,updated_at,ratio";
+const POLAROID_W=220, POLAROID_PAD=12, POLAROID_FOOT=46;
+function polaroidPhotoH(p){ return Math.round((POLAROID_W-2*POLAROID_PAD)*Math.min(1.5,Math.max(.5,+p.ratio||1))); }
+function postitHeight(p){ return p.size==="p"?POLAROID_PAD+polaroidPhotoH(p)+POLAROID_FOOT:POSTIT_SIZES[p.size][0]; }
 /* ---- Caratteri: uno per l'agenda (giorni, note, mese), uno per ogni post-it ----
    Tutti già presenti su Mac e iPhone; altrove si usa il carattere simile indicato dopo. Salvati in habit_impostazioni
    («agenda_carattere» e «postit_caratteri», id del post-it → carattere), quindi uguali su ogni dispositivo. */
@@ -2680,7 +2710,7 @@ function openAgendaFontModal(){
   });
 }
 const Postit={
-  pending:{}, timers:{}, queue:{}, failed:new Set(), saving:0, saved:false,
+  pending:{}, timers:{}, queue:{}, failed:new Set(), saving:0, saved:false, photos:{}, loadingPhotos:new Set(),
   forWeek(w){ return Data.POSTITS.filter(p=>p.week_start===w).sort((a,b)=>a.z-b.z); },
   get(id){ return Data.POSTITS.find(p=>p.id===id); },
   // Ciò che non è ancora arrivato al database vale più di quanto appena riletto.
@@ -2690,10 +2720,11 @@ const Postit={
     return{color:"giallo",size:"m",paper:"liscio",fastener:"puntina",font:"normale"};
   },
   async create(week,{font="normale",...style}){
-    try{ localStorage.setItem("postit-stile",JSON.stringify(Object.assign({font},style))); }catch(_){}
+    if(style.size!=="p") try{ localStorage.setItem("postit-stile",JSON.stringify(Object.assign({font},style))); }catch(_){}
     const mine=this.forWeek(week), n=mine.length;
     const body=Object.assign({week_start:week,text:"",x:Math.max(0,1-(n%4)*.18),y:14+(n%5)*34,tilt:Math.round((Math.random()*8-4)*10)/10,z:(mine.length?mine[mine.length-1].z:0)+1},style);
     const rows=await sbFetch("/habit_agenda_postit",{method:"POST",body,prefer:"return=representation"});
+    if("foto" in rows[0]){ if(rows[0].foto) this.photos[rows[0].id]=rows[0].foto; delete rows[0].foto; }
     Data.POSTITS.push(rows[0]);
     if(font!=="normale") try{ await Fonts.setPostit(rows[0].id,font); }catch(_){ alert("Post-it attaccato, ma non sono riuscito a salvare il carattere: riprova da ⋯."); }
     return rows[0];
@@ -2722,21 +2753,33 @@ const Postit={
   async remove(id){
     clearTimeout(this.timers[id]); delete this.timers[id];
     await sbFetch(`/habit_agenda_postit?id=eq.${encodeURIComponent(id)}`,{method:"DELETE"});
-    delete this.pending[id]; this.failed.delete(id);
+    delete this.pending[id]; this.failed.delete(id); delete this.photos[id];
     Data.POSTITS=Data.POSTITS.filter(p=>p.id!==id);
-  }
+  },
+  async loadPhotos(week){
+    const ids=this.forWeek(week).filter(p=>p.size==="p"&&!(p.id in this.photos)&&!this.loadingPhotos.has(p.id)).map(p=>p.id);
+    if(!ids.length) return;
+    ids.forEach(i=>this.loadingPhotos.add(i));
+    try{
+      const rows=await sbFetch(`/habit_agenda_postit?select=id,foto&id=in.(${ids.join(",")})`);
+      for(const r of rows||[]){ this.photos[r.id]=r.foto||""; if(r.foto) document.querySelectorAll(`img[data-polaroid-img="${r.id}"]`).forEach(i=>{ i.src=r.foto; }); }
+    }catch(_){}
+    finally{ ids.forEach(i=>this.loadingPhotos.delete(i)); }
+  },
+  afterRender(){ if(Data.polaroidAvailable&&state.route==="agenda"&&state.agendaView==="settimana") this.loadPhotos(state.agendaWeekFrom); }
 };
 function postitFastenerHTML(p){
   const pin=POSTIT_PINS[[...p.id].reduce((s,c)=>s+c.charCodeAt(0),0)%POSTIT_PINS.length];
   switch(p.fastener){
     case "puntina": return `<svg class="fas fas-puntina" data-postit-grip viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="11" r="8" fill="${pin}"/><ellipse cx="9.2" cy="8" rx="3" ry="2.2" fill="#fff" opacity=".5"/></svg>`;
-    case "nastro": return `<span class="fas fas-nastro" style="--tape:${p.color==="rosa"?"#FFE58A":p.color==="giallo"?"#F49AB8":"#F6D96B"}" aria-hidden="true"></span>`;
+    case "nastro": return `<span class="fas fas-nastro" style="--tape:${p.size==="p"?"#EFE3C2":p.color==="rosa"?"#FFE58A":p.color==="giallo"?"#F49AB8":"#F6D96B"}" aria-hidden="true"></span>`;
     case "graffetta": return `<svg class="fas fas-graffetta" viewBox="0 0 18 46" aria-hidden="true"><path d="M12 14V36a4.5 4.5 0 0 1-9 0V8a6 6 0 0 1 12 0v26" fill="none" stroke="#8D949E" stroke-width="2" stroke-linecap="round"/></svg>`;
     case "molletta": return `<svg class="fas fas-molletta" data-postit-grip viewBox="0 0 40 30" aria-hidden="true"><path d="M13 13 L9 2 M27 13 L31 2" stroke="#B8BEC6" stroke-width="2" fill="none" stroke-linecap="round"/><path d="M6 12h28l-3 16H9z" fill="#25272B"/><path d="M8 14h24" stroke="#4A4E55" stroke-width="1.5"/></svg>`;
     default: return "";
   }
 }
 function postitHTML(p,{preview=false}={}){
+  if(p.size==="p") return polaroidHTML(p,{preview});
   const w=POSTIT_SIZES[p.size][0];
   return `<div class="postit paper-${p.paper}" ${preview?"":`data-postit="${p.id}"`} style="--pi-bg:${POSTIT_COLORS[p.color][0]};--pi-w:${w}px;--pi-font:${Fonts.css(p.font||Fonts.postit(p.id))};--pi-x:${p.x};${preview?"":`top:${p.y}px;transform:rotate(${p.tilt}deg);z-index:${p.z};`}">
     ${postitFastenerHTML(p)}
@@ -2745,8 +2788,17 @@ function postitHTML(p,{preview=false}={}){
     <textarea class="postit-text" ${preview?"tabindex=\"-1\" readonly":`data-postit-text="${p.id}"`} maxlength="2000" placeholder="Scrivi…" aria-label="Testo del post-it">${escapeHTML(p.text||"")}</textarea>
   </div>`;
 }
+function polaroidHTML(p,{preview=false,src=""}={}){
+  const img=src||Postit.photos[p.id]||"";
+  return `<div class="postit polaroid" ${preview?"":`data-postit="${p.id}"`} style="--pi-w:${POLAROID_W}px;--pi-h:${postitHeight(p)}px;--ph:${polaroidPhotoH(p)}px;--pi-font:${Fonts.css(p.font||Fonts.postit(p.id))};--pi-x:${p.x};${preview?"":`top:${p.y}px;transform:rotate(${p.tilt}deg);z-index:${p.z};`}">
+    ${postitFastenerHTML(p)}
+    <div class="polaroid-photo" ${preview?"":`data-postit-grip data-polaroid-photo title="Trascina per spostare la polaroid, tocca per vedere la foto grande"`}><img alt="Foto" draggable="false" ${preview?"":`data-polaroid-img="${p.id}"`} ${img?`src="${escapeHTML(img)}"`:""}></div>
+    <button type="button" class="postit-menu" data-action="postit-edit" data-id="${p.id}" title="Fermaglio, carattere o stacca" aria-label="Modifica la polaroid">⋯</button>
+    <input type="text" class="polaroid-caption" ${preview?"tabindex=\"-1\" readonly":`data-postit-text="${p.id}"`} maxlength="80" placeholder="Didascalia…" aria-label="Didascalia della polaroid" value="${escapeHTML(p.text||"")}">
+  </div>`;
+}
 // Altezza della pagina delle note: abbastanza perché nessun post-it resti tagliato.
-function postitPageMinHeight(list){ return list.reduce((m,p)=>Math.max(m,p.y+POSTIT_SIZES[p.size][0]+16),0); }
+function postitPageMinHeight(list){ return list.reduce((m,p)=>Math.max(m,p.y+postitHeight(p)+16),0); }
 function openPostitModal(id){
   const p=id?Postit.get(id):null;
   if(id&&!p) return;
@@ -2787,14 +2839,104 @@ function openPostitModal(id){
     catch(err){ alert("Non sono riuscito a staccare il post-it: "+err.message); }
   });
 }
-// Trascinare: dito o mouse sulla striscia in alto (o sul fermaglio). Il post-it resta dentro la pagina.
+// Altezza / larghezza di una foto (data URL), entro i limiti del database.
+function photoRatio(src){
+  return new Promise(res=>{ const i=new Image(); i.onload=()=>res(Math.round(Math.min(5,Math.max(.2,(i.naturalHeight||1)/(i.naturalWidth||1)))*1000)/1000); i.onerror=()=>res(1); i.src=src; });
+}
+// Polaroid: foto dal Mac (o dal telefono) o dal Diario, copiata nella polaroid; fermaglio e carattere della didascalia.
+function openPolaroidModal(id){
+  const p=id?Postit.get(id):null;
+  if(id&&!p) return;
+  let last={fastener:"nastro",font:"mano"};
+  try{ const s=JSON.parse(localStorage.getItem("polaroid-stile")||"null"); if(s&&POSTIT_FASTENERS[s.fastener]&&FONTS[s.font]) last=s; }catch(_){}
+  const cur=p?{fastener:p.fastener,font:Fonts.postit(p.id)}:last;
+  let pick=p?{foto:Postit.photos[p.id]||"",ratio:p.ratio}:null, diaryOk=false, diaryShown=6;
+  const radios=(name,list)=>Object.entries(list).map(([k,v])=>`<label title="${escapeHTML(v)}"><input type="radio" name="${name}" value="${k}" ${cur[name]===k?"checked":""}><span class="pi-chip">${v}</span></label>`).join("");
+  openModal(`
+    <div class="modal-head"><h3>${p?"Modifica la polaroid":"Nuova polaroid"}</h3><button class="icon-btn" data-close>✕</button></div>
+    <form id="polaroid-form" class="modal-form">
+      <div class="pi-preview" id="pl-preview"></div>
+      ${p?"":`<div class="row"><label>Foto</label><div class="pl-sources"><button type="button" class="btn btn-outline btn-sm" id="pl-mac">📁 Dal Mac o dal telefono</button><button type="button" class="btn btn-outline btn-sm" id="pl-diary">📔 Dal Diario</button><input type="file" id="pl-file" accept="image/*,.png,.jpg,.jpeg,.gif,.webp,.heic,.heif" hidden></div><div id="pl-diary-box" hidden></div></div>`}
+      <div class="row"><label>Fermaglio</label><div class="pi-picker">${radios("fastener",POSTIT_FASTENERS)}</div></div>
+      <div class="row"><label>Carattere della didascalia</label><div class="pi-picker">${fontPickerHTML("font",cur.font)}</div></div>
+      <div class="modal-actions">${p?`<button type="button" class="btn btn-danger" id="polaroid-delete">Stacca la polaroid</button>`:"<span></span>"}<div><button type="button" class="btn btn-ghost" data-close>Annulla</button><button type="submit" class="btn btn-primary" ${p?"":"disabled"}>${p?"Salva":"Attacca la polaroid"}</button></div></div>
+    </form>`,{wide:true});
+  modalEl.querySelectorAll("[data-close]").forEach(b=>b.addEventListener("click",closeModal));
+  const form=document.getElementById("polaroid-form"), submit=form.querySelector("button[type=submit]");
+  const style=()=>Object.fromEntries(["fastener","font"].map(n=>[n,form.querySelector(`input[name=${n}]:checked`).value]));
+  const preview=()=>{
+    const q=Object.assign({id:p?p.id:"anteprima",size:"p",color:"giallo",x:.5,ratio:pick?pick.ratio:1,text:p?p.text:"Didascalia"},style());
+    const box=document.getElementById("pl-preview"); box.style.height=(postitHeight(q)+50)+"px";
+    box.innerHTML=polaroidHTML(q,{preview:true,src:pick?pick.foto:""});
+  };
+  const choose=async foto=>{ pick={foto,ratio:await photoRatio(foto)}; submit.disabled=false; preview(); };
+  form.addEventListener("change",e=>{ if(e.target.name) preview(); }); preview();
+  if(!p){
+    const file=document.getElementById("pl-file"), box=document.getElementById("pl-diary-box");
+    document.getElementById("pl-mac").addEventListener("click",()=>file.click());
+    file.addEventListener("change",async()=>{
+      const f=file.files[0]; file.value=""; if(!f) return;
+      try{ await choose(await fileToBudgetedDataURL(f)); box.querySelectorAll("[aria-pressed=true]").forEach(b=>b.setAttribute("aria-pressed","false")); }
+      catch(err){ alert("Non sono riuscito a leggere la foto: "+err.message); }
+    });
+    // Foto del Diario: col lucchetto serve la sua password (il Diario resta chiuso).
+    const showDiary=()=>{
+      box.hidden=false;
+      const st=DiaryLock.status();
+      if(st==="non-verificabile"){ box.innerHTML=`<p class="card-text">Adesso non riesco a verificare la password del diario: riprova più tardi o scegli una foto dal Mac.</p>`; return; }
+      if(st==="chiuso"&&!diaryOk){
+        box.innerHTML=`<p class="card-text">Il diario è protetto: scrivi la sua password per vedere le foto (il diario resta chiuso).</p><div class="pl-pw"><input type="password" id="pl-pw" placeholder="Password del diario" autocomplete="current-password" aria-label="Password del diario"><button type="button" class="btn btn-primary btn-sm" id="pl-pw-ok">Mostra le foto</button></div><p class="lock-msg" id="pl-pw-msg" role="status"></p>`;
+        const pw=document.getElementById("pl-pw"), ok=document.getElementById("pl-pw-ok");
+        const check=async()=>{ ok.disabled=true; if(await DiaryLock.check(pw.value)){ diaryOk=true; showDiary(); } else { ok.disabled=false; document.getElementById("pl-pw-msg").textContent="Password sbagliata."; pw.select(); } };
+        ok.addEventListener("click",check);
+        pw.addEventListener("keydown",e=>{ if(e.key==="Enter"){ e.preventDefault(); check(); } });
+        pw.focus(); return;
+      }
+      const days=Object.entries(Data.DIARIO_DAYS).filter(([,d])=>d.photoIds&&d.photoIds.length).sort((a,b)=>b[0].localeCompare(a[0]));
+      if(!days.length){ box.innerHTML=`<p class="card-text">Nel diario non ci sono ancora foto.</p>`; return; }
+      const shown=days.slice(0,diaryShown);
+      box.innerHTML=shown.map(([date,d])=>`<div class="pl-day"><div class="pl-date">${formatDateIT(date)}</div><div class="pl-thumbs">${d.photoIds.map(i=>`<button type="button" class="pl-thumb" data-pl-photo="${i}" aria-pressed="false" title="Usa questa foto"><img alt="Foto del ${formatDateIT(date)}"></button>`).join("")}</div></div>`).join("")
+        +(days.length>diaryShown?`<button type="button" class="btn btn-ghost btn-sm" id="pl-more" style="margin-top:8px">Mostra altri giorni</button>`:"");
+      const more=document.getElementById("pl-more"); if(more) more.addEventListener("click",()=>{ diaryShown+=6; showDiary(); });
+      Data.getPhotos(shown.flatMap(([,d])=>d.photoIds)).then(photos=>photos.forEach(ph=>{ const im=box.querySelector(`[data-pl-photo="${ph.id}"] img`); if(im) im.src=ph.dataUrl; }));
+    };
+    document.getElementById("pl-diary").addEventListener("click",showDiary);
+    box.addEventListener("click",e=>{
+      const b=e.target.closest("[data-pl-photo]"), src=b&&Data.PHOTO_CACHE[b.dataset.plPhoto]; if(!src) return;
+      box.querySelectorAll("[aria-pressed=true]").forEach(x=>x.setAttribute("aria-pressed","false")); b.setAttribute("aria-pressed","true");
+      choose(src);
+    });
+  }
+  form.addEventListener("submit",async e=>{
+    e.preventDefault();
+    if(!p&&(!pick||!pick.foto)) return;
+    submit.disabled=true;
+    const s=style();
+    try{
+      if(p){
+        if(s.font!==Fonts.postit(p.id)) await Fonts.setPostit(p.id,s.font);
+        if(s.fastener!==p.fastener) Postit.change(p.id,{fastener:s.fastener},{now:true});
+      }
+      else await Postit.create(state.agendaWeekFrom,{size:"p",color:"giallo",paper:"liscio",fastener:s.fastener,font:s.font,foto:pick.foto,ratio:pick.ratio});
+      try{ localStorage.setItem("polaroid-stile",JSON.stringify(s)); }catch(_){}
+      closeModal(); render();
+    }catch(err){ submit.disabled=false; alert((p?"Non sono riuscito a salvare la polaroid: ":"Non sono riuscito ad attaccare la polaroid: ")+err.message); }
+  });
+  if(p) document.getElementById("polaroid-delete").addEventListener("click",async()=>{
+    if(!confirm("Staccare questa polaroid? Foto e didascalia spariscono dall'agenda (se la foto viene dal Diario, lì resta).")) return;
+    try{ await Postit.remove(p.id); closeModal(); render(); }
+    catch(err){ alert("Non sono riuscito a staccare la polaroid: "+err.message); }
+  });
+}
+// Trascinare: dito o mouse sulla striscia in alto (o sul fermaglio; la polaroid dalla foto). Il post-it resta dentro la pagina.
+// Un tocco sulla foto della polaroid, senza spostarla, la apre a tutto schermo.
 const PostitDrag={
   start(e,el){
     const layer=el.parentElement, id=el.dataset.postit, p=Postit.get(id); if(!p) return;
     e.preventDefault();
     const top=Math.max(...Postit.forWeek(p.week_start).map(q=>q.z));
     if(p.z<top){ p.z=top+1; el.style.zIndex=p.z; }
-    this.cur={el,layer,id,x0:e.clientX,y0:e.clientY,left0:el.offsetLeft,top0:el.offsetTop,moved:false,pointer:e.pointerId};
+    this.cur={el,layer,id,x0:e.clientX,y0:e.clientY,left0:el.offsetLeft,top0:el.offsetTop,moved:false,pointer:e.pointerId,photo:!!e.target.closest("[data-polaroid-photo]")};
     el.classList.add("dragging");
     try{ e.target.setPointerCapture(e.pointerId); }catch(_){}
   },
@@ -2818,6 +2960,7 @@ const PostitDrag={
     if(c.moved){ patch.x=maxLeft>0?Math.round(Math.min(1,Math.max(0,c.el.offsetLeft/maxLeft))*1000)/1000:0; patch.y=Math.round(c.el.offsetTop); }
     c.el.style.left=""; c.el.style.setProperty("--pi-x",patch.x??p.x);
     Postit.change(c.id,patch,{now:true});
+    if(!c.moved&&c.photo&&Postit.photos[c.id]) PhotoView.open([Postit.photos[c.id]],0);
   }
 };
 document.addEventListener("pointerdown",e=>{
@@ -3707,7 +3850,7 @@ function renderAgenda(){
       </section>
       <div class="notebook-spine" aria-hidden="true"></div>
       <section class="npage npage-notes" aria-label="Note della settimana"${fmMinH("note")}>
-        <div class="npage-head"><div class="npage-months"><span>Note</span></div><div class="notes-head-right"><div class="npage-wnum">${label}</div><div class="notes-tools">${formeButtonHTML("note")}${Data.postitAvailable?`<button type="button" class="notes-strike" data-action="postit-new" title="Attacca un post-it a questa settimana: scegli colore, grandezza, carta e fermaglio">＋ Post-it</button>`:""}<button type="button" class="notes-strike" data-action="notes-list" data-kind="b" title="Elenco puntato sulla riga dove sei o su quelle selezionate; ripremi per toglierlo (⌘⇧8). Anche scrivendo «- » a inizio riga">• Elenco</button><button type="button" class="notes-strike" data-action="notes-list" data-kind="n" title="Elenco numerato sulla riga dove sei o su quelle selezionate; ripremi per toglierlo (⌘⇧7). Anche scrivendo «1. » a inizio riga">1. Elenco</button><button type="button" class="notes-strike" data-action="notes-strike" title="Barra la riga dove sei, o tutte quelle selezionate; ripremi per togliere la barra (⌘⇧X)"><s>Barra</s> riga</button></div></div></div>
+        <div class="npage-head"><div class="npage-months"><span>Note</span></div><div class="notes-head-right"><div class="npage-wnum">${label}</div><div class="notes-tools">${formeButtonHTML("note")}${Data.postitAvailable?`<button type="button" class="notes-strike" data-action="postit-new" title="Attacca un post-it a questa settimana: scegli colore, grandezza, carta e fermaglio">＋ Post-it</button>`:""}${Data.polaroidAvailable?`<button type="button" class="notes-strike" data-action="polaroid-new" title="Attacca una foto a questa settimana come una polaroid: dal Mac o dal Diario, con didascalia e fermaglio">＋ Polaroid</button>`:""}<button type="button" class="notes-strike" data-action="notes-list" data-kind="b" title="Elenco puntato sulla riga dove sei o su quelle selezionate; ripremi per toglierlo (⌘⇧8). Anche scrivendo «- » a inizio riga">• Elenco</button><button type="button" class="notes-strike" data-action="notes-list" data-kind="n" title="Elenco numerato sulla riga dove sei o su quelle selezionate; ripremi per toglierlo (⌘⇧7). Anche scrivendo «1. » a inizio riga">1. Elenco</button><button type="button" class="notes-strike" data-action="notes-strike" title="Barra la riga dove sei, o tutte quelle selezionate; ripremi per togliere la barra (⌘⇧X)"><s>Barra</s> riga</button></div></div></div>
         ${notesFormatBarHTML()}
         <div class="notes-body" ${minH?`style="min-height:${minH}px"`:""}>
         <div class="ruled notes-edit ${notesText.trim()?"":"empty"}" contenteditable="true" role="textbox" aria-multiline="true" spellcheck="true" data-agenda="w:${from}" data-placeholder="Note della settimana…" aria-label="Note della settimana ${label}">${notesToHTML(notesText)}</div>
@@ -4582,7 +4725,7 @@ function render(){
     case "agenda": root.innerHTML=renderAgenda();
       if(Agenda.refocus){ const el=document.getElementById("ag-new-"+Agenda.refocus); Agenda.refocus=null; if(el) el.focus(); }
       if(Agenda.scrollTo){ const el=document.getElementById(Agenda.scrollTo); Agenda.scrollTo=null; if(el) el.scrollIntoView({block:"center"}); }
-      Forme.afterRender();
+      Forme.afterRender(); Postit.afterRender();
       break;
     case "sport": root.innerHTML=renderCategoryPage("sport"); break;
     case "studio": root.innerHTML=renderCategoryPage("studio"); break;
@@ -5129,7 +5272,8 @@ document.addEventListener("click",e=>{
   else if(action==="forma-new"){ formeMenuClose(); formaNew(btn.dataset.page,btn.dataset.kind,+btn.dataset.rot||0); }
   else if(action.startsWith("forma-")) Forme.action(action,btn.dataset.v);
   else if(action==="postit-new") openPostitModal(null);
-  else if(action==="postit-edit") openPostitModal(btn.dataset.id);
+  else if(action==="postit-edit"){ const p=Postit.get(btn.dataset.id); if(p&&p.size==="p") openPolaroidModal(p.id); else openPostitModal(btn.dataset.id); }
+  else if(action==="polaroid-new") openPolaroidModal(null);
   else if(action==="diary-lock"){ DiaryLock.lock(); render(); }
   else if(action==="health-lock"){ HealthLock.lock(); render(); }
   else if(action==="health-tab"){ state.healthTab=btn.dataset.tab; render(); }
