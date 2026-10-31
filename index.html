@@ -268,6 +268,17 @@ h1,h2,h3{font-family:var(--font-display);text-wrap:balance;margin:0;}
 .photo-thumb.pending{opacity:.5;}
 .photo-remove{position:absolute;top:2px;right:2px;width:19px;height:19px;border-radius:50%;border:none;background:rgba(10,15,25,.68);color:#fff;font-size:.66rem;cursor:pointer;display:flex;align-items:center;justify-content:center;}
 .photo-remove:hover{background:rgba(10,15,25,.88);}
+.photo-thumb img{cursor:zoom-in;}
+/* foto del diario a tutto schermo */
+.photo-view{position:fixed;inset:0;z-index:90;background:rgba(5,8,14,.92);display:flex;align-items:center;justify-content:center;padding:max(62px,env(safe-area-inset-top)) 14px max(44px,env(safe-area-inset-bottom));cursor:zoom-out;}
+.photo-view.hidden{display:none;}
+.photo-view img{max-width:100%;max-height:100%;object-fit:contain;border-radius:6px;box-shadow:0 10px 40px rgba(0,0,0,.5);}
+.photo-view button{position:absolute;border:none;background:rgba(255,255,255,.16);color:#fff;border-radius:50%;width:42px;height:42px;font-size:1.25rem;cursor:pointer;display:flex;align-items:center;justify-content:center;}
+.photo-view button:hover{background:rgba(255,255,255,.3);}
+.photo-view .pv-close{top:max(12px,env(safe-area-inset-top));right:12px;}
+.photo-view .pv-prev{left:10px;top:50%;transform:translateY(-50%);}
+.photo-view .pv-next{right:10px;top:50%;transform:translateY(-50%);}
+.photo-view .pv-count{position:absolute;bottom:max(12px,env(safe-area-inset-bottom));left:50%;transform:translateX(-50%);color:#fff;font-size:.85rem;opacity:.8;}
 /* allegati */
 .attach-list{display:flex;flex-direction:column;gap:6px;}
 .attach-list:empty{display:none;}
@@ -767,6 +778,7 @@ a.attach-name{color:var(--c-todo);text-decoration:underline;}
 <nav class="tabbar" id="tabbar"></nav>
 
 <div class="overlay hidden" id="overlay"><div class="modal" id="modal"></div></div>
+<div class="photo-view hidden" id="photo-view" role="dialog" aria-label="Foto"><img alt=""><button type="button" class="pv-prev" aria-label="Foto precedente">‹</button><button type="button" class="pv-next" aria-label="Foto successiva">›</button><button type="button" class="pv-close" aria-label="Chiudi">✕</button><span class="pv-count"></span></div>
 
 
 
@@ -4599,6 +4611,7 @@ function openModal(html,{wide=false}={}){
   if(first) first.focus();
 }
 function closeModal(){
+  document.getElementById("photo-view").classList.add("hidden"); // con la finestra si chiude anche la foto aperta
   overlay.classList.add("hidden");
   modalEl.classList.remove("wide");
   modalEl.innerHTML="";
@@ -4911,6 +4924,38 @@ async function fileToBudgetedDataURL(file){
 function diaryPhotoThumbHTML(id,dataUrl){
   return `<div class="photo-thumb" data-photo-id="${id}"><img src="${dataUrl}" alt=""><button type="button" class="photo-remove" data-remove-photo title="Rimuovi foto">✕</button></div>`;
 }
+// Foto del diario a tutto schermo: tocco sulla miniatura; ‹ › o frecce per le altre, tocco/Esc per chiudere.
+const PhotoView={
+  el:document.getElementById("photo-view"), srcs:[], i:0,
+  open(srcs,i){ this.srcs=srcs; this.i=i; this.show(); this.el.classList.remove("hidden"); },
+  close(){ this.el.classList.add("hidden"); this.el.querySelector("img").removeAttribute("src"); },
+  go(d){ if(this.srcs.length<2)return; this.i=(this.i+d+this.srcs.length)%this.srcs.length; this.show(); },
+  show(){
+    const many=this.srcs.length>1;
+    this.el.querySelector("img").src=this.srcs[this.i];
+    this.el.querySelector(".pv-prev").hidden=!many; this.el.querySelector(".pv-next").hidden=!many;
+    this.el.querySelector(".pv-count").textContent=many?`${this.i+1} / ${this.srcs.length}`:"";
+  }
+};
+PhotoView.el.addEventListener("click",e=>{
+  if(e.target.closest(".pv-prev")) PhotoView.go(-1);
+  else if(e.target.closest(".pv-next")) PhotoView.go(1);
+  else PhotoView.close();
+});
+document.addEventListener("keydown",e=>{
+  if(PhotoView.el.classList.contains("hidden"))return;
+  if(e.key==="Escape"){ e.preventDefault(); e.stopPropagation(); PhotoView.close(); }
+  else if(e.key==="ArrowLeft"){ e.preventDefault(); e.stopPropagation(); PhotoView.go(-1); }
+  else if(e.key==="ArrowRight"){ e.preventDefault(); e.stopPropagation(); PhotoView.go(1); }
+},true);
+let pvTouchX=null;
+PhotoView.el.addEventListener("touchstart",e=>{ pvTouchX=e.touches.length===1?e.touches[0].clientX:null; },{passive:true});
+PhotoView.el.addEventListener("touchend",e=>{
+  if(pvTouchX===null)return;
+  const dx=e.changedTouches[0].clientX-pvTouchX; pvTouchX=null;
+  if(Math.abs(dx)>50&&PhotoView.srcs.length>1){ e.preventDefault(); PhotoView.go(dx<0?1:-1); }
+});
+
 async function openDiaryDayModal(date){
   const existing=Data.getDiaryDay(date);
   const dayAtts=Data.attachmentsFor("diario",{day:date});
@@ -4927,6 +4972,11 @@ async function openDiaryDayModal(date){
 
   const photosBox=document.getElementById("diary-photos");
   function bindPhotoRemove(){ photosBox.querySelectorAll("[data-remove-photo]").forEach(btn=>{ btn.onclick=()=>btn.closest(".photo-thumb").remove(); }); }
+  photosBox.addEventListener("click",e=>{
+    const img=e.target.closest(".photo-thumb img"); if(!img||!img.getAttribute("src"))return;
+    const imgs=[...photosBox.querySelectorAll(".photo-thumb img")].filter(x=>x.getAttribute("src"));
+    PhotoView.open(imgs.map(x=>x.src),imgs.indexOf(img));
+  });
 
   const existingIds=existing&&existing.photoIds?existing.photoIds:[];
   if(existingIds.length){
