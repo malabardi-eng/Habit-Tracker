@@ -540,14 +540,14 @@ a.attach-name{color:var(--c-todo);text-decoration:underline;}
 @media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .postit{filter:brightness(.9) saturate(.95);}}
 :root[data-theme="dark"] .postit{filter:brightness(.9) saturate(.95);}
 /* polaroid: post-it con una foto intera nella cornice bianca e la didascalia sotto; si trascina dalla foto */
-.postit.polaroid{height:var(--pi-h);background:#FBFAF6;border-radius:2px;}
+.postit.polaroid{height:auto;padding:12px 12px 8px;background:#FBFAF6;border-radius:2px;}
 .postit.polaroid::after{content:none;}
 .polaroid .fas{z-index:2;}
-.polaroid-photo{position:absolute;left:12px;right:12px;top:12px;height:var(--ph);background:#E7E4DC;cursor:grab;touch-action:none;}
+.polaroid-photo{position:relative;height:var(--ph);background:#E7E4DC;cursor:grab;touch-action:none;}
 .polaroid-photo img{width:100%;height:100%;object-fit:contain;display:block;pointer-events:none;}
 .polaroid-photo img:not([src]){visibility:hidden;}
 .polaroid .postit-menu{top:16px;right:16px;z-index:3;background:rgba(251,250,246,.8);}
-.polaroid-caption{position:absolute;left:12px;right:12px;bottom:8px;height:30px;border:none;background:transparent;text-align:center;color:#2A2925;font-family:var(--pi-font,var(--font-body));font-size:1rem;padding:0 4px;}
+.polaroid-caption{display:block;width:100%;height:30px;margin-top:6px;border:none;background:transparent;resize:none;overflow:hidden;text-align:center;color:#2A2925;font-family:var(--pi-font,var(--font-body));font-size:1rem;line-height:22px;padding:4px;}
 .polaroid-caption:focus{outline:none;}
 .polaroid-caption::placeholder{color:rgba(42,41,37,.38);}
 /* finestra della polaroid: da dove prendere la foto */
@@ -2644,9 +2644,16 @@ const POSTIT_FASTENERS={puntina:"Puntina",nastro:"Nastro adesivo",graffetta:"Gra
 const POSTIT_PINS=["#E0393E","#2F9E5B","#2C8FD6","#F2B705","#B24BC9"];
 // Polaroid: post-it di grandezza «p» con la foto intera (larghezza fissa, altezza secondo la foto) e la didascalia nel testo.
 const POSTIT_COLS="id,week_start,text,color,size,paper,fastener,x,y,tilt,z,created_at,updated_at,ratio";
-const POLAROID_W=220, POLAROID_PAD=12, POLAROID_FOOT=46;
+const POLAROID_W=220, POLAROID_PAD=12, POLAROID_LINE=22;
 function polaroidPhotoH(p){ return Math.round((POLAROID_W-2*POLAROID_PAD)*Math.min(1.5,Math.max(.5,+p.ratio||1))); }
-function postitHeight(p){ return p.size==="p"?POLAROID_PAD+polaroidPhotoH(p)+POLAROID_FOOT:POSTIT_SIZES[p.size][0]; }
+// La didascalia va a capo da sola (circa 20 caratteri per riga) e con Invio: la cornice si allunga sotto.
+function polaroidCaptionLines(t){ return (t||"").split("\n").reduce((n,l)=>n+Math.max(1,Math.ceil(l.length/20)),0); }
+function postitHeight(p){ return p.size==="p"?POLAROID_PAD+polaroidPhotoH(p)+22+polaroidCaptionLines(p.text)*POLAROID_LINE:POSTIT_SIZES[p.size][0]; }
+function polaroidFitCaption(ta){
+  ta.style.height="auto"; ta.style.height=ta.scrollHeight+"px";
+  const el=ta.closest("[data-postit]"), body=el&&el.closest(".notes-body"); if(!body) return;
+  const need=el.offsetTop+el.offsetHeight+16; if(body.offsetHeight<need) body.style.minHeight=need+"px";
+}
 /* ---- Caratteri: uno per l'agenda (giorni, note, mese), uno per ogni post-it ----
    Tutti già presenti su Mac e iPhone; altrove si usa il carattere simile indicato dopo. Salvati in habit_impostazioni
    («agenda_carattere» e «postit_caratteri», id del post-it → carattere), quindi uguali su ogni dispositivo. */
@@ -2766,7 +2773,11 @@ const Postit={
     }catch(_){}
     finally{ ids.forEach(i=>this.loadingPhotos.delete(i)); }
   },
-  afterRender(){ if(Data.polaroidAvailable&&state.route==="agenda"&&state.agendaView==="settimana") this.loadPhotos(state.agendaWeekFrom); }
+  afterRender(){
+    if(!Data.polaroidAvailable||state.route!=="agenda"||state.agendaView!=="settimana") return;
+    document.querySelectorAll(".notes-body .polaroid-caption").forEach(polaroidFitCaption);
+    this.loadPhotos(state.agendaWeekFrom);
+  }
 };
 function postitFastenerHTML(p){
   const pin=POSTIT_PINS[[...p.id].reduce((s,c)=>s+c.charCodeAt(0),0)%POSTIT_PINS.length];
@@ -2794,7 +2805,7 @@ function polaroidHTML(p,{preview=false,src=""}={}){
     ${postitFastenerHTML(p)}
     <div class="polaroid-photo" ${preview?"":`data-postit-grip data-polaroid-photo title="Trascina per spostare la polaroid, tocca per vedere la foto grande"`}><img alt="Foto" draggable="false" ${preview?"":`data-polaroid-img="${p.id}"`} ${img?`src="${escapeHTML(img)}"`:""}></div>
     <button type="button" class="postit-menu" data-action="postit-edit" data-id="${p.id}" title="Fermaglio, carattere o stacca" aria-label="Modifica la polaroid">⋯</button>
-    <input type="text" class="polaroid-caption" ${preview?"tabindex=\"-1\" readonly":`data-postit-text="${p.id}"`} maxlength="80" placeholder="Didascalia…" aria-label="Didascalia della polaroid" value="${escapeHTML(p.text||"")}">
+    <textarea class="polaroid-caption" rows="1" ${preview?"tabindex=\"-1\" readonly":`data-postit-text="${p.id}"`} maxlength="400" placeholder="Didascalia…" aria-label="Didascalia della polaroid">${escapeHTML(p.text||"")}</textarea>
   </div>`;
 }
 // Altezza della pagina delle note: abbastanza perché nessun post-it resti tagliato.
@@ -2868,6 +2879,7 @@ function openPolaroidModal(id){
     const q=Object.assign({id:p?p.id:"anteprima",size:"p",color:"giallo",x:.5,ratio:pick?pick.ratio:1,text:p?p.text:"Didascalia"},style());
     const box=document.getElementById("pl-preview"); box.style.height=(postitHeight(q)+50)+"px";
     box.innerHTML=polaroidHTML(q,{preview:true,src:pick?pick.foto:""});
+    box.querySelectorAll(".polaroid-caption").forEach(polaroidFitCaption);
   };
   const choose=async foto=>{ pick={foto,ratio:await photoRatio(foto)}; submit.disabled=false; preview(); };
   form.addEventListener("change",e=>{ if(e.target.name) preview(); }); preview();
@@ -5335,7 +5347,7 @@ document.addEventListener("input",e=>{
   if(ds.projectStep){ ProjectDrafts["s:"+ds.projectStep]=e.target.value; return; }
   if(ds.projectLog){ ProjectDrafts["l:"+ds.projectLog]=e.target.value; if(SpeechInput.target&&SpeechInput.target.id===e.target.id) SpeechInput.base=e.target.value; return; }
   const pid=e.target.dataset&&e.target.dataset.postitText;
-  if(pid){ Postit.change(pid,{text:e.target.value}); return; }
+  if(pid){ Postit.change(pid,{text:e.target.value}); if(e.target.classList.contains("polaroid-caption")) polaroidFitCaption(e.target); return; }
   const fid=e.target.dataset&&e.target.dataset.fmText;
   if(fid){ Forme.change(fid,{text:e.target.value}); return; }
   const k=e.target.dataset&&e.target.dataset.agenda; if(!k)return;
