@@ -350,6 +350,15 @@ button.attach-name:hover{text-decoration:underline;}
 .proj-sec{margin-top:14px;}
 .proj-sec h4{margin:0 0 4px;font-size:.8rem;color:var(--ink-soft);text-transform:uppercase;letter-spacing:.04em;}
 .proj-step{display:flex;align-items:center;gap:9px;padding:5px 0;border-bottom:1px solid var(--line);}
+/* Maniglia ⠿ per trascinare passi e impegni; la riga presa resta segnata al suo posto, una copia segue il dito. */
+.drag-grip{flex-shrink:0;width:22px;align-self:stretch;display:flex;align-items:center;justify-content:center;color:var(--ink-faint);font-size:1rem;line-height:1;cursor:grab;touch-action:none;user-select:none;-webkit-user-select:none;opacity:.75;}
+.drag-grip.off{visibility:hidden;}
+.drag-grip:hover{opacity:1;}
+.ag-item .drag-grip{width:18px;color:var(--paper-soft);font-size:.9rem;}
+.drag-source{opacity:.35;}
+.drag-ghost{position:fixed;z-index:95;pointer-events:none;margin:0;background:var(--surface);box-shadow:var(--shadow-lg,var(--shadow));border-radius:var(--r-sm);padding-left:6px;padding-right:6px;opacity:.95;}
+body.drag-on,body.drag-on *{cursor:grabbing!important;user-select:none!important;-webkit-user-select:none!important;}
+.todo-shift{display:flex;gap:8px;flex-wrap:wrap;margin-top:6px;}
 .proj-step .todo-check{width:22px;height:22px;font-size:.7rem;}
 .proj-step-title{flex:1;min-width:0;background:none;border:none;padding:0;text-align:left;font-size:.88rem;cursor:pointer;overflow-wrap:anywhere;}
 .proj-step.done .proj-step-title{text-decoration:line-through;color:var(--ink-faint);}
@@ -1564,6 +1573,42 @@ const Data={
     this.PROJECT_LINKS=this.PROJECT_LINKS.filter(l=>l.project_id!==id);
     render(); return true;
   },
+  // Trascinamenti: il nuovo ordine compare subito, poi va nel database una riga alla volta.
+  // Se una scrittura non riesce, le righe non ancora salvate tornano com'erano (lo schermo resta uguale al database).
+  async patchMany(name,table,changes){
+    const old=new Map(changes.map(([id])=>[id,{...this[name].find(x=>x.id===id)}]));
+    for(const[id,body]of changes) Object.assign(this[name].find(x=>x.id===id),body);
+    render();
+    try{
+      for(const[id,body]of changes){
+        const res=await sbFetch(`/${table}?id=eq.${encodeURIComponent(id)}`,{method:"PATCH",body,prefer:"return=representation"});
+        const row=res&&res[0]; if(!row) throw new Error("risposta vuota");
+        const i=this[name].findIndex(x=>x.id===id); if(i!==-1) this[name][i]=row;
+        old.delete(id);
+      }
+      return true;
+    }catch(e){
+      for(const[id,row]of old){ const i=this[name].findIndex(x=>x.id===id); if(i!==-1) this[name][i]=row; }
+      render(); alert("Non sono riuscito a salvare lo spostamento: "+e.message); return false;
+    }
+  },
+  reorderSteps(projectId,ids){
+    const changes=ids.map((id,i)=>[id,{position:i}]).filter(([id,b])=>{ const s=this.PROJECT_STEPS.find(x=>x.id===id); return s&&s.project_id===projectId&&s.position!==b.position; });
+    if(!changes.length){ render(); return; }
+    return this.patchMany("PROJECT_STEPS","habit_project_steps",changes);
+  },
+  // Impegno lasciato nel giorno iso; ids = ordine a schermo delle righe di quel giorno.
+  moveAgendaItem(id,iso,ids){
+    const t=this.TODOS.find(x=>x.id===id); if(!t||t.recurrence){ render(); return; }
+    const changes=new Map();
+    if(t.due_date!==iso) changes.set(id,{due_date:iso});
+    // Ordine dei senza orario: solo dopo agenda-ordine-PROPOSTA.sql (prima il campo non esiste).
+    if("position" in t) ids.map(x=>this.TODOS.find(y=>y.id===x)).filter(x=>x&&!x.due_time&&!x.recurrence).forEach((x,i)=>{
+      if(x.position!==i) changes.set(x.id,{...(changes.get(x.id)||{}),position:i});
+    });
+    if(!changes.size){ render(); return; }
+    return this.patchMany("TODOS","habit_todos",[...changes]);
+  },
   async addStep(projectId,title){
     const pos=Math.max(0,...this.PROJECT_STEPS.filter(s=>s.project_id===projectId).map(s=>s.position+1));
     const r=await this.projectWrite("habit_project_steps",this.PROJECT_STEPS,{body:{project_id:projectId,title,position:pos}}); render(); return r;
@@ -2151,7 +2196,7 @@ function todoListCard(title,items,{empty,late=false,addDate}={}){
     ${items.length?`<div class="rlist">${items.map(i=>todoRowHTML(i)).join("")}</div>`:emptyState(empty)}</div>`;
 }
 function renderTodos(){
-  const intro=`<div class="card intro" style="--accent:var(--c-todo)"><div>Le tue cose da fare: in un giorno preciso, ricorrenti o «quando posso». Quelle non spuntate restano in evidenza finché non le segni come fatte. In «📁 Progetti» segui i progetti personali con un inizio e una fine: passi da spuntare e diario dei progressi, da scrivere o dettare. Quelli di lavoro sono in «Lavoro → 📁 Progetti di lavoro».</div></div>`;
+  const intro=`<div class="card intro" style="--accent:var(--c-todo)"><div>Le tue cose da fare: in un giorno preciso, ricorrenti o «quando posso». Quelle non spuntate restano in evidenza finché non le segni come fatte. In «📁 Progetti» segui i progetti personali con un inizio e una fine: passi da spuntare (con la maniglia ⠿ li trascini più su o più giù per cambiare le priorità) e diario dei progressi, da scrivere o dettare. Quelli di lavoro sono in «Lavoro → 📁 Progetti di lavoro».</div></div>`;
   if(!Data.todosAvailable) return intro+`<div class="card">${emptyState("La sezione Da fare sarà disponibile appena il database verrà aggiornato.")}</div>`;
   const today=todayISO();
   const s=TodoLogic.summary(Data.TODOS,Data.TODO_DONE,today);
@@ -2217,7 +2262,8 @@ function projectCardHTML(p){
   const st=projectStats(p), log=projectLog(p.id), allLog=projectLogOpen.has(p.id);
   const shown=allLog?log:log.slice(0,PROJECT_LOG_SHOWN);
   const bar=(label,pct,cls,title)=>`<div class="proj-bar" title="${title}"><span>${label}</span><div class="proj-track" role="progressbar" aria-label="${label}" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${pct}"><div class="proj-fill ${cls}" style="width:${pct}%"></div></div><b>${pct}%</b></div>`;
-  const steps=st.steps.map(s=>`<div class="proj-step ${s.done_at?"done":""}">
+  const grip=st.steps.length>1?`<span class="drag-grip" data-drag-grip title="Trascina per cambiare l'ordine" aria-hidden="true">⠿</span>`:"";
+  const steps=st.steps.map(s=>`<div class="proj-step ${s.done_at?"done":""}" data-drag-item="${s.id}">${grip}
       <button type="button" class="todo-check ${s.done_at?"done":""}" data-action="project-step-toggle" data-id="${s.id}" aria-label="${s.done_at?"Segna di nuovo da fare":"Segna come fatto"}: ${escapeHTML(s.title)}">${s.done_at?"✓":""}</button>
       <button type="button" class="proj-step-title" data-action="project-step-edit" data-id="${s.id}" title="Rinomina o elimina">${escapeHTML(s.title)}</button>
     </div>`).join("");
@@ -2233,7 +2279,7 @@ function projectCardHTML(p){
       ${st.pct===null?`<div class="hint">Aggiungi i passi qui sotto: spuntandoli vedrai la percentuale dei progressi.</div>`:bar("Progressi",st.pct,"","Passi fatti sul totale")}
       ${p.done_at?"":bar("Tempo passato",st.timePct,st.late?"late":"time","Giorni passati sul totale del progetto")}
     </div>
-    <div class="proj-sec"><h4>Passi</h4>${steps||`<div class="hint">Nessun passo ancora.</div>`}
+    <div class="proj-sec"><h4>Passi</h4>${steps?`<div class="proj-steps" data-drop-list="step:${p.id}">${steps}</div>`:`<div class="hint">Nessun passo ancora.</div>`}
       <div class="proj-add"><input type="text" maxlength="300" data-project-step="${p.id}" placeholder="Nuovo passo e Invio…" aria-label="Nuovo passo del progetto ${escapeHTML(p.title)}" value="${escapeHTML(ProjectDrafts["s:"+p.id]||"")}"><button type="button" class="btn btn-outline btn-sm" style="--accent:var(--c-todo)" data-action="project-step-add" data-id="${p.id}">＋</button></div>
     </div>
     ${projectDocsHTML(p)}
@@ -2983,6 +3029,59 @@ document.addEventListener("pointerdown",e=>{
 document.addEventListener("pointermove",e=>PostitDrag.move(e));
 document.addEventListener("pointerup",e=>PostitDrag.end(e));
 document.addEventListener("pointercancel",e=>PostitDrag.end(e));
+// Riordino trascinando la maniglia ⠿: passi di un progetto (solo nello stesso progetto) e impegni
+// dell'Agenda (anche su un altro giorno della settimana). Funziona con mouse e dito; Esc annulla.
+const SortDrag={
+  start(e,grip){
+    const item=grip.closest("[data-drag-item]"), list=item&&item.closest("[data-drop-list]"); if(!list) return;
+    e.preventDefault();
+    const r=item.getBoundingClientRect(), ghost=item.cloneNode(true);
+    ghost.classList.add("drag-ghost"); ghost.removeAttribute("data-drag-item");
+    ghost.style.width=r.width+"px"; ghost.style.left=r.left+"px"; ghost.style.top=r.top+"px";
+    this.cur={item,ghost,group:list.dataset.dropList.split(":")[0],from:list,pointer:e.pointerId,dx:e.clientX-r.left,dy:e.clientY-r.top,x0:e.clientX,y0:e.clientY,moved:false};
+    try{ grip.setPointerCapture(e.pointerId); }catch(_){}
+  },
+  move(e){
+    const c=this.cur; if(!c||e.pointerId!==c.pointer) return;
+    if(!c.item.isConnected){ this.cancel(); return; }
+    if(!c.moved){
+      if(Math.abs(e.clientX-c.x0)+Math.abs(e.clientY-c.y0)<4) return;
+      c.moved=true; document.body.appendChild(c.ghost); c.item.classList.add("drag-source"); document.body.classList.add("drag-on");
+    }
+    e.preventDefault();
+    c.ghost.style.left=(e.clientX-c.dx)+"px"; c.ghost.style.top=(e.clientY-c.dy)+"px";
+    if(e.clientY<56) window.scrollBy(0,-14); else if(e.clientY>window.innerHeight-56) window.scrollBy(0,14);
+    const under=document.elementFromPoint(e.clientX,e.clientY), list=under&&under.closest("[data-drop-list]");
+    if(!list||list.dataset.dropList.split(":")[0]!==c.group||(c.group==="step"&&list!==c.from)) return;
+    const before=[...list.querySelectorAll(":scope > [data-drag-item]")].find(x=>{ if(x===c.item) return false; const b=x.getBoundingClientRect(); return e.clientY<b.top+b.height/2; });
+    const anchor=before||list.querySelector(":scope > [data-drop-end]");
+    if(anchor){ if(anchor!==c.item.nextElementSibling) list.insertBefore(c.item,anchor); }
+    else if(list.lastElementChild!==c.item) list.appendChild(c.item);
+  },
+  end(e){
+    const c=this.cur; if(!c||e.pointerId!==c.pointer) return;
+    this.finish();
+    if(!c.moved) return;
+    if(!c.item.isConnected){ render(); return; }
+    const list=c.item.closest("[data-drop-list]"), [group,key]=list.dataset.dropList.split(":");
+    const ids=[...list.querySelectorAll(":scope > [data-drag-item]")].map(x=>x.dataset.dragItem);
+    if(group==="step") Data.reorderSteps(key,ids);
+    else if(group==="ag") Data.moveAgendaItem(c.item.dataset.dragItem,key,ids);
+  },
+  finish(){
+    const c=this.cur; if(!c) return; this.cur=null;
+    c.ghost.remove(); c.item.classList.remove("drag-source"); document.body.classList.remove("drag-on");
+  },
+  cancel(){ const moved=this.cur&&this.cur.moved; this.finish(); if(moved) render(); }
+};
+document.addEventListener("pointerdown",e=>{
+  if(e.button>0) return;
+  const grip=e.target.closest&&e.target.closest("[data-drag-grip]"); if(grip) SortDrag.start(e,grip);
+});
+document.addEventListener("pointermove",e=>SortDrag.move(e),{passive:false});
+document.addEventListener("pointerup",e=>SortDrag.end(e));
+document.addEventListener("pointercancel",()=>SortDrag.cancel());
+document.addEventListener("keydown",e=>{ if(e.key==="Escape"&&SortDrag.cur) SortDrag.cancel(); });
 // Scrivendo su un post-it lo si porta davanti agli altri.
 document.addEventListener("focusin",e=>{
   const id=e.target.dataset&&e.target.dataset.postitText; if(!id) return;
@@ -3732,12 +3831,18 @@ async function addAgendaLine(iso,line){
   if(!title) return null;
   return Data.addTodo({title:title.slice(0,300),notes:"",due_date:iso,due_time:time,recurrence:null});
 }
-// Prima con l'ora in ordine di orario, poi le altre nell'ordine in cui sono state scritte.
+// Prima con l'ora in ordine di orario, poi le altre nell'ordine scelto trascinando
+// (campo position, dopo agenda-ordine-PROPOSTA.sql) o in quello in cui sono state scritte;
+// le ricorrenti senza ora in fondo: il loro ordine varrebbe per tutti i giorni.
 function agendaItemsForDay(iso){
   if(!Data.todosAvailable) return[];
   return todosForDay(iso).sort((a,b)=>{
     const ta=a.todo.due_time||"99:99", tb=b.todo.due_time||"99:99";
-    return ta!==tb?(ta<tb?-1:1):((a.todo.created_at||"")<(b.todo.created_at||"")?-1:1);
+    if(ta!==tb) return ta<tb?-1:1;
+    if(!a.todo.recurrence!==!b.todo.recurrence) return a.todo.recurrence?1:-1;
+    const pa=a.todo.position??1e9, pb=b.todo.position??1e9;
+    if(pa!==pb) return pa-pb;
+    return (a.todo.created_at||"")<(b.todo.created_at||"")?-1:1;
   });
 }
 function agendaDayHTML(iso,today){
@@ -3746,7 +3851,8 @@ function agendaDayHTML(iso,today){
   const items=agendaItemsForDay(iso);
   const rows=items.map(i=>{
     const t=i.todo, done=!!i.done;
-    return `<div class="ag-item ${done?"done":""} ${i.late?"late":""}">
+    // Le ricorrenti non si trascinano: spostarle cambierebbe tutte le ripetizioni.
+    return `<div class="ag-item ${done?"done":""} ${i.late?"late":""}" data-drag-item="${t.id}">${t.recurrence?`<span class="drag-grip off" aria-hidden="true">⠿</span>`:`<span class="drag-grip" data-drag-grip title="Trascina su un altro giorno o in un altro punto" aria-hidden="true">⠿</span>`}
       <button type="button" class="todo-check ${done?"done":""}" data-action="${done?"todo-undo":"todo-done"}" data-id="${t.id}" data-occ="${i.occurrence||""}" title="${done?"Segna di nuovo come da fare":"Segna come fatta"}" aria-label="${done?"Segna di nuovo come da fare":"Segna come fatta"}: ${escapeHTML(t.title)}">${done?"✓":""}</button>
       <button type="button" class="ag-title" data-action="todo-edit" data-id="${t.id}" title="Modifica o elimina">${t.due_time?`<span class="ag-time">${t.due_time.slice(0,5)}</span>`:""}${(st=>st?`<span class="${nfClasses(st)}">${escapeHTML(t.title)}</span>`:escapeHTML(t.title))(AgendaStyles.get(t.id))}${t.recurrence?` <span title="${escapeHTML(describeRecurrenceIT(t.recurrence))}">🔁</span>`:""}</button>
     </div>`;
@@ -3758,8 +3864,8 @@ function agendaDayHTML(iso,today){
   return `<div class="nday ${iso===today?"today":""}" id="nday-${iso}">
     <label class="nday-label" for="ag-new-${iso}">${name.charAt(0).toUpperCase()+name.slice(1)}<b>${d.getDate()}</b></label>
     ${legacyHTML}
-    <div class="ag-lines">${marks}${rows}
-      <input type="text" class="ag-new" id="ag-new-${iso}" data-agenda-new="${iso}" maxlength="306" autocomplete="off" placeholder="${items.length?"":"Scrivi e premi Invio…"}" aria-label="Nuovo appuntamento di ${name} ${formatDateIT(iso)}">
+    <div class="ag-lines" data-drop-list="ag:${iso}">${marks}${rows}
+      <input type="text" class="ag-new" id="ag-new-${iso}" data-agenda-new="${iso}" data-drop-end maxlength="306" autocomplete="off" placeholder="${items.length?"":"Scrivi e premi Invio…"}" aria-label="Nuovo appuntamento di ${name} ${formatDateIT(iso)}">
       ${'<div class="ag-filler"></div>'.repeat(fillers)}
     </div>
   </div>`;
@@ -3830,7 +3936,7 @@ function renderAgendaYear(){
     </section>`;
 }
 function renderAgenda(){
-  const intro=`<div class="card intro" style="--accent:var(--c-todo)"><div>La tua agenda: in «Settimana» a sinistra gli appuntamenti di ogni giorno, a destra le note della settimana; «Mese» e «Anno» mostrano il calendario come sul telefono (tocca un giorno o un mese per aprirlo). Scrivi una riga e premi Invio: diventa un appuntamento con il suo cerchietto da spuntare, che trovi anche in Da fare. Se la riga inizia con un'ora (es. «10:00 dentista») viene messa in ordine di orario. Tocca il testo per modificarlo o eliminarlo. Nelle note, una riga fatta o che non ti serve più puoi barrarla con «Barra riga» (o ⌘⇧X): resta scritta, barrata; con «• Elenco» e «1. Elenco» fai elenchi puntati o numerati (Invio continua l'elenco, Invio su una voce vuota lo chiude). Sotto, la barra del formato: seleziona le parole e scegli <b>G</b> grassetto, <i>C</i> corsivo (⌘B, ⌘I), nei menu a tendina la grandezza (Aa), il colore o l'evidenziatore; senza selezione vale per tutta la riga. Per dare colore o evidenziatore a un appuntamento toccalo e scegli «Aspetto nell'agenda». Con «Aa Carattere» scegli il carattere dell'agenda. Con «＋ Post-it» attacchi un foglietto colorato alla settimana: scrivici sopra e spostalo trascinando la striscia in alto; con ⋯ cambi colore, carta, fermaglio e carattere o lo stacchi. Con «＋ Forme», in alto su ciascuna pagina, aggiungi linee, frecce, rettangoli, cerchi, connettori a gomito, frecce piene, riquadri di testo e immagini: trascinali per spostarli, usa i pallini per allargarli o girarli (le linee si tirano dalle estremità) e la barra che compare sopra per colore, contorno o pieno, spessore, grandezza o per eliminarli.</div></div>`;
+  const intro=`<div class="card intro" style="--accent:var(--c-todo)"><div>La tua agenda: in «Settimana» a sinistra gli appuntamenti di ogni giorno, a destra le note della settimana; «Mese» e «Anno» mostrano il calendario come sul telefono (tocca un giorno o un mese per aprirlo). Scrivi una riga e premi Invio: diventa un appuntamento con il suo cerchietto da spuntare, che trovi anche in Da fare. Se la riga inizia con un'ora (es. «10:00 dentista») viene messa in ordine di orario. Tocca il testo per modificarlo, eliminarlo o spostarlo (+1 giorno, +1 settimana o un'altra data). Con la maniglia ⠿ trascini un appuntamento su un altro giorno della settimana o più su e più giù nello stesso giorno (quelli con l'orario restano in ordine di ora). Nelle note, una riga fatta o che non ti serve più puoi barrarla con «Barra riga» (o ⌘⇧X): resta scritta, barrata; con «• Elenco» e «1. Elenco» fai elenchi puntati o numerati (Invio continua l'elenco, Invio su una voce vuota lo chiude). Sotto, la barra del formato: seleziona le parole e scegli <b>G</b> grassetto, <i>C</i> corsivo (⌘B, ⌘I), nei menu a tendina la grandezza (Aa), il colore o l'evidenziatore; senza selezione vale per tutta la riga. Per dare colore o evidenziatore a un appuntamento toccalo e scegli «Aspetto nell'agenda». Con «Aa Carattere» scegli il carattere dell'agenda. Con «＋ Post-it» attacchi un foglietto colorato alla settimana: scrivici sopra e spostalo trascinando la striscia in alto; con ⋯ cambi colore, carta, fermaglio e carattere o lo stacchi. Con «＋ Forme», in alto su ciascuna pagina, aggiungi linee, frecce, rettangoli, cerchi, connettori a gomito, frecce piene, riquadri di testo e immagini: trascinali per spostarli, usa i pallini per allargarli o girarli (le linee si tirano dalle estremità) e la barra che compare sopra per colore, contorno o pieno, spessore, grandezza o per eliminarli.</div></div>`;
   if(!Data.agendaAvailable) return intro+`<div class="card">${emptyState("L'agenda sarà disponibile appena il database verrà aggiornato.")}</div>`;
   if(state.agendaView==="mese") return intro+renderAgendaMonth();
   if(state.agendaView==="anno") return intro+renderAgendaYear();
@@ -4931,6 +5037,7 @@ function openTodoModal({id,date}={}){
           <div class="row"><label for="todo-date">${r?"Dal giorno":"Giorno"}</label><input type="date" id="todo-date" value="${t&&t.due_date?t.due_date:(date||todayISO())}"></div>
           <div class="row"><label for="todo-time">Ora (facoltativa)</label><input type="time" id="todo-time" value="${t&&t.due_time?t.due_time.slice(0,5):""}"></div>
         </div>
+        <div class="row" id="todo-shift-row"><label>Sposta</label><div class="todo-shift">${[[1,"+1 giorno"],[7,"+1 settimana"],[-1,"−1 giorno"]].map(([n,l])=>`<button type="button" class="btn btn-outline btn-sm" style="--accent:var(--c-todo)" data-todo-shift="${n}">${l}</button>`).join("")}</div><span class="hint">Cambia il giorno qui sopra; per una data lontana sceglila nel calendario. Poi premi «Salva».</span></div>
         <div class="row"><label for="todo-freq">Si ripete?</label><select id="todo-freq">
           ${[["","No, una volta sola"],["daily","Ogni giorno"],["weekly","Ogni settimana"],["monthly","Ogni mese"],["yearly","Ogni anno"]].map(([v,l])=>`<option value="${v}" ${(r?r.freq:"")===v?"selected":""}>${l}</option>`).join("")}
         </select></div>
@@ -4954,9 +5061,13 @@ function openTodoModal({id,date}={}){
     $("todo-day-fields").hidden=$("todo-when").value!=="day";
     $("todo-rec-fields").hidden=!f;
     $("todo-weekdays-row").hidden=f!=="weekly";
+    $("todo-shift-row").hidden=!!f;
     $("todo-interval-label").textContent={daily:"Ogni quanti giorni",weekly:"Ogni quante settimane",monthly:"Ogni quanti mesi",yearly:"Ogni quanti anni"}[f]||"Ogni quanti";
   }
   $("todo-when").addEventListener("change",sync); $("todo-freq").addEventListener("change",sync); sync();
+  modalEl.querySelectorAll("[data-todo-shift]").forEach(b=>b.addEventListener("click",()=>{
+    const f=$("todo-date"); f.value=TodoLogic.addDaysISO(f.value||todayISO(),Number(b.dataset.todoShift));
+  }));
   if(styleable){
     const form=$("todo-form"), preview=()=>{ $("todo-style-preview").className=nfClasses(nfStyleFromForm(form)); };
     form.addEventListener("change",preview); $("todo-title").addEventListener("input",()=>{ $("todo-style-preview").textContent=$("todo-title").value; }); preview();
@@ -4986,6 +5097,7 @@ function openTodoModal({id,date}={}){
     }
     // Una ricorrente non usa done_at: le spunte sono per singolo giorno.
     if(t&&payload.recurrence) payload.done_at=null;
+    if(t&&"position" in t&&payload.due_date!==t.due_date) payload.position=null;
     const newStyle=styleable?nfStyleFromForm($("todo-form")):oldStyle;
     closeModal();
     if(t) await Data.updateTodo(t.id,payload); else await Data.addTodo(payload);
