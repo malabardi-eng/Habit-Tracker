@@ -559,6 +559,20 @@ a.attach-name{color:var(--c-todo);text-decoration:underline;}
 .polaroid-caption{display:block;width:100%;height:30px;margin-top:6px;border:none;background:transparent;resize:none;overflow:hidden;text-align:center;color:#2A2925;font-family:var(--pi-font,var(--font-body));font-size:1rem;line-height:22px;padding:4px;}
 .polaroid-caption:focus{outline:none;}
 .polaroid-caption::placeholder{color:rgba(42,41,37,.38);}
+/* pagina del Diario a tutto schermo: come le note dell'agenda, con post-it, polaroid e forme */
+.diary-page{position:fixed;inset:0;z-index:55;background:var(--bg);display:flex;flex-direction:column;}
+.diary-page.hidden{display:none;}
+body.dp-open{overflow:hidden;}
+.dp-bar{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;padding:max(10px,env(safe-area-inset-top)) 18px 10px;background:var(--surface);border-bottom:1px solid var(--line);}
+.dp-title{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;min-width:0;}
+.dp-title h3{font-size:1.02rem;}
+.dp-actions{display:flex;gap:8px;}
+.dp-scroll{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:18px 16px max(24px,env(safe-area-inset-bottom));}
+.dp-sheet{--lh:28px;max-width:880px;margin:0 auto;background:var(--paper);color:var(--paper-ink);border-radius:6px;box-shadow:var(--shadow),0 0 0 1px var(--paper-edge);}
+.npage-diary .ruled{min-height:calc(var(--lh) * 22);font-size:.95rem;overflow:visible;}
+.dp-extra{display:flex;flex-direction:column;gap:12px;margin-top:14px;}
+.dp-extra label{font-size:.78rem;color:var(--paper-soft);}
+@media (max-width:860px){ .dp-scroll{padding:10px 8px max(24px,env(safe-area-inset-bottom));} .dp-bar{padding-left:12px;padding-right:12px;} }
 /* finestra della polaroid: da dove prendere la foto */
 .pl-sources{display:flex;gap:8px;flex-wrap:wrap;}
 .pl-pw{display:flex;gap:8px;flex-wrap:wrap;}
@@ -807,6 +821,7 @@ a.attach-name{color:var(--c-todo);text-decoration:underline;}
 
 <nav class="tabbar" id="tabbar"></nav>
 
+<div class="diary-page hidden" id="diary-page" role="dialog" aria-modal="true" aria-label="Pagina del diario"></div>
 <div class="overlay hidden" id="overlay"><div class="modal" id="modal"></div></div>
 <div class="photo-view hidden" id="photo-view" role="dialog" aria-label="Foto"><img alt=""><button type="button" class="pv-prev" aria-label="Foto precedente">‹</button><button type="button" class="pv-next" aria-label="Foto successiva">›</button><button type="button" class="pv-close" aria-label="Chiudi">✕</button><span class="pv-count"></span></div>
 
@@ -1260,6 +1275,7 @@ const Data={
   POSTITS:[],
   postitAvailable:false,
   polaroidAvailable:false,
+  diaryBoardAvailable:false, diaryFormeAvailable:false,
   FORME:[],
   formeAvailable:false,
   SETTINGS:{},
@@ -1337,17 +1353,23 @@ const Data={
       try{
         const[notes,settings]=await Promise.all([
           // Polaroid solo dopo polaroid-PROPOSTA.sql (colonna «ratio»); le loro foto si scaricano a parte.
-          readAllRows(`/habit_agenda_postit?select=${POSTIT_COLS}`,"week_start,z,id").then(r=>{ this.polaroidAvailable=true; return r; },
-            ()=>readAllRows("/habit_agenda_postit?select=*","week_start,z,id")),
+          // Post-it del Diario solo dopo diario-pagina-PROPOSTA.sql (colonna «diary_day»).
+          readAllRows(`/habit_agenda_postit?select=${POSTIT_COLS},diary_day`,"week_start,z,id").then(r=>{ this.polaroidAvailable=this.diaryBoardAvailable=true; return r; },
+            ()=>readAllRows(`/habit_agenda_postit?select=${POSTIT_COLS}`,"week_start,z,id").then(r=>{ this.polaroidAvailable=true; return r; },
+            ()=>readAllRows("/habit_agenda_postit?select=*","week_start,z,id"))),
           readAllRows("/habit_impostazioni?select=chiave,valore","chiave")
         ]);
-        for(const r of notes){ if("ratio" in r) this.polaroidAvailable=true; if("foto" in r){ if(r.foto) Postit.photos[r.id]=r.foto; delete r.foto; } }
+        for(const r of notes){ if("ratio" in r) this.polaroidAvailable=true; if("diary_day" in r) this.diaryBoardAvailable=true; if("foto" in r){ if(r.foto) Postit.photos[r.id]=r.foto; delete r.foto; } }
         this.POSTITS=Postit.mergeLoaded(notes); this.postitAvailable=true;
         this.SETTINGS=Object.fromEntries(settings.map(r=>[r.chiave,r.valore])); this.settingsAvailable=true;
         DiaryLock.remember(); HealthLock.remember();
       }catch(_){ if(!this.settingsAvailable){ this.postitAvailable=false; } }
       // Forme, riquadri di testo e immagini: disponibili solo dopo forme-PROPOSTA.sql (le immagini si scaricano a parte).
-      try{ this.FORME=Forme.mergeLoaded(await readAllRows(`/habit_agenda_forme?select=${FORMA_COLS}`,"week_start,z,id")); this.formeAvailable=true; }
+      try{
+        const rows=await readAllRows(`/habit_agenda_forme?select=${FORMA_COLS},diary_day`,"week_start,z,id").then(r=>{ this.diaryFormeAvailable=true; return r; },
+          ()=>readAllRows(`/habit_agenda_forme?select=${FORMA_COLS}`,"week_start,z,id"));
+        this.FORME=Forme.mergeLoaded(rows); this.formeAvailable=true;
+      }
       catch(_){ if(!this.formeAvailable) this.FORME=[]; }
       // Salute: le cinque tabelle e gli allegati di visite ed esami arrivano insieme (salute-PROPOSTA.sql).
       try{
@@ -1503,6 +1525,17 @@ const Data={
     try{ await sbFetch("/habit_diario_days?on_conflict=date",{method:"POST",body:{date,text:cleanText,photo_ids:ids},prefer:"resolution=merge-duplicates"}); this.DIARIO_DAYS[date]={text:cleanText,photoIds:ids}; render(); this._persistLocal(); }
     catch(e){ alert("Non sono riuscito a salvare: "+e.message); }
     return this.DIARIO_DAYS[date];
+  },
+  // Pagina del Diario: salva mentre si scrive, senza ridisegnare (il cursore resta dov'è); errori al chiamante.
+  // Un giorno rimasto vuoto si toglie solo chiudendo la pagina (allowDelete).
+  async saveDiaryQuiet(date,text,photoIds,{allowDelete=false}={}){
+    const cleanText=(text||"").trim(), ids=Array.isArray(photoIds)?photoIds:[];
+    if(!cleanText&&!ids.length&&!diaryBoardCount(date)&&(allowDelete||!this.DIARIO_DAYS[date])){
+      if(allowDelete&&this.DIARIO_DAYS[date]){ await sbFetch(`/habit_diario_days?date=eq.${date}`,{method:"DELETE"}); delete this.DIARIO_DAYS[date]; this._persistLocal(); }
+      return;
+    }
+    await sbFetch("/habit_diario_days?on_conflict=date",{method:"POST",body:{date,text:cleanText,photo_ids:ids},prefer:"resolution=merge-duplicates"});
+    this.DIARIO_DAYS[date]={text:cleanText,photoIds:ids}; this._persistLocal();
   },
   async deleteDiaryDay(date){
     const day=this.DIARIO_DAYS[date];
@@ -2124,20 +2157,21 @@ function renderDiary(){
   const monthFrom=isoOf(new Date(year,month,1)), monthTo=isoOf(new Date(year,month+1,0));
   const entriesThisMonth=Object.entries(days).filter(([d])=>d>=monthFrom&&d<=monthTo);
   const daysWritten=entriesThisMonth.length;
-  const photosThisMonth=entriesThisMonth.reduce((s,[,d])=>s+(d.photoIds?d.photoIds.length:0),0);
+  const photosThisMonth=entriesThisMonth.reduce((s,[iso,d])=>s+(d.photoIds?d.photoIds.length:0)+diaryPolaroidCount(iso),0);
   const now=new Date(); const isCurrentMonth=year===now.getFullYear()&&month===now.getMonth();
   const cal=monthCalendarHTML(year,month,{accentVar:"--c-diario",action:"log-diary-day",cellFor:iso=>{
-    const day=days[iso]; const hasText=!!(day&&day.text); const photoCount=day&&day.photoIds?day.photoIds.length:0;
+    const day=days[iso]; const hasText=!!(day&&diaryPlain(day.text).trim()); const photoCount=(day&&day.photoIds?day.photoIds.length:0)+diaryPolaroidCount(iso);
     const attCount=Data.attachmentsFor("diario",{day:iso}).length;
     const bottom=`${hasText?`<span title="Pensieri scritti">✍️</span>`:""}${photoCount?`<span title="${photoCount} foto">📷${photoCount}</span>`:""}${attCount?`<span title="${attCount} allegat${attCount===1?"o":"i"}">📎</span>`:""}`;
-    return{filled:hasText||!!photoCount||!!attCount,bottomHTML:bottom};
+    return{filled:hasText||!!photoCount||!!attCount||!!diaryBoardCount(iso),bottomHTML:bottom};
   }});
   const recentEntries=Object.entries(days).sort((a,b)=>a[0]<b[0]?1:-1).slice(0,8);
   const listHTML=`<div class="rlist">${recentEntries.map(([date,day])=>{
-    let excerpt=day.text?(day.text.length>140?day.text.slice(0,140)+"…":day.text):"";
-    if(day.text&&day.text.length>140){ const cut=/https?:\/\/\S*…$/.exec(excerpt); if(cut) excerpt=excerpt.slice(0,cut.index)+"…"; }
-    const photoCount=day.photoIds?day.photoIds.length:0;
-    return `<div class="rrow"><span class="badge" style="--accent-soft:var(--c-diario-soft)">📔</span><div class="rmain"><div class="rtitle">${formatDateIT(date)}${photoCount?`<span class="rdur">📷 ${photoCount}</span>`:""}${attBadge(Data.attachmentsFor("diario",{day:date}).length)}</div><div class="rdesc">${linkifyHTML(excerpt)||"<em>Solo foto, nessun testo.</em>"}</div></div><div class="ractions"><button class="icon-btn" data-action="log-diary-day" data-date="${date}" title="Apri">✏️</button></div></div>`;
+    const plain=diaryPlain(day.text).trim();
+    let excerpt=plain?(plain.length>140?plain.slice(0,140)+"…":plain):"";
+    if(plain.length>140){ const cut=/https?:\/\/\S*…$/.exec(excerpt); if(cut) excerpt=excerpt.slice(0,cut.index)+"…"; }
+    const photoCount=(day.photoIds?day.photoIds.length:0)+diaryPolaroidCount(date);
+    return `<div class="rrow"><span class="badge" style="--accent-soft:var(--c-diario-soft)">📔</span><div class="rmain"><div class="rtitle">${formatDateIT(date)}${photoCount?`<span class="rdur">📷 ${photoCount}</span>`:""}${attBadge(Data.attachmentsFor("diario",{day:date}).length)}</div><div class="rdesc">${linkifyHTML(excerpt)||(photoCount?"<em>Solo foto, nessun testo.</em>":"<em>Solo post-it e disegni, nessun testo.</em>")}</div></div><div class="ractions"><button class="icon-btn" data-action="log-diary-day" data-date="${date}" title="Apri">✏️</button></div></div>`;
   }).join("")}</div>`;
   return `
     <div class="card intro" style="--accent:var(--c-diario)"><div class="intro-actions"><div>Il tuo diario personale: clicca su un giorno per scrivere pensieri, ricordi o riflessioni, e aggiungere qualche foto.</div>${DiaryLock.status()==="aperto"?`<button class="btn btn-outline btn-sm" style="--accent:var(--c-diario)" data-action="diary-lock" title="Si richiude anche da solo quando esci dalla sezione">🔒 Chiudi</button>`:""}</div></div>
@@ -2676,8 +2710,9 @@ const Agenda={
     return[Object.keys(this.writtenAt).length||Postit.saved||Forme.saved?"✓ Salvato":"Si salva da solo mentre scrivi",false];
   },
   showStatus(){
-    const el=document.getElementById("agenda-status"); if(!el)return;
+    const el=document.getElementById("agenda-status"); if(!el) return DiaryPage.showStatus();
     const[t,err]=this.statusText(); el.textContent=t; el.classList.toggle("error",err);
+    DiaryPage.showStatus();
   }
 };
 /* ---- Post-it sulle note della settimana ----
@@ -2720,6 +2755,8 @@ const Fonts={
   },
   apply(){ document.documentElement.style.setProperty("--agenda-font",this.css(this.agenda())); },
   postit(id){ const v=(Data.SETTINGS.postit_caratteri||{})[id]; return FONTS[v]?v:"normale"; },
+  diary(){ const v=Data.SETTINGS.diario_carattere; return FONTS[v]?v:"normale"; },
+  async setDiary(k){ await this.save("diario_carattere",k); },
   async save(chiave,valore){
     const before=Data.SETTINGS[chiave]; Data.SETTINGS[chiave]=valore;
     if(!Data.settingsAvailable) return;
@@ -2740,12 +2777,12 @@ const Fonts={
 function fontPickerHTML(name,cur){
   return Object.entries(FONTS).map(([k,[label,css]])=>`<label title="${escapeHTML(label)}"><input type="radio" name="${name}" value="${k}" ${cur===k?"checked":""}><span class="pi-chip font-chip" style="font-family:${escapeHTML(css)}">${label}</span></label>`).join("");
 }
-function openAgendaFontModal(){
-  const cur=Fonts.agenda();
+function openAgendaFontModal(target="agenda"){
+  const diary=target==="diario", cur=diary?Fonts.diary():Fonts.agenda();
   openModal(`
-    <div class="modal-head"><h3>Carattere dell'agenda</h3><button class="icon-btn" data-close>✕</button></div>
+    <div class="modal-head"><h3>${diary?"Carattere del diario":"Carattere dell'agenda"}</h3><button class="icon-btn" data-close>✕</button></div>
     <form id="agfont-form" class="modal-form">
-      <p class="card-text">Vale per gli impegni dei giorni, le note della settimana e il mese, su tutti i tuoi dispositivi. I post-it hanno il loro carattere (⋯ sul post-it).</p>
+      <p class="card-text">${diary?"Vale per il testo di tutte le pagine del diario, su tutti i tuoi dispositivi. Post-it e polaroid hanno il loro carattere (⋯ sopra).":"Vale per gli impegni dei giorni, le note della settimana e il mese, su tutti i tuoi dispositivi. I post-it hanno il loro carattere (⋯ sul post-it)."}</p>
       <div class="pi-preview" id="agfont-preview" style="height:auto;padding:12px 14px"><div class="ruled notes-edit" style="min-height:0">10:00 Dentista<br>• Comprare il pane<br>1. Chiamare Luca</div></div>
       <div class="row"><label>Carattere</label><div class="pi-picker">${fontPickerHTML("font",cur)}</div></div>
       <div class="modal-actions"><span></span><div><button type="button" class="btn btn-ghost" data-close>Annulla</button><button type="submit" class="btn btn-primary">Usa questo carattere</button></div></div>
@@ -2758,13 +2795,16 @@ function openAgendaFontModal(){
   form.addEventListener("submit",async e=>{
     e.preventDefault();
     const btn=form.querySelector("button[type=submit]"); btn.disabled=true;
-    try{ await Fonts.setAgenda(chosen()); closeModal(); render(); }
+    try{ if(diary){ await Fonts.setDiary(chosen()); DiaryPage.applyFont(); } else await Fonts.setAgenda(chosen()); closeModal(); render(); }
     catch(err){ btn.disabled=false; alert("Non sono riuscito a salvare il carattere: "+err.message); }
   });
 }
 const Postit={
   pending:{}, timers:{}, queue:{}, failed:new Set(), saving:0, saved:false, photos:{}, loadingPhotos:new Set(),
   forWeek(w){ return Data.POSTITS.filter(p=>p.week_start===w).sort((a,b)=>a.z-b.z); },
+  forDay(d){ return Data.POSTITS.filter(p=>p.diary_day===d).sort((a,b)=>a.z-b.z); },
+  // Quelli sulla stessa pagina (settimana dell'agenda o giorno del Diario).
+  siblings(p){ return p.diary_day?this.forDay(p.diary_day):this.forWeek(p.week_start); },
   get(id){ return Data.POSTITS.find(p=>p.id===id); },
   // Ciò che non è ancora arrivato al database vale più di quanto appena riletto.
   mergeLoaded(rows){ return rows.map(r=>this.pending[r.id]?Object.assign({},r,this.pending[r.id]):r); },
@@ -2772,13 +2812,15 @@ const Postit={
     try{ const s=JSON.parse(localStorage.getItem("postit-stile")||"null"); if(s&&POSTIT_COLORS[s.color]&&POSTIT_SIZES[s.size]&&POSTIT_PAPERS[s.paper]&&POSTIT_FASTENERS[s.fastener]) return Object.assign({font:"normale"},s,FONTS[s.font]?{}:{font:"normale"}); }catch(_){}
     return{color:"giallo",size:"m",paper:"liscio",fastener:"puntina",font:"normale"};
   },
-  async create(week,{font="normale",...style}){
+  // where: la settimana (il suo lunedì) oppure {diary_day} per una pagina del Diario.
+  async create(where,{font="normale",...style}){
     if(style.size!=="p") try{ localStorage.setItem("postit-stile",JSON.stringify(Object.assign({font},style))); }catch(_){}
-    const mine=this.forWeek(week), n=mine.length;
-    const body=Object.assign({week_start:week,text:"",x:Math.max(0,1-(n%4)*.18),y:14+(n%5)*34,tilt:Math.round((Math.random()*8-4)*10)/10,z:(mine.length?mine[mine.length-1].z:0)+1},style);
+    const at=typeof where==="string"?{week_start:where}:where, mine=this.siblings(at), n=mine.length;
+    const body=Object.assign({},at,{text:"",x:Math.max(0,1-(n%4)*.18),y:14+(n%5)*34,tilt:Math.round((Math.random()*8-4)*10)/10,z:(mine.length?mine[mine.length-1].z:0)+1},style);
     const rows=await sbFetch("/habit_agenda_postit",{method:"POST",body,prefer:"return=representation"});
     if("foto" in rows[0]){ if(rows[0].foto) this.photos[rows[0].id]=rows[0].foto; delete rows[0].foto; }
     Data.POSTITS.push(rows[0]);
+    if(at.diary_day) DiaryPage.touch();
     if(font!=="normale") try{ await Fonts.setPostit(rows[0].id,font); }catch(_){ alert("Post-it attaccato, ma non sono riuscito a salvare il carattere: riprova da ⋯."); }
     return rows[0];
   },
@@ -2809,8 +2851,8 @@ const Postit={
     delete this.pending[id]; this.failed.delete(id); delete this.photos[id];
     Data.POSTITS=Data.POSTITS.filter(p=>p.id!==id);
   },
-  async loadPhotos(week){
-    const ids=this.forWeek(week).filter(p=>p.size==="p"&&!(p.id in this.photos)&&!this.loadingPhotos.has(p.id)).map(p=>p.id);
+  async loadPhotos(list){
+    const ids=list.filter(p=>p.size==="p"&&!(p.id in this.photos)&&!this.loadingPhotos.has(p.id)).map(p=>p.id);
     if(!ids.length) return;
     ids.forEach(i=>this.loadingPhotos.add(i));
     try{
@@ -2821,8 +2863,8 @@ const Postit={
   },
   afterRender(){
     if(!Data.polaroidAvailable||state.route!=="agenda"||state.agendaView!=="settimana") return;
-    document.querySelectorAll(".notes-body .polaroid-caption").forEach(polaroidFitCaption);
-    this.loadPhotos(state.agendaWeekFrom);
+    document.querySelectorAll("#view-root .notes-body .polaroid-caption").forEach(polaroidFitCaption);
+    this.loadPhotos(this.forWeek(state.agendaWeekFrom));
   }
 };
 function postitFastenerHTML(p){
@@ -2886,7 +2928,7 @@ function openPostitModal(id){
         if(font!==Fonts.postit(p.id)) await Fonts.setPostit(p.id,font);
         Postit.change(p.id,look,{now:true}); try{ localStorage.setItem("postit-stile",JSON.stringify(style())); }catch(_){}
       }
-      else await Postit.create(state.agendaWeekFrom,style());
+      else await Postit.create(boardTarget(),style());
       closeModal(); render();
     }catch(err){ btn.disabled=false; alert((p?"Non sono riuscito a salvare il post-it: ":"Non sono riuscito ad attaccare il post-it: ")+err.message); }
   });
@@ -2975,13 +3017,13 @@ function openPolaroidModal(id){
         if(s.font!==Fonts.postit(p.id)) await Fonts.setPostit(p.id,s.font);
         if(s.fastener!==p.fastener) Postit.change(p.id,{fastener:s.fastener},{now:true});
       }
-      else await Postit.create(state.agendaWeekFrom,{size:"p",color:"giallo",paper:"liscio",fastener:s.fastener,font:s.font,foto:pick.foto,ratio:pick.ratio});
+      else await Postit.create(boardTarget(),{size:"p",color:"giallo",paper:"liscio",fastener:s.fastener,font:s.font,foto:pick.foto,ratio:pick.ratio});
       try{ localStorage.setItem("polaroid-stile",JSON.stringify(s)); }catch(_){}
       closeModal(); render();
     }catch(err){ submit.disabled=false; alert((p?"Non sono riuscito a salvare la polaroid: ":"Non sono riuscito ad attaccare la polaroid: ")+err.message); }
   });
   if(p) document.getElementById("polaroid-delete").addEventListener("click",async()=>{
-    if(!confirm("Staccare questa polaroid? Foto e didascalia spariscono dall'agenda (se la foto viene dal Diario, lì resta).")) return;
+    if(!confirm("Staccare questa polaroid? Foto e didascalia spariscono da questa pagina (se la foto l'hai presa dal Diario, lì resta).")) return;
     try{ await Postit.remove(p.id); closeModal(); render(); }
     catch(err){ alert("Non sono riuscito a staccare la polaroid: "+err.message); }
   });
@@ -2992,7 +3034,7 @@ const PostitDrag={
   start(e,el){
     const layer=el.parentElement, id=el.dataset.postit, p=Postit.get(id); if(!p) return;
     e.preventDefault();
-    const top=Math.max(...Postit.forWeek(p.week_start).map(q=>q.z));
+    const top=Math.max(...Postit.siblings(p).map(q=>q.z));
     if(p.z<top){ p.z=top+1; el.style.zIndex=p.z; }
     this.cur={el,layer,id,x0:e.clientX,y0:e.clientY,left0:el.offsetLeft,top0:el.offsetTop,moved:false,pointer:e.pointerId,photo:!!e.target.closest("[data-polaroid-photo]")};
     el.classList.add("dragging");
@@ -3086,7 +3128,7 @@ document.addEventListener("keydown",e=>{ if(e.key==="Escape"&&SortDrag.cur) Sort
 document.addEventListener("focusin",e=>{
   const id=e.target.dataset&&e.target.dataset.postitText; if(!id) return;
   const p=Postit.get(id); if(!p) return;
-  const top=Math.max(...Postit.forWeek(p.week_start).map(q=>q.z));
+  const top=Math.max(...Postit.siblings(p).map(q=>q.z));
   if(p.z<top){ const el=e.target.closest("[data-postit]"); if(el) el.style.zIndex=top+1; Postit.change(id,{z:top+1}); }
 });
 
@@ -3203,7 +3245,9 @@ function formaBarHTML(f){
 const Forme={
   pending:{}, timers:{}, queue:{}, failed:new Set(), saving:0, saved:false, selected:null, images:{}, loadingImages:new Set(),
   valid(f){ return FORMA_KINDS[f.kind]&&FORMA_COLORS[f.color]&&FORMA_FILLS[f.fill]&&FORMA_STROKES[f.stroke]; },
-  forPage(w,page){ return Data.FORME.filter(f=>f.week_start===w&&f.page===page&&this.valid(f)).sort((a,b)=>a.z-b.z); },
+  // key: il lunedì della settimana, o la data per la pagina «diario».
+  key(f){ return f.page==="diario"?f.diary_day:f.week_start; },
+  forPage(w,page){ return Data.FORME.filter(f=>this.key(f)===w&&f.page===page&&this.valid(f)).sort((a,b)=>a.z-b.z); },
   get(id){ return Data.FORME.find(f=>f.id===id); },
   el(id){ return id?document.querySelector(`.fm-layer [data-forma="${id}"]`):null; },
   mergeLoaded(rows){ return rows.map(r=>this.pending[r.id]?Object.assign({},r,this.pending[r.id]):r); },
@@ -3218,17 +3262,18 @@ const Forme={
   remember(f){ if(f.kind!=="immagine") try{ localStorage.setItem("forma-stile-"+this.family(f.kind),JSON.stringify({color:f.color,fill:f.fill,stroke:f.stroke})); }catch(_){} },
   // La forma nuova compare al centro della parte di pagina che si sta guardando.
   async create(page,kind,{rot=0,image=null,w,h}={}){
-    const week=state.agendaWeekFrom, k=FORMA_KINDS[kind];
+    const diary=page==="diario", week=diary?DiaryPage.date:state.agendaWeekFrom, k=FORMA_KINDS[kind];
     const layer=document.querySelector(`.fm-layer[data-fm-page="${page}"]`); if(!layer) return;
     w=w||k.w; h=h||k.h;
     const W=layer.clientWidth||400, lr=layer.getBoundingClientRect(), mine=this.forPage(week,page), n=mine.length;
     // Mai sopra l'intestazione e i pulsanti della pagina.
     const minC=formePageContentTop(layer.parentElement)+(rot%180?w/2:h/2)+10, off=(n%5)*14;
     const cy=fmClamp(innerHeight/2-lr.top+off,minC,Math.max(minC,layer.clientHeight-(rot%180?w/2:h/2)-12));
-    const body=Object.assign({week_start:week,page,kind,x:fmR(fmClamp((W/2+off)/W,0,1)*1000)/1000,y:Math.round(cy),w,h,rot,flip:false,text:"",z:(mine.length?mine[mine.length-1].z:0)+1},this.lastStyle(kind));
+    const body=Object.assign(diary?{diary_day:week}:{week_start:week},{page,kind,x:fmR(fmClamp((W/2+off)/W,0,1)*1000)/1000,y:Math.round(cy),w,h,rot,flip:false,text:"",z:(mine.length?mine[mine.length-1].z:0)+1},this.lastStyle(kind));
     if(image) body.image=image;
-    const rows=await sbFetch(`/habit_agenda_forme?select=${FORMA_COLS}`,{method:"POST",body,prefer:"return=representation"});
+    const rows=await sbFetch(`/habit_agenda_forme?select=${FORMA_COLS}${diary?",diary_day":""}`,{method:"POST",body,prefer:"return=representation"});
     const f=rows[0]; Data.FORME.push(f); if(image) this.images[f.id]=image;
+    if(diary) DiaryPage.touch();
     this.selected=f.id; this.saved=true; render();
     if(kind==="testo"){ const t=this.el(f.id); if(t) t.querySelector("textarea").focus({preventScroll:true}); }
     return f;
@@ -3265,7 +3310,7 @@ const Forme={
   },
   async askRemove(id){
     const f=this.get(id); if(!f) return;
-    if(f.kind==="immagine"&&!confirm("Eliminare questa immagine dall'agenda?")) return;
+    if(f.kind==="immagine"&&!confirm(f.page==="diario"?"Eliminare questa immagine dal diario?":"Eliminare questa immagine dall'agenda?")) return;
     if(f.kind==="testo"&&f.text.trim()&&!confirm("Eliminare questo riquadro? Il testo scritto dentro verrà cancellato.")) return;
     try{ await this.remove(id); }catch(err){ alert("Non sono riuscito a eliminarla: "+err.message); }
   },
@@ -3282,7 +3327,7 @@ const Forme={
     const ta=el.querySelector("textarea"), had=ta&&document.activeElement===ta, sel=had&&[ta.selectionStart,ta.selectionEnd];
     el.outerHTML=formaHTML(f);
     if(had){ const t=this.el(id).querySelector("textarea"); t.focus({preventScroll:true}); try{ t.setSelectionRange(...sel); }catch(_){} }
-    const page=this.el(id).closest(".npage"); page.style.minHeight=formePageMinHeight(this.forPage(f.week_start,f.page))+"px";
+    const page=this.el(id).closest(".npage"); page.style.minHeight=formePageMinHeight(this.forPage(this.key(f),f.page))+"px";
     this.showBar();
   },
   // La barra per colore, riempimento, spessore… sta sopra la forma scelta (sotto se in alto non c'è posto).
@@ -3306,7 +3351,7 @@ const Forme={
     else if(act==="forma-stroke"&&FORMA_STROKES[v]) p.stroke=v;
     else if(act==="forma-rotate") p.rot=fmNorm(Math.round(f.rot)+90);
     else if(act==="forma-flip") p.flip=!f.flip;
-    else if(act==="forma-front") p.z=Math.max(...this.forPage(f.week_start,f.page).map(q=>q.z))+1;
+    else if(act==="forma-front") p.z=Math.max(...this.forPage(this.key(f),f.page).map(q=>q.z))+1;
     else if(act==="forma-scale"){ const s=+v||1; p.w=fmR(fmClamp(f.w*s,12,3000)); if(!k.line) p.h=fmR(fmClamp(f.h*s,12,3000)); }
     else return;
     this.change(f.id,p,{now:true}); this.remember(f); this.redraw(f.id);
@@ -3319,7 +3364,7 @@ const Forme={
     this.redraw(f.id);
   },
   async loadImages(week){
-    const ids=Data.FORME.filter(f=>f.week_start===week&&f.kind==="immagine"&&!(f.id in this.images)&&!this.loadingImages.has(f.id)).map(f=>f.id);
+    const ids=Data.FORME.filter(f=>this.key(f)===week&&f.kind==="immagine"&&!(f.id in this.images)&&!this.loadingImages.has(f.id)).map(f=>f.id);
     if(!ids.length) return;
     ids.forEach(i=>this.loadingImages.add(i));
     try{
@@ -3715,7 +3760,7 @@ function notesTidy(ed){
   for(const d of ed.querySelectorAll(":scope>div")){ const p=notesListPrefix(d.textContent); d.classList.toggle("li-b",p==="• "); d.classList.toggle("li-n",!!p&&p!=="• "); }
   ed.classList.toggle("empty",!ed.textContent.trim()&&ed.querySelectorAll(":scope>div").length<=1);
 }
-function notesSave(ed){ notesTidy(ed); Agenda.edit(ed.dataset.agenda,notesFromEditor(ed)); }
+function notesSave(ed){ notesTidy(ed); if(ed.dataset.diary) DiaryPage.edit(notesFromEditor(ed)); else Agenda.edit(ed.dataset.agenda,notesFromEditor(ed)); }
 // Le righe toccate dal cursore o dalla selezione (sul telefono: dov'era prima di toccare il pulsante).
 function notesSelectedLines(ed){
   const sel=getSelection();
@@ -4849,13 +4894,15 @@ function render(){
     case "studio": root.innerHTML=renderCategoryPage("studio"); break;
     case "ufficio": root.innerHTML=renderOffice(); break;
     case "lavoro_progetti": root.innerHTML=renderWorkProjects(); break;
-    case "diario": root.innerHTML=renderDiary(); { const pw=document.getElementById("diary-pw")||document.getElementById("diary-pw-new"); if(pw&&!DiaryLock.busy) pw.focus(); } break;
+    case "diario": root.innerHTML=renderDiary(); { const pw=document.getElementById("diary-pw")||document.getElementById("diary-pw-new"); if(pw&&!DiaryLock.busy&&!DiaryPage.date) pw.focus(); } break;
     case "salute": root.innerHTML=renderHealth(); { const pw=document.getElementById("health-pw")||document.getElementById("health-pw-new"); if(pw&&!HealthLock.busy) pw.focus(); } break;
     case "medicine": root.innerHTML=renderMedicine(); break;
     case "storico": root.innerHTML=renderHistory(state.historyFilters); break;
     case "allegati": root.innerHTML=renderAttachments(); break;
     case "impostazioni": root.innerHTML=renderSettings(); break;
   }
+  // La pagina del Diario aperta: si chiude lasciando la sezione, altrimenti si ridisegnano post-it e forme.
+  if(DiaryPage.date){ if(state.route!=="diario") DiaryPage.close({quiet:true}); else DiaryPage.redrawLayers(); }
 }
 
 /* =========================================================
@@ -5223,69 +5270,154 @@ PhotoView.el.addEventListener("touchend",e=>{
   if(Math.abs(dx)>50&&PhotoView.srcs.length>1){ e.preventDefault(); PhotoView.go(dx<0?1:-1); }
 });
 
-async function openDiaryDayModal(date){
-  const existing=Data.getDiaryDay(date);
-  const dayAtts=Data.attachmentsFor("diario",{day:date});
-  const html=`
-    <div class="modal-head"><h3>📔 ${formatDateIT(date)}</h3><button class="icon-btn" data-close>✕</button></div>
-    <form id="diary-form" class="modal-form">
-      <div class="row"><textarea id="diary-text" rows="10" placeholder="Cosa hai in mente oggi? Scrivi pensieri, ricordi, riflessioni...">${escapeHTML(existing?existing.text:"")}</textarea></div>
-      <div class="row"><label>Foto (facoltative)</label><div id="diary-photos" class="photo-grid"></div><input type="file" id="diary-photo-input" accept="image/*,.png,.jpg,.jpeg,.gif,.webp,.heic,.heif" multiple hidden><button type="button" class="btn btn-outline btn-sm" style="--accent:var(--c-diario);align-self:flex-start;" id="diary-add-photo">＋ Aggiungi foto</button></div>
-      ${attachmentFieldHTML()}
-      <div class="modal-actions">${existing||dayAtts.length?`<button type="button" class="btn btn-danger" id="diary-delete">Elimina giorno</button>`:"<span></span>"}<div><button type="button" class="btn btn-ghost" data-close>Annulla</button><button type="submit" class="btn btn-primary">Salva</button></div></div>
-    </form>`;
-  openModal(html,{wide:true});
-  modalEl.querySelectorAll("[data-close]").forEach(b=>b.addEventListener("click",closeModal));
-
-  const photosBox=document.getElementById("diary-photos");
-  function bindPhotoRemove(){ photosBox.querySelectorAll("[data-remove-photo]").forEach(btn=>{ btn.onclick=()=>btn.closest(".photo-thumb").remove(); }); }
-  photosBox.addEventListener("click",e=>{
-    const img=e.target.closest(".photo-thumb img"); if(!img||!img.getAttribute("src"))return;
-    const imgs=[...photosBox.querySelectorAll(".photo-thumb img")].filter(x=>x.getAttribute("src"));
-    PhotoView.open(imgs.map(x=>x.src),imgs.indexOf(img));
-  });
-
-  const existingIds=existing&&existing.photoIds?existing.photoIds:[];
-  if(existingIds.length){
-    photosBox.innerHTML=existingIds.map(id=>diaryPhotoThumbHTML(id,"")).join("");
-    Data.getPhotos(existingIds).then(photos=>{
-      photos.forEach(p=>{ const el=photosBox.querySelector(`[data-photo-id="${p.id}"] img`); if(el) el.src=p.dataUrl; });
-      bindPhotoRemove();
-    });
-  }
-  bindPhotoRemove();
-
-  document.getElementById("diary-add-photo").addEventListener("click",()=>{ document.getElementById("diary-photo-input").click(); });
-  document.getElementById("diary-photo-input").addEventListener("change",async e=>{
-    const files=[...e.target.files]; e.target.value="";
+// Dove va un post-it o una polaroid nuovi: la pagina del Diario aperta, altrimenti la settimana dell'agenda.
+function boardTarget(){ return DiaryPage.date?{diary_day:DiaryPage.date}:state.agendaWeekFrom; }
+// Post-it, polaroid e forme attaccati a un giorno del Diario.
+function diaryBoardCount(date){ return Data.POSTITS.filter(p=>p.diary_day===date).length+Data.FORME.filter(f=>f.page==="diario"&&f.diary_day===date).length; }
+function diaryPolaroidCount(date){ return Data.POSTITS.filter(p=>p.diary_day===date&&p.size==="p").length; }
+// Il testo del diario senza i segni della formattazione (per gli estratti).
+function diaryPlain(text){ return (text||"").split("\n").map(l=>{ const s=notesStruck(l); return nfPlain(s===null?l:s); }).join("\n"); }
+// La pagina di scrittura attiva: quella del Diario quando è aperta, altrimenti le note dell'agenda.
+function activeNotesEditor(){ return document.querySelector("#diary-page:not(.hidden) .notes-edit")||document.querySelector("#view-root .notes-edit"); }
+function openDiaryDayModal(date){ DiaryPage.open(date); }
+/* ---- Pagina del Diario a tutto schermo ----
+   Il testo si scrive come nelle note dell'agenda (stessa formattazione, salvata nello stesso modo) e si salva da solo.
+   Post-it, polaroid e forme sono quelli dell'agenda, attaccati al giorno (diary_day, dopo diario-pagina-PROPOSTA.sql).
+   Le foto aggiunte prima restano miniature in fondo; quelle nuove diventano polaroid. Gli allegati si salvano con «Fine». */
+const DiaryPage={
+  date:null, text:"", dirty:false, timer:null, queue:null, saving:0, failed:false, saved:false, attField:null,
+  get el(){ return document.getElementById("diary-page"); },
+  boards(){ return Data.postitAvailable&&Data.diaryBoardAvailable; },
+  formeOK(){ return Data.formeAvailable&&Data.diaryFormeAvailable; },
+  photoIds(){ const d=this.date&&Data.getDiaryDay(this.date); return d&&d.photoIds?d.photoIds.slice():[]; },
+  sheet(){ return this.el.querySelector(".npage-diary"); },
+  open(date){
+    if(this.date) this.flush();
+    const day=Data.getDiaryDay(date);
+    Object.assign(this,{date,text:day?day.text:"",dirty:false,failed:false,saved:false});
+    const long=new Date(date+"T12:00:00").toLocaleDateString("it-IT",{weekday:"long",day:"numeric",month:"long",year:"numeric"});
+    const tool=(act,label,title,extra="")=>`<button type="button" class="notes-strike" data-action="${act}" ${extra} title="${escapeHTML(title)}">${label}</button>`;
+    const tools=(this.formeOK()?formeButtonHTML("diario"):"")
+      +(this.boards()?tool("postit-new","＋ Post-it","Attacca un post-it a questa pagina: scegli colore, grandezza, carta e fermaglio"):"")
+      +(this.boards()&&Data.polaroidAvailable?tool("polaroid-new","＋ Foto","Attacca una foto a questa pagina come una polaroid: dal Mac o dal telefono, o tra le foto del Diario"):tool("dp-add-photo","＋ Foto","Aggiungi una o più foto a questo giorno"))
+      +tool("notes-list","• Elenco","Elenco puntato sulla riga dove sei o su quelle selezionate; ripremi per toglierlo (⌘⇧8). Anche scrivendo «- » a inizio riga",'data-kind="b"')
+      +tool("notes-list","1. Elenco","Elenco numerato sulla riga dove sei o su quelle selezionate; ripremi per toglierlo (⌘⇧7). Anche scrivendo «1. » a inizio riga",'data-kind="n"')
+      +tool("notes-strike","<s>Barra</s> riga","Barra la riga dove sei, o tutte quelle selezionate; ripremi per togliere la barra (⌘⇧X)")
+      +tool("diary-font","Aa Carattere","Scegli il carattere del diario");
+    this.el.innerHTML=`
+      <div class="dp-bar"><div class="dp-title"><h3>📔 ${escapeHTML(long)}</h3><span class="agenda-status" id="dp-status" role="status"></span></div>
+        <div class="dp-actions"><button type="button" class="btn btn-danger btn-sm" data-action="dp-delete">Elimina giorno</button><button type="button" class="btn btn-primary btn-sm" data-action="dp-close" title="Chiudi la pagina: il testo è già salvato">Fine</button></div></div>
+      <div class="dp-scroll"><div class="dp-sheet">
+        <section class="npage npage-notes npage-diary" aria-label="Diario del ${formatDateIT(date)}">
+          <div class="npage-head"><div class="npage-months"><span>Diario</span></div><div class="notes-head-right"><div class="npage-wnum">${formatDateIT(date)}</div><div class="notes-tools">${tools}</div></div></div>
+          ${notesFormatBarHTML()}
+          <div class="notes-body">
+            <div class="ruled notes-edit ${this.text.trim()?"":"empty"}" contenteditable="true" role="textbox" aria-multiline="true" spellcheck="true" data-diary="${date}" data-placeholder="Cosa hai in mente oggi? Scrivi pensieri, ricordi, riflessioni…" aria-label="Diario del ${formatDateIT(date)}">${notesToHTML(this.text)}</div>
+            <div class="postit-layer"></div>
+          </div>
+          <div class="dp-extra"><div id="dp-photos-row"></div><input type="file" id="dp-photo-input" accept="image/*,.png,.jpg,.jpeg,.gif,.webp,.heic,.heif" multiple hidden>${attachmentFieldHTML("Allegati (le modifiche si salvano con «Fine»)")}</div>
+        </section>
+      </div></div>`;
+    this.el.classList.remove("hidden"); document.body.classList.add("dp-open");
+    this.applyFont(); this.drawPhotos();
+    this.attField=setupAttachmentField(Data.attachmentsFor("diario",{day:date}));
+    this.el.onclick=e=>this.onClick(e);
+    document.getElementById("dp-photo-input").onchange=e=>{ const files=[...e.target.files]; e.target.value=""; this.addOldPhotos(files); };
+    this.redrawLayers(); this.showStatus();
+    const ed=this.el.querySelector(".notes-edit"); ed.focus({preventScroll:true}); notesCaretTo(ed.lastChild||ed,false);
+  },
+  applyFont(){ const sec=this.date&&this.sheet(); if(sec) sec.style.setProperty("--agenda-font",Fonts.css(Fonts.diary())); },
+  // Foto aggiunte prima (miniature): si aprono grandi, ✕ le toglie.
+  drawPhotos(){
+    const row=document.getElementById("dp-photos-row"); if(!row) return;
+    const ids=this.photoIds();
+    row.innerHTML=ids.length?`<div class="row"><label>${this.boards()?"Foto aggiunte prima":"Foto"}</label><div class="photo-grid" id="dp-photos">${ids.map(id=>diaryPhotoThumbHTML(id,Data.PHOTO_CACHE[id]||"")).join("")}</div></div>`:"";
+    const missing=ids.filter(id=>!Data.PHOTO_CACHE[id]);
+    if(missing.length) Data.getPhotos(missing).then(ph=>ph.forEach(x=>{ const im=row.querySelector(`[data-photo-id="${x.id}"] img`); if(im) im.src=x.dataUrl; }));
+  },
+  onClick(e){
+    const rm=e.target.closest("[data-remove-photo]");
+    if(rm){ this.removeOldPhoto(rm.closest(".photo-thumb").dataset.photoId); return; }
+    const img=e.target.closest("#dp-photos .photo-thumb img");
+    if(img&&img.getAttribute("src")){ const all=[...this.el.querySelectorAll("#dp-photos .photo-thumb img")].filter(x=>x.getAttribute("src")); PhotoView.open(all.map(x=>x.src),all.indexOf(img)); }
+  },
+  async addOldPhotos(files){
+    const date=this.date;
     for(const file of files){
-      try{
-        const dataUrl=await fileToBudgetedDataURL(file);
-        const id=await Data.addPhoto(dataUrl,date);
-        photosBox.insertAdjacentHTML("beforeend",diaryPhotoThumbHTML(id,dataUrl));
-        bindPhotoRemove();
-      }catch(err){ alert("Non sono riuscito a caricare una foto: "+err.message); }
+      try{ const id=await Data.addPhoto(await fileToBudgetedDataURL(file),date); await Data.saveDiaryQuiet(date,this.text,this.photoIds().concat(id)); }
+      catch(err){ alert("Non sono riuscito a caricare una foto: "+err.message); }
     }
-  });
-
-  const attField=setupAttachmentField(dayAtts);
-  if(existing||dayAtts.length) document.getElementById("diary-delete").addEventListener("click",async()=>{
-    if(!confirm(dayAtts.length?"Eliminare il testo, le foto e gli allegati di questo giorno?":"Eliminare il testo e le foto di questo giorno?"))return;
-    const errs=await Data.removeAttachmentsWhere(a=>a.section==="diario"&&a.day===date);
-    if(existing) await Data.deleteDiaryDay(date);
-    closeModal(); render();
-    if(errs.length) alert("Non sono riuscito a eliminare alcuni allegati:\n"+errs.join("\n"));
-  });
-
-  document.getElementById("diary-form").addEventListener("submit",e=>{
-    e.preventDefault();
-    const ids=[...photosBox.querySelectorAll(".photo-thumb")].map(el=>el.dataset.photoId);
-    const diaryPayload={text:document.getElementById("diary-text").value,photoIds:ids};
-    if(attField.pending()){ saveWithAttachments(e.target,attField,async()=>{ await Data.saveDiaryDay(date,diaryPayload); return true; },()=>"diario",()=>({day:date})); return; }
-    Data.saveDiaryDay(date,diaryPayload);
-    closeModal();
-  });
-}
+    this.drawPhotos();
+  },
+  async removeOldPhoto(id){
+    if(!confirm("Togliere questa foto dal diario?")) return;
+    try{ await Data.saveDiaryQuiet(this.date,this.text,this.photoIds().filter(x=>x!==id)); Data.deletePhoto(id); this.drawPhotos(); }
+    catch(err){ alert("Non sono riuscito a togliere la foto: "+err.message); }
+  },
+  // Post-it, polaroid e forme: ridisegnati senza toccare il testo (il cursore in un post-it o riquadro resta).
+  redrawLayers(){
+    const sec=this.date&&this.sheet(); if(!sec) return;
+    const a=document.activeElement, keep=a&&sec.contains(a)&&(a.dataset.postitText||a.dataset.fmText)?{sel:a.dataset.postitText?`[data-postit-text="${a.dataset.postitText}"]`:`[data-fm-text="${a.dataset.fmText}"]`,s:a.selectionStart,e:a.selectionEnd}:null;
+    const body=sec.querySelector(".notes-body"), list=this.boards()?Postit.forDay(this.date):[];
+    body.querySelector(".postit-layer").innerHTML=list.map(p=>postitHTML(p)).join("");
+    const minH=postitPageMinHeight(list); body.style.minHeight=minH?minH+"px":"";
+    sec.querySelectorAll(".fm-layer").forEach(l=>l.remove());
+    if(this.formeOK()){ sec.insertAdjacentHTML("beforeend",formeLayerHTML(this.date,"diario")); const h=formePageMinHeight(Forme.forPage(this.date,"diario")); sec.style.minHeight=h?Math.ceil(h)+"px":""; }
+    if(keep){ const t=sec.querySelector(keep.sel); if(t){ t.focus({preventScroll:true}); try{ t.setSelectionRange(keep.s,keep.e); }catch(_){} } }
+    sec.querySelectorAll(".polaroid-caption").forEach(polaroidFitCaption);
+    if(this.boards()) Postit.loadPhotos(list);
+    if(this.formeOK()){ Forme.showBar(); Forme.loadImages(this.date); }
+  },
+  edit(text){ this.text=text; this.dirty=true; clearTimeout(this.timer); this.timer=setTimeout(()=>this.flush(),700); this.showStatus(); },
+  flush(){
+    clearTimeout(this.timer); this.timer=null;
+    if(!this.dirty||!this.date) return this.queue||Promise.resolve();
+    this.dirty=false;
+    const date=this.date, text=this.text, ids=this.photoIds();
+    this.queue=(this.queue||Promise.resolve()).then(async()=>{
+      this.saving++; this.showStatus();
+      try{ await Data.saveDiaryQuiet(date,text,ids); if(this.date===date){ this.failed=false; this.saved=true; } }
+      catch(_){ if(this.date===date){ this.failed=true; this.dirty=true; } }
+      finally{ this.saving--; this.showStatus(); }
+    });
+    return this.queue;
+  },
+  // Un giorno con soli post-it, polaroid o forme compare comunque nel calendario del Diario.
+  touch(){ if(this.date&&!Data.getDiaryDay(this.date)){ this.dirty=true; this.flush(); } },
+  showStatus(){
+    const el=document.getElementById("dp-status"); if(!el) return;
+    const err=this.failed||Postit.failed.size||Forme.failed.size;
+    el.textContent=err?"⚠️ Non salvato: controlla la connessione, riprovo appena scrivi":this.saving||this.dirty||Postit.saving||Forme.saving?"Salvataggio…":this.saved||Postit.saved||Forme.saved?"✓ Salvato":"Si salva da solo mentre scrivi";
+    el.classList.toggle("error",!!err);
+  },
+  async close({quiet=false}={}){
+    if(!this.date) return;
+    const date=this.date;
+    await this.flush(); await Promise.all([Postit.flushAll(),Forme.flushAll()]);
+    if(this.failed&&!quiet){ alert("Non sono riuscito a salvare il diario: controlla la connessione e premi di nuovo «Fine»."); return; }
+    const att=this.attField;
+    this.date=null; this.attField=null; Forme.select(null);
+    this.el.classList.add("hidden"); this.el.innerHTML=""; this.el.onclick=null; document.body.classList.remove("dp-open");
+    if(att&&att.pending()){ const errs=await att.commit("diario",{day:date},()=>{}); if(errs.length) alert("Alcuni allegati non sono stati salvati:\n"+errs.join("\n")); }
+    // Giorno rimasto vuoto (niente testo, foto, post-it, forme o allegati): si toglie.
+    if(!Data.attachmentsFor("diario",{day:date}).length){ const d=Data.getDiaryDay(date); if(d) try{ await Data.saveDiaryQuiet(date,d.text,d.photoIds,{allowDelete:true}); }catch(_){} }
+    render();
+  },
+  async removeDay(){
+    const date=this.date, atts=Data.attachmentsFor("diario",{day:date}).length;
+    if(!Data.getDiaryDay(date)&&!diaryBoardCount(date)&&!atts&&!this.text.trim()){ this.dirty=false; return this.close(); }
+    if(!confirm("Eliminare tutto questo giorno del diario? Testo, foto, post-it, polaroid, forme e allegati verranno cancellati.")) return;
+    clearTimeout(this.timer); this.dirty=false; this.text="";
+    try{
+      const errs=await Data.removeAttachmentsWhere(a=>a.section==="diario"&&a.day===date);
+      for(const p of Postit.forDay(date)) await Postit.remove(p.id);
+      for(const f of Forme.forPage(date,"diario")) await Forme.remove(f.id);
+      if(Data.getDiaryDay(date)) await Data.deleteDiaryDay(date);
+      this.attField=null; this.failed=false; await this.close();
+      if(errs.length) alert("Non sono riuscito a eliminare alcuni allegati:\n"+errs.join("\n"));
+    }catch(err){ alert("Non sono riuscito a eliminare tutto il giorno: "+err.message); this.redrawLayers(); }
+  }
+};
 
 function openMoreSheet(){
   const html=`
@@ -5425,9 +5557,13 @@ document.addEventListener("click",e=>{
   else if(action==="bp-all"){ state.bpAll=!state.bpAll; render(); }
   else if(action==="med-prev-month"||action==="med-next-month"){ const s=state.medMonth; s.month+=action==="med-prev-month"?-1:1; if(s.month<0){s.month=11;s.year--;} if(s.month>11){s.month=0;s.year++;} render(); }
   else if(action==="med-this-month"){ state.medMonth={year:new Date().getFullYear(),month:new Date().getMonth()}; render(); }
-  else if(action==="notes-strike"){ const ed=document.querySelector(".notes-edit"); if(ed) notesToggleStrike(ed); }
-  else if(action==="notes-list"){ const ed=document.querySelector(".notes-edit"); if(ed) notesToggleList(ed,btn.dataset.kind); }
-  else if(action==="notes-fmt"){ nfMenuClose(); const ed=document.querySelector(".notes-edit"); if(ed) notesFormat(ed,btn.dataset.kind,btn.dataset.value); }
+  else if(action==="notes-strike"){ const ed=activeNotesEditor(); if(ed) notesToggleStrike(ed); }
+  else if(action==="notes-list"){ const ed=activeNotesEditor(); if(ed) notesToggleList(ed,btn.dataset.kind); }
+  else if(action==="notes-fmt"){ nfMenuClose(); const ed=activeNotesEditor(); if(ed) notesFormat(ed,btn.dataset.kind,btn.dataset.value); }
+  else if(action==="dp-close") DiaryPage.close();
+  else if(action==="dp-delete") DiaryPage.removeDay();
+  else if(action==="dp-add-photo") document.getElementById("dp-photo-input").click();
+  else if(action==="diary-font") openAgendaFontModal("diario");
   else if(action==="notes-fmt-menu") nfMenuToggle(btn);
   else if(action==="agenda-font") openAgendaFontModal();
   else if(action==="avvisi-attiva") Avvisi.activate();
@@ -5462,7 +5598,7 @@ document.addEventListener("input",e=>{
   if(pid){ Postit.change(pid,{text:e.target.value}); if(e.target.classList.contains("polaroid-caption")) polaroidFitCaption(e.target); return; }
   const fid=e.target.dataset&&e.target.dataset.fmText;
   if(fid){ Forme.change(fid,{text:e.target.value}); return; }
-  const k=e.target.dataset&&e.target.dataset.agenda; if(!k)return;
+  const k=e.target.dataset&&(e.target.dataset.agenda||e.target.dataset.diary); if(!k)return;
   if(e.target.isContentEditable){
     if(e.inputType==="insertText"&&e.data===" ") notesAutoBullet(e.target);
     notesRenumber(e.target); notesSave(e.target);
@@ -5494,7 +5630,7 @@ document.addEventListener("drop",e=>{ if(e.target.closest&&e.target.closest(".no
 // Sul telefono toccare il pulsante toglie il cursore dal testo: ci si ricorda dov'era.
 document.addEventListener("selectionchange",()=>{
   const s=getSelection(); if(!s.rangeCount)return;
-  const ed=document.querySelector(".notes-edit");
+  const ed=activeNotesEditor();
   if(ed&&ed.contains(s.anchorNode)) Agenda.notesRange=s.getRangeAt(0).cloneRange();
 });
 document.addEventListener("mousedown",e=>{ if(e.target.closest&&e.target.closest(".notes-strike,.notes-fmt,.notes-fmt-menu")) e.preventDefault(); });
@@ -5534,11 +5670,11 @@ document.addEventListener("focusout",e=>{
 function pendingAgendaLines(){ return[...document.querySelectorAll("input[data-agenda-new]")].filter(i=>i.value.trim()&&!i.dataset.busy); }
 function commitPendingAgendaLines(){ for(const i of pendingAgendaLines()) commitAgendaLine(i,{refocus:false}); }
 // Uscendo dall'app il diario si richiude (una finestra di scrittura già aperta resta, per non perdere il testo).
-document.addEventListener("visibilitychange",()=>{ if(document.visibilityState==="hidden"){ Agenda.flushAll(); Postit.flushAll(); Forme.flushAll(); commitPendingAgendaLines(); DiaryLock.lock(); HealthLock.lock(); if(state.route==="diario"||state.route==="salute") render(); } });
-window.addEventListener("pagehide",()=>{ Agenda.flushAll(); Postit.flushAll(); Forme.flushAll(); commitPendingAgendaLines(); });
+document.addEventListener("visibilitychange",()=>{ if(document.visibilityState==="hidden"){ DiaryPage.flush(); Agenda.flushAll(); Postit.flushAll(); Forme.flushAll(); commitPendingAgendaLines(); DiaryLock.lock(); HealthLock.lock(); if(state.route==="diario"||state.route==="salute") render(); } });
+window.addEventListener("pagehide",()=>{ DiaryPage.flush(); Agenda.flushAll(); Postit.flushAll(); Forme.flushAll(); commitPendingAgendaLines(); });
 window.addEventListener("beforeunload",e=>{
   const lines=pendingAgendaLines().length;
-  if(Object.keys(Agenda.drafts).length||Object.keys(Postit.pending).length||Object.keys(Forme.pending).length||lines){ Agenda.flushAll(); Postit.flushAll(); Forme.flushAll(); commitPendingAgendaLines(); e.preventDefault(); e.returnValue=""; }
+  if(DiaryPage.dirty||Object.keys(Agenda.drafts).length||Object.keys(Postit.pending).length||Object.keys(Forme.pending).length||lines){ DiaryPage.flush(); Agenda.flushAll(); Postit.flushAll(); Forme.flushAll(); commitPendingAgendaLines(); e.preventDefault(); e.returnValue=""; }
 });
 document.addEventListener("submit",e=>{
   const id=e.target.id;
