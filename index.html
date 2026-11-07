@@ -444,6 +444,9 @@ a.attach-name{color:var(--c-todo);text-decoration:underline;}
 .nf-style-picks label .nf-btn{border-color:var(--line);color:var(--ink);}
 .nf-style-picks input:checked+.nf-btn{border-color:var(--c-todo);box-shadow:0 0 0 2px var(--c-todo-soft);}
 .nf-style-picks input:focus-visible+.nf-btn{outline:2px solid var(--c-todo);}
+.agenda-legend-bar{display:flex;justify-content:flex-end;margin-bottom:-8px;}
+.agenda-legend ul{margin:0 0 10px;padding-left:18px;display:flex;flex-direction:column;gap:6px;line-height:1.45;}
+.agenda-legend b{color:var(--ink);}
 .agenda-toolbar{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;}
 .agenda-toolbar>div{display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
 .agenda-status{font-size:.74rem;color:var(--ink-faint);font-family:var(--font-mono);min-height:1em;}
@@ -3981,7 +3984,18 @@ function renderAgendaYear(){
     </section>`;
 }
 function renderAgenda(){
-  const intro=`<div class="card intro" style="--accent:var(--c-todo)"><div>La tua agenda: in «Settimana» a sinistra gli appuntamenti di ogni giorno, a destra le note della settimana; «Mese» e «Anno» mostrano il calendario come sul telefono (tocca un giorno o un mese per aprirlo). Scrivi una riga e premi Invio: diventa un appuntamento con il suo cerchietto da spuntare, che trovi anche in Da fare. Se la riga inizia con un'ora (es. «10:00 dentista») viene messa in ordine di orario. Tocca il testo per modificarlo, eliminarlo o spostarlo (+1 giorno, +1 settimana o un'altra data). Con la maniglia ⠿ trascini un appuntamento su un altro giorno della settimana o più su e più giù nello stesso giorno (quelli con l'orario restano in ordine di ora). Nelle note, una riga fatta o che non ti serve più puoi barrarla con «Barra riga» (o ⌘⇧X): resta scritta, barrata; con «• Elenco» e «1. Elenco» fai elenchi puntati o numerati (Invio continua l'elenco, Invio su una voce vuota lo chiude). Sotto, la barra del formato: seleziona le parole e scegli <b>G</b> grassetto, <i>C</i> corsivo (⌘B, ⌘I), nei menu a tendina la grandezza (Aa), il colore o l'evidenziatore; senza selezione vale per tutta la riga. Per dare colore o evidenziatore a un appuntamento toccalo e scegli «Aspetto nell'agenda». Con «Aa Carattere» scegli il carattere dell'agenda. Con «＋ Post-it» attacchi un foglietto colorato alla settimana: scrivici sopra e spostalo trascinando la striscia in alto; con ⋯ cambi colore, carta, fermaglio e carattere o lo stacchi. Con «＋ Forme», in alto su ciascuna pagina, aggiungi linee, frecce, rettangoli, cerchi, connettori a gomito, frecce piene, riquadri di testo e immagini: trascinali per spostarli, usa i pallini per allargarli o girarli (le linee si tirano dalle estremità) e la barra che compare sopra per colore, contorno o pieno, spessore, grandezza o per eliminarli.</div></div>`;
+  // La spiegazione resta nascosta: si apre con «📖 Legenda» quando serve (scelta di Massimo).
+  const legendItems=[
+    ["Viste","in «Settimana» a sinistra gli appuntamenti di ogni giorno, a destra le note della settimana; «Mese» e «Anno» mostrano il calendario come sul telefono (tocca un giorno o un mese per aprirlo)."],
+    ["Appuntamenti","scrivi una riga e premi Invio: diventa un appuntamento con il suo cerchietto da spuntare, che trovi anche in Da fare. Se la riga inizia con un'ora (es. «10:00 dentista») viene messa in ordine di orario."],
+    ["Modificare e spostare","tocca il testo per modificarlo, eliminarlo o spostarlo (+1 giorno, +1 settimana o un'altra data). Con la maniglia ⠿ trascini un appuntamento su un altro giorno della settimana o più su e più giù nello stesso giorno (quelli con l'orario restano in ordine di ora)."],
+    ["Note della settimana","una riga fatta o che non ti serve più puoi barrarla con «Barra riga» (o ⌘⇧X): resta scritta, barrata. Con «• Elenco» e «1. Elenco» fai elenchi puntati o numerati (Invio continua l'elenco, Invio su una voce vuota lo chiude)."],
+    ["Formato del testo","seleziona le parole e scegli <b>G</b> grassetto, <i>C</i> corsivo (⌘B, ⌘I), nei menu a tendina la grandezza (Aa), il colore o l'evidenziatore; senza selezione vale per tutta la riga. Per dare colore o evidenziatore a un appuntamento toccalo e scegli «Aspetto nell'agenda»."],
+    ["Carattere","con «Aa Carattere» scegli il carattere dell'agenda."],
+    ["Post-it","con «＋ Post-it» attacchi un foglietto colorato alla settimana: scrivici sopra e spostalo trascinando la striscia in alto; con ⋯ cambi colore, carta, fermaglio e carattere o lo stacchi."],
+    ["Forme","con «＋ Forme», in alto su ciascuna pagina, aggiungi linee, frecce, rettangoli, cerchi, connettori a gomito, frecce piene, riquadri di testo e immagini: trascinali per spostarli, usa i pallini per allargarli o girarli (le linee si tirano dalle estremità) e la barra che compare sopra per colore, contorno o pieno, spessore, grandezza o per eliminarli."]];
+  const intro=`<div class="agenda-legend-bar"><button type="button" class="btn btn-ghost btn-sm" data-action="agenda-legend" aria-expanded="${state.agendaLegend}" aria-controls="agenda-legend">📖 Legenda ${state.agendaLegend?"▴":"▾"}</button></div>`+
+    (state.agendaLegend?`<div class="card intro agenda-legend" id="agenda-legend" style="--accent:var(--c-todo)"><ul>${legendItems.map(([t,d])=>`<li><b>${t}</b>: ${d}</li>`).join("")}</ul><button type="button" class="btn btn-ghost btn-sm" data-action="agenda-legend">Chiudi la legenda</button></div>`:"");
   if(!Data.agendaAvailable) return intro+`<div class="card">${emptyState("L'agenda sarà disponibile appena il database verrà aggiornato.")}</div>`;
   if(state.agendaView==="mese") return intro+renderAgendaMonth();
   if(state.agendaView==="anno") return intro+renderAgendaYear();
@@ -4838,6 +4852,7 @@ const state={
   agendaWeekFrom:weekRange(todayISO()).fromISO,
   agendaPage:"settimana",
   agendaView:"settimana",   // settimana | mese | anno
+  agendaLegend:false,       // spiegazione dell'Agenda aperta con «📖 Legenda»
   agendaMonth:{year:new Date().getFullYear(),month:new Date().getMonth()},
   agendaYear:new Date().getFullYear(),
   healthTab:"calendario",   // calendario | visite | esami | medicine
@@ -5569,6 +5584,7 @@ document.addEventListener("click",e=>{
   else if(action==="avvisi-attiva") Avvisi.activate();
   else if(action==="avvisi-prova") Avvisi.test();
   else if(action==="avvisi-disattiva") Avvisi.deactivate();
+  else if(action==="agenda-legend"){ state.agendaLegend=!state.agendaLegend; render(); }
   else if(action==="agenda-view"){
     // Si parte dal periodo che stavi guardando: la settimana aperta porta al suo mese e al suo anno.
     const v=btn.dataset.view, ref=state.agendaWeekFrom;
