@@ -840,7 +840,7 @@ body.dp-open{overflow:hidden;}
   const FILE_BUCKET = 'habit-allegati';
   const FILE_KEY = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\.(docx|md|pdf|epub|mp4|mp3|pptx|xlsx|jpg|jpeg|png)$/;
   function createAccess(client, config) {
-    let identity = null;
+    let identity = null, verifiedToken = null;
     // Rete lenta o server momentaneamente irraggiungibile: non è un accesso rifiutato.
     const retryable = error => error.name === 'AuthRetryableFetchError' || error.status === 0;
     async function token() {
@@ -848,17 +848,36 @@ body.dp-open{overflow:hidden;}
       const session = result.data && result.data.session;
       if (result.error && retryable(result.error)) throw result.error;
       if (result.error || !session || !session.access_token) throw new Error('Accedi per continuare.');
+      // Già verificato al server con questo stesso token: non serve rifarlo a ogni salvataggio
+      // (il database controlla comunque il token a ogni richiesta).
+      if (identity && session.access_token === verifiedToken) return session.access_token;
       // Verify the user at the server, not merely the local session payload.
       const verified = await client.auth.getUser(session.access_token);
       const user = verified.data && verified.data.user;
       if (verified.error && retryable(verified.error)) throw verified.error;
       if (verified.error || !user || (config.email && user.email !== config.email) ||
           (config.ownerId && user.id !== config.ownerId)) {
-        identity = null;
+        identity = null; verifiedToken = null;
         throw new Error('Accesso personale non verificato.');
       }
-      identity = user.id;
+      identity = user.id; verifiedToken = session.access_token;
       return session.access_token;
+    }
+    const NET_MSG = 'Il collegamento non risponde: non ho salvato. Controlla la connessione e riprova.';
+    const pause = ms => new Promise(r => setTimeout(r, ms));
+    // Con la rete lenta (dopo lo stop del Mac, sull'iPhone) riprova una volta e poi lo dice,
+    // senza ricaricare la pagina né chiedere di nuovo la password: si perderebbe quello che è scritto.
+    async function tokenOrFail() {
+      try { return await token(); }
+      catch (error) {
+        if (retryable(error)) {
+          await pause(1500);
+          try { return await token(); }
+          catch (again) { if (retryable(again)) throw new Error(NET_MSG); error = again; }
+        }
+        if (config.onAuthFailure) config.onAuthFailure();
+        throw error;
+      }
     }
     return {
       token,
@@ -869,13 +888,22 @@ body.dp-open{overflow:hidden;}
         if (method !== 'GET' && !config.allowMutations) {
           throw new Error('Versione di verifica: il salvataggio non è ancora attivo.');
         }
-        let bearer;
-        try { bearer = await token(); } catch (error) { if(config.onAuthFailure) config.onAuthFailure(); throw error; }
-        const headers={ apikey: config.key, Authorization: 'Bearer ' + bearer, 'Content-Type':'application/json' };
-        if(opts.prefer) headers.Prefer=opts.prefer;
-        const res = await config.fetch(config.url + '/rest/v1' + path, {
-          method, headers, body:opts.body===undefined?undefined:JSON.stringify(opts.body)
-        });
+        let res;
+        for (let attempt = 0; ; attempt++) {
+          const bearer = await tokenOrFail();
+          const headers={ apikey: config.key, Authorization: 'Bearer ' + bearer, 'Content-Type':'application/json' };
+          if(opts.prefer) headers.Prefer=opts.prefer;
+          try {
+            res = await config.fetch(config.url + '/rest/v1' + path, {
+              method, headers, body:opts.body===undefined?undefined:JSON.stringify(opts.body)
+            });
+          } catch (_) { throw new Error(NET_MSG); }
+          // Token scaduto nel frattempo: lo rinnovo una volta e ripeto, prima di chiedere l'accesso.
+          if (res.status !== 401 || attempt > 0 || !client.auth.refreshSession) break;
+          verifiedToken = null;
+          const renewed = await client.auth.refreshSession();
+          if (renewed.error) { if (retryable(renewed.error)) throw new Error(NET_MSG); break; }
+        }
         if (!res.ok) {
           if(res.status===401 && config.onAuthFailure) config.onAuthFailure();
           throw new Error('Richiesta non riuscita (' + res.status + '). Verifica i dati prima di riprovare.');
@@ -889,7 +917,7 @@ body.dp-open{overflow:hidden;}
         if (action !== 'url' && !config.allowMutations) {
           throw new Error('Versione di verifica: il salvataggio non è ancora attivo.');
         }
-        try { await token(); } catch (error) { if(config.onAuthFailure) config.onAuthFailure(); throw error; }
+        await tokenOrFail();
         const bucket = client.storage.from(FILE_BUCKET);
         const result = action === 'upload' ? await bucket.upload(key, extra.body, { contentType: extra.contentType, upsert: false })
           : action === 'url' ? await bucket.createSignedUrl(key, 300, extra.download ? { download: extra.download } : undefined)
@@ -2197,7 +2225,7 @@ function todoRowHTML(item,{compact=false}={}){
   if(item.dal) chips.push(`<span class="chip chip-late">in ritardo dal ${formatDateIT(item.dal)}${item.saltate>1?` · saltata ${item.saltate} volte`:""}</span>`);
   else if(item.saltate) chips.push(`<span class="chip chip-late">saltata ${item.saltate} ${item.saltate===1?"volta":"volte"}</span>`);
   if(item.late) chips.push(`<span class="chip chip-late">non fatta</span>`);
-  if(t.due_time) chips.push(`<span class="chip chip-time">🕒 ${t.due_time.slice(0,5)}</span>`);
+  if(t.due_time) chips.push(`<span class="chip chip-time">🕒 ${todoTimeLabel(t)}</span>`);
   if(t.recurrence) chips.push(`<span class="chip" title="${escapeHTML(describeRecurrenceIT(t.recurrence))}">🔁${compact?"":" "+escapeHTML(describeRecurrenceIT(t.recurrence))}</span>`);
   return `<div class="todo-row ${done?"done":""}">
     <button type="button" class="todo-check ${done?"done":""}" data-action="${done?"todo-undo":"todo-done"}" data-id="${t.id}" data-occ="${occ}" title="${done?"Segna di nuovo come da fare":"Segna come fatta"}" aria-label="${done?"Segna di nuovo come da fare":"Segna come fatta"}: ${escapeHTML(t.title)}">${done?"✓":""}</button>
@@ -3868,16 +3896,30 @@ function notesAutoBullet(ed){
   line.normalize(); const t=line.firstChild; if(!t||t.nodeType!==3) return;
   t.replaceData(0,1,"•"); notesSetCaret(line,2);
 }
-// «10:00 dentista», «9.30 - call Marco» → ora + titolo; senza ora all'inizio resta tutto titolo.
+// «10:00 dentista», «9.30 - call Marco» → ora + titolo; «14:30-15:30 call» → anche l'ora di fine;
+// senza ora all'inizio resta tutto titolo.
 function parseAgendaLine(line){
+  const hm=(h,m)=>h.padStart(2,"0")+":"+m;
+  const r=/^\s*([01]?\d|2[0-3])[:.]([0-5]\d)\s*[-–—]\s*([01]?\d|2[0-3])[:.]([0-5]\d)\s*[-–—]?\s*(.*)$/.exec(line);
+  if(r&&r[5].trim()&&hm(r[3],r[4])>hm(r[1],r[2])) return{title:r[5].trim(),time:hm(r[1],r[2]),end:hm(r[3],r[4])};
   const m=/^\s*([01]?\d|2[0-3])[:.]([0-5]\d)\s*[-–—]?\s*(.*)$/.exec(line);
-  if(m&&m[3].trim()) return{title:m[3].trim(),time:m[1].padStart(2,"0")+":"+m[2]};
-  return{title:line.trim(),time:null};
+  if(m&&m[3].trim()) return{title:m[3].trim(),time:hm(m[1],m[2]),end:null};
+  return{title:line.trim(),time:null,end:null};
+}
+// Ora di fine: solo dopo orario-fine-PROPOSTA.sql (prima il campo non esiste e non va inviato).
+function todoEndAvailable(){ return Data.TODOS.some(t=>"due_end_time" in t); }
+// «14:30» oppure «14:30–15:30»; una fine senza inizio o prima dell'inizio non si mostra.
+function todoTimeLabel(t){
+  if(!t.due_time) return "";
+  const a=t.due_time.slice(0,5), b=t.due_end_time?t.due_end_time.slice(0,5):"";
+  return b&&b>a?a+"–"+b:a;
 }
 async function addAgendaLine(iso,line){
-  const{title,time}=parseAgendaLine(line);
+  const{title,time,end}=parseAgendaLine(line);
   if(!title) return null;
-  return Data.addTodo({title:title.slice(0,300),notes:"",due_date:iso,due_time:time,recurrence:null});
+  const row={title:title.slice(0,300),notes:"",due_date:iso,due_time:time,recurrence:null};
+  if(end&&todoEndAvailable()) row.due_end_time=end;
+  return Data.addTodo(row);
 }
 // Prima con l'ora in ordine di orario, poi le altre nell'ordine scelto trascinando
 // (campo position, dopo agenda-ordine-PROPOSTA.sql) o in quello in cui sono state scritte;
@@ -3902,7 +3944,7 @@ function agendaDayHTML(iso,today){
     // Le ricorrenti non si trascinano: spostarle cambierebbe tutte le ripetizioni.
     return `<div class="ag-item ${done?"done":""} ${i.late?"late":""}" data-drag-item="${t.id}">${t.recurrence?`<span class="drag-grip off" aria-hidden="true">⠿</span>`:`<span class="drag-grip" data-drag-grip title="Trascina su un altro giorno o in un altro punto" aria-hidden="true">⠿</span>`}
       <button type="button" class="todo-check ${done?"done":""}" data-action="${done?"todo-undo":"todo-done"}" data-id="${t.id}" data-occ="${i.occurrence||""}" title="${done?"Segna di nuovo come da fare":"Segna come fatta"}" aria-label="${done?"Segna di nuovo come da fare":"Segna come fatta"}: ${escapeHTML(t.title)}">${done?"✓":""}</button>
-      <button type="button" class="ag-title" data-action="todo-edit" data-id="${t.id}" title="Modifica o elimina">${t.due_time?`<span class="ag-time">${t.due_time.slice(0,5)}</span>`:""}${(st=>st?`<span class="${nfClasses(st)}">${escapeHTML(t.title)}</span>`:escapeHTML(t.title))(AgendaStyles.get(t.id))}${t.recurrence?` <span title="${escapeHTML(describeRecurrenceIT(t.recurrence))}">🔁</span>`:""}</button>
+      <button type="button" class="ag-title" data-action="todo-edit" data-id="${t.id}" title="Modifica o elimina">${t.due_time?`<span class="ag-time">${todoTimeLabel(t)}</span>`:""}${(st=>st?`<span class="${nfClasses(st)}">${escapeHTML(t.title)}</span>`:escapeHTML(t.title))(AgendaStyles.get(t.id))}${t.recurrence?` <span title="${escapeHTML(describeRecurrenceIT(t.recurrence))}">🔁</span>`:""}</button>
     </div>`;
   }).join("");
   const marks=projectMarksForDay(iso).map(m=>`<div class="ag-item ag-proj"><span class="ag-proj-icon" aria-hidden="true">${m.icon}</span><button type="button" class="ag-title" data-action="project-open" data-id="${m.p.id}" title="Apri il progetto">${m.label}${escapeHTML(m.p.title)}</button></div>`).join("");
@@ -3987,7 +4029,7 @@ function renderAgenda(){
   // La spiegazione resta nascosta: si apre con «📖 Legenda» quando serve (scelta di Massimo).
   const legendItems=[
     ["Viste","in «Settimana» a sinistra gli appuntamenti di ogni giorno, a destra le note della settimana; «Mese» e «Anno» mostrano il calendario come sul telefono (tocca un giorno o un mese per aprirlo)."],
-    ["Appuntamenti","scrivi una riga e premi Invio: diventa un appuntamento con il suo cerchietto da spuntare, che trovi anche in Da fare. Se la riga inizia con un'ora (es. «10:00 dentista») viene messa in ordine di orario."],
+    ["Appuntamenti","scrivi una riga e premi Invio: diventa un appuntamento con il suo cerchietto da spuntare, che trovi anche in Da fare. Se la riga inizia con un'ora (es. «10:00 dentista») viene messa in ordine di orario; con «14:30-15:30 call» segni anche l'ora di fine (o toccalo e scrivila in «Fine»)."],
     ["Modificare e spostare","tocca il testo per modificarlo, eliminarlo o spostarlo (+1 giorno, +1 settimana o un'altra data). Con la maniglia ⠿ trascini un appuntamento su un altro giorno della settimana o più su e più giù nello stesso giorno (quelli con l'orario restano in ordine di ora)."],
     ["Note della settimana","una riga fatta o che non ti serve più puoi barrarla con «Barra riga» (o ⌘⇧X): resta scritta, barrata. Con «• Elenco» e «1. Elenco» fai elenchi puntati o numerati (Invio continua l'elenco, Invio su una voce vuota lo chiude)."],
     ["Formato del testo","seleziona le parole e scegli <b>G</b> grassetto, <i>C</i> corsivo (⌘B, ⌘I), nei menu a tendina la grandezza (Aa), il colore o l'evidenziatore; senza selezione vale per tutta la riga. Per dare colore o evidenziatore a un appuntamento toccalo e scegli «Aspetto nell'agenda»."],
@@ -5089,6 +5131,7 @@ function openTodoModal({id,date}={}){
   const weekdays=r&&r.weekdays||[];
   // Grassetto, corsivo, grandezza, colore ed evidenziatore valgono per tutto l'appuntamento nell'agenda.
   const styleable=!!t&&Data.settingsAvailable, oldStyle=t?AgendaStyles.get(t.id):"";
+  const endable=todoEndAvailable();
   const html=`
     <div class="modal-head"><h3>${t?"Modifica cosa da fare":"Nuova cosa da fare"}</h3><button class="icon-btn" data-close>✕</button></div>
     <form id="todo-form" class="modal-form">
@@ -5097,7 +5140,9 @@ function openTodoModal({id,date}={}){
       <div id="todo-day-fields" class="modal-form">
         <div class="row-split">
           <div class="row"><label for="todo-date">${r?"Dal giorno":"Giorno"}</label><input type="date" id="todo-date" value="${t&&t.due_date?t.due_date:(date||todayISO())}"></div>
-          <div class="row"><label for="todo-time">Ora (facoltativa)</label><input type="time" id="todo-time" value="${t&&t.due_time?t.due_time.slice(0,5):""}"></div>
+          ${endable?`</div><div class="row-split">`:""}
+          <div class="row"><label for="todo-time">${endable?"Inizio (facoltativo)":"Ora (facoltativa)"}</label><input type="time" id="todo-time" value="${t&&t.due_time?t.due_time.slice(0,5):""}"></div>
+          ${endable?`<div class="row"><label for="todo-end">Fine (facoltativa)</label><input type="time" id="todo-end" value="${t&&t.due_end_time?t.due_end_time.slice(0,5):""}"></div>`:""}
         </div>
         <div class="row" id="todo-shift-row"><label>Sposta</label><div class="todo-shift">${[[1,"+1 giorno"],[7,"+1 settimana"],[-1,"−1 giorno"]].map(([n,l])=>`<button type="button" class="btn btn-outline btn-sm" style="--accent:var(--c-todo)" data-todo-shift="${n}">${l}</button>`).join("")}</div><span class="hint">Cambia il giorno qui sopra; per una data lontana sceglila nel calendario. Poi premi «Salva».</span></div>
         <div class="row"><label for="todo-freq">Si ripete?</label><select id="todo-freq">
@@ -5142,10 +5187,17 @@ function openTodoModal({id,date}={}){
     const title=$("todo-title").value.trim();
     if(!title){ alert("Scrivi cosa devi fare."); return; }
     const payload={title,notes:$("todo-notes").value.trim(),due_date:null,due_time:null,recurrence:null};
+    if(endable) payload.due_end_time=null;
     if($("todo-when").value==="day"){
       payload.due_date=$("todo-date").value;
       if(!payload.due_date){ alert("Scegli il giorno, oppure «Quando posso»."); return; }
       payload.due_time=$("todo-time").value||null;
+      if(endable){
+        const end=$("todo-end").value||null;
+        if(end&&!payload.due_time){ alert("Per l'ora di fine serve anche l'ora di inizio."); return; }
+        if(end&&end<=payload.due_time){ alert("L'ora di fine deve venire dopo l'ora di inizio."); return; }
+        payload.due_end_time=end;
+      }
       const f=$("todo-freq").value;
       if(f){
         const interval=Math.round(Number($("todo-interval").value));
@@ -5161,8 +5213,13 @@ function openTodoModal({id,date}={}){
     if(t&&payload.recurrence) payload.done_at=null;
     if(t&&"position" in t&&payload.due_date!==t.due_date) payload.position=null;
     const newStyle=styleable?nfStyleFromForm($("todo-form")):oldStyle;
+    // La finestra resta aperta finché il salvataggio non è riuscito: con la rete lenta non si perde
+    // quello che è scritto e basta premere di nuovo «Salva».
+    const save=e.submitter||$("todo-form").querySelector('[type="submit"]');
+    save.disabled=true; save.textContent="Salvo…";
+    const saved=t?await Data.updateTodo(t.id,payload):await Data.addTodo(payload);
+    if(!saved){ save.disabled=false; save.textContent="Salva"; return; }
     closeModal();
-    if(t) await Data.updateTodo(t.id,payload); else await Data.addTodo(payload);
     if(newStyle!==oldStyle){
       try{ await AgendaStyles.set(t.id,newStyle); render(); }
       catch(err){ alert("Non sono riuscito a salvare l'aspetto dell'appuntamento: "+err.message); }
