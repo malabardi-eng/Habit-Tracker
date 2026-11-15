@@ -2876,6 +2876,14 @@ const Postit={
     return this.queue[id];
   },
   flushAll(){ return Promise.all(Object.keys(this.pending).map(id=>this.flush(id))); },
+  // Porta il post-it nella settimana week (il suo lunedì), nello stesso punto del foglio e sopra agli altri.
+  async moveWeek(id,week){
+    const p=this.get(id); if(!p||p.diary_day||p.week_start===week) return;
+    await this.flush(id);
+    const z=this.forWeek(week).reduce((m,q)=>Math.max(m,q.z),0)+1;
+    await sbFetch(`/habit_agenda_postit?id=eq.${encodeURIComponent(id)}`,{method:"PATCH",body:{week_start:week,z,updated_at:new Date().toISOString()}});
+    Object.assign(p,{week_start:week,z});
+  },
   async remove(id){
     clearTimeout(this.timers[id]); delete this.timers[id];
     await sbFetch(`/habit_agenda_postit?id=eq.${encodeURIComponent(id)}`,{method:"DELETE"});
@@ -2943,6 +2951,7 @@ function openPostitModal(id){
       <div class="row"><label>Carta</label><div class="pi-picker">${radios("paper",POSTIT_PAPERS,(k,v)=>`<span class="pi-chip">${v}</span>`)}</div></div>
       <div class="row"><label>Fermaglio</label><div class="pi-picker">${radios("fastener",POSTIT_FASTENERS,(k,v)=>`<span class="pi-chip">${v}</span>`)}</div></div>
       <div class="row"><label>Carattere</label><div class="pi-picker">${fontPickerHTML("font",cur.font)}</div></div>
+      ${p&&!p.diary_day?`<div class="row"><label>Sposta in un'altra settimana</label><div class="todo-shift"><button type="button" class="btn btn-outline btn-sm" data-postit-week="-7">◀ Settimana prima</button><button type="button" class="btn btn-outline btn-sm" data-postit-week="7">Settimana dopo ▶</button></div><div class="todo-shift"><input type="date" id="postit-week-date" aria-label="Un giorno della settimana in cui portarlo" style="flex:1;min-width:0"><button type="button" class="btn btn-outline btn-sm" id="postit-week-go">Sposta lì</button></div><span class="hint">Il post-it va nella settimana scelta con il testo com'è, e sparisce da questa. Per una settimana lontana scegli un giorno qualsiasi di quella settimana.</span></div>`:""}
       <div class="modal-actions">${p?`<button type="button" class="btn btn-danger" id="postit-delete">Stacca il post-it</button>`:"<span></span>"}<div><button type="button" class="btn btn-ghost" data-close>Annulla</button><button type="submit" class="btn btn-primary">${p?"Salva":"Attacca il post-it"}</button></div></div>
     </form>`);
   modalEl.querySelectorAll("[data-close]").forEach(b=>b.addEventListener("click",closeModal));
@@ -2963,6 +2972,21 @@ function openPostitModal(id){
       closeModal(); render();
     }catch(err){ btn.disabled=false; alert((p?"Non sono riuscito a salvare il post-it: ":"Non sono riuscito ad attaccare il post-it: ")+err.message); }
   });
+  const moveTo=async(week,btn)=>{
+    btn.disabled=true;
+    try{
+      await Postit.moveWeek(p.id,week); closeModal(); render();
+      const st=document.getElementById("agenda-status"); if(st) st.textContent="Post-it spostato nella settimana "+weekLabel(new Date(week+"T12:00:00"),new Date(TodoLogic.addDaysISO(week,6)+"T12:00:00"));
+    }catch(err){ btn.disabled=false; alert("Non sono riuscito a spostare il post-it: "+err.message); }
+  };
+  if(p&&!p.diary_day){
+    modalEl.querySelectorAll("[data-postit-week]").forEach(b=>b.addEventListener("click",()=>moveTo(TodoLogic.addDaysISO(p.week_start,Number(b.dataset.postitWeek)),b)));
+    document.getElementById("postit-week-go").addEventListener("click",e=>{
+      const d=document.getElementById("postit-week-date").value;
+      if(!d){ alert("Scegli un giorno della settimana in cui portare il post-it."); return; }
+      moveTo(weekRange(d).fromISO,e.currentTarget);
+    });
+  }
   if(p) document.getElementById("postit-delete").addEventListener("click",async()=>{
     if(p.text.trim()&&!confirm("Staccare questo post-it? Il testo scritto sopra verrà cancellato.")) return;
     try{ await Postit.remove(p.id); closeModal(); render(); }
@@ -3774,6 +3798,19 @@ function notesFromEditor(ed){
 }
 function notesLineOf(ed,node){ while(node&&node.parentNode!==ed) node=node.parentNode; return node&&node!==ed?node:null; }
 function notesCaretTo(node,atStart){ const r=document.createRange(); r.selectNodeContents(node); r.collapse(!!atStart); const s=getSelection(); s.removeAllRanges(); s.addRange(r); }
+// Clic su una riga vuota sotto il testo (note della settimana e Diario): il cursore va su quella riga,
+// come su un foglio a righe, invece che in fondo al testo. Le righe vuote in fondo non vengono salvate.
+document.addEventListener("click",e=>{
+  const ed=e.target;
+  if(!ed.classList||!ed.classList.contains("notes-edit")||ed.getAttribute("contenteditable")!=="true") return;
+  const last=ed.lastElementChild, lh=parseFloat(getComputedStyle(ed).lineHeight)||26;
+  const bottom=last?last.getBoundingClientRect().bottom:ed.getBoundingClientRect().top+parseFloat(getComputedStyle(ed).paddingTop||0);
+  if(e.clientY<=bottom) return;
+  let line=null;
+  for(let i=Math.min(200,Math.floor((e.clientY-bottom)/lh)+(last?1:0));i>0;i--){ line=document.createElement("div"); line.innerHTML="<br>"; ed.appendChild(line); }
+  if(!line) return;
+  ed.focus(); notesCaretTo(line,true); notesTidy(ed);
+});
 // Testo scritto direttamente nel riquadro (succede dopo averlo svuotato): lo racchiude in una riga.
 function notesWrapLine(ed,node){
   if(node.nodeType===1&&NOTES_BLOCK.test(node.nodeName)) return node;
@@ -4031,10 +4068,10 @@ function renderAgenda(){
     ["Viste","in «Settimana» a sinistra gli appuntamenti di ogni giorno, a destra le note della settimana; «Mese» e «Anno» mostrano il calendario come sul telefono (tocca un giorno o un mese per aprirlo)."],
     ["Appuntamenti","scrivi una riga e premi Invio: diventa un appuntamento con il suo cerchietto da spuntare, che trovi anche in Da fare. Se la riga inizia con un'ora (es. «10:00 dentista») viene messa in ordine di orario; con «14:30-15:30 call» segni anche l'ora di fine (o toccalo e scrivila in «Fine»)."],
     ["Modificare e spostare","tocca il testo per modificarlo, eliminarlo o spostarlo (+1 giorno, +1 settimana o un'altra data). Con la maniglia ⠿ trascini un appuntamento su un altro giorno della settimana o più su e più giù nello stesso giorno (quelli con l'orario restano in ordine di ora)."],
-    ["Note della settimana","una riga fatta o che non ti serve più puoi barrarla con «Barra riga» (o ⌘⇧X): resta scritta, barrata. Con «• Elenco» e «1. Elenco» fai elenchi puntati o numerati (Invio continua l'elenco, Invio su una voce vuota lo chiude)."],
+    ["Note della settimana","tocca una riga qualsiasi del foglio, anche a metà o in fondo, per cominciare a scrivere lì. Una riga fatta o che non ti serve più puoi barrarla con «Barra riga» (o ⌘⇧X): resta scritta, barrata. Con «• Elenco» e «1. Elenco» fai elenchi puntati o numerati (Invio continua l'elenco, Invio su una voce vuota lo chiude)."],
     ["Formato del testo","seleziona le parole e scegli <b>G</b> grassetto, <i>C</i> corsivo (⌘B, ⌘I), nei menu a tendina la grandezza (Aa), il colore o l'evidenziatore; senza selezione vale per tutta la riga. Per dare colore o evidenziatore a un appuntamento toccalo e scegli «Aspetto nell'agenda»."],
     ["Carattere","con «Aa Carattere» scegli il carattere dell'agenda."],
-    ["Post-it","con «＋ Post-it» attacchi un foglietto colorato alla settimana: scrivici sopra e spostalo trascinando la striscia in alto; con ⋯ cambi colore, carta, fermaglio e carattere o lo stacchi."],
+    ["Post-it","con «＋ Post-it» attacchi un foglietto colorato alla settimana: scrivici sopra e spostalo trascinando la striscia in alto; con ⋯ cambi colore, carta, fermaglio e carattere o lo stacchi; sempre da ⋯ lo porti alla settimana prima, a quella dopo o a un'altra settimana (comodo per le cose non fatte)."],
     ["Forme","con «＋ Forme», in alto su ciascuna pagina, aggiungi linee, frecce, rettangoli, cerchi, connettori a gomito, frecce piene, riquadri di testo e immagini: trascinali per spostarli, usa i pallini per allargarli o girarli (le linee si tirano dalle estremità) e la barra che compare sopra per colore, contorno o pieno, spessore, grandezza o per eliminarli."]];
   const intro=`<div class="agenda-legend-bar"><button type="button" class="btn btn-ghost btn-sm" data-action="agenda-legend" aria-expanded="${state.agendaLegend}" aria-controls="agenda-legend">📖 Legenda ${state.agendaLegend?"▴":"▾"}</button></div>`+
     (state.agendaLegend?`<div class="card intro agenda-legend" id="agenda-legend" style="--accent:var(--c-todo)"><ul>${legendItems.map(([t,d])=>`<li><b>${t}</b>: ${d}</li>`).join("")}</ul><button type="button" class="btn btn-ghost btn-sm" data-action="agenda-legend">Chiudi la legenda</button></div>`:"");
