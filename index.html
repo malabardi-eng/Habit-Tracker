@@ -1299,6 +1299,7 @@ const Data={
   TODOS:[],
   TODO_DONE:[],
   todosAvailable:false,
+  billsAvailable:false, FIN_CATEGORIE:[], FIN_METODI:[],
   PROJECTS:[],
   PROJECT_STEPS:[],
   PROJECT_LOG:[],
@@ -1352,6 +1353,14 @@ const Data={
         ]);
         this.TODOS=todos||[]; this.TODO_DONE=done||[]; this.todosAvailable=true;
       }catch(_){ this.todosAvailable=false; }
+      // Bollette pagate: solo dopo bollette-pagate-PROPOSTA.sql (colonna finanze_movimento_id); servono anche
+      // categorie e metodi di «Le mie finanze» per la finestra «Come l'hai pagata?».
+      try{
+        await sbFetch("/habit_todos?select=finanze_movimento_id&limit=1");
+        const[cats,mets]=await Promise.all([readAllRows("/finanze_categorie?select=nome,ordine","ordine,nome"),readAllRows("/finanze_metodi?select=nome,ordine","ordine,nome")]);
+        const uniq=list=>list.map(x=>x.nome).filter((n,i,a)=>n&&a.findIndex(y=>y.toLowerCase()===n.toLowerCase())===i);
+        this.FIN_CATEGORIE=uniq(cats||[]); this.FIN_METODI=uniq(mets||[]); this.billsAvailable=this.todosAvailable;
+      }catch(_){ if(!this.billsAvailable) this.billsAvailable=false; }
       // Google Calendar: solo dopo google-calendar-PROPOSTA.sql (colonne gcal_* e coda delle cancellazioni).
       try{ await readAllRows("/habit_gcal_deletes?select=id","id"); this.gcalAvailable=this.todosAvailable; }
       catch(_){ this.gcalAvailable=false; }
@@ -5538,6 +5547,93 @@ function gcalCardHTML(){
     <div class="settings-actions"><button class="btn btn-primary" data-action="gcal-sync">Sincronizza ora</button>${GCal.list?"":`<button class="btn btn-outline" data-action="gcal-list">Mostra tutti i calendari</button>`}<button class="btn btn-danger" data-action="gcal-disconnect">Scollega</button></div>
   </div>`;
 }
+/* ---- Bollette pagate: dal «Da fare» a «Le mie finanze» ----
+   Un impegno singolo è «da pagare» se nelle note c'è «Quando è pagata:» (lo scrive il Second Brain quando registra una
+   fattura con scadenza). Spuntandolo si apre «Come l'hai pagata?»: la spesa va in finanze_movimenti e l'impegno resta
+   collegato (finanze_movimento_id), così togliendo la spunta si può togliere anche la spesa e rispuntando non si duplica. */
+const Bills={
+  isBill(t){ return !!t&&!t.recurrence&&/quando\s+è\s+pagata\s*:/i.test(t.notes||""); },
+  // Importo, categoria e metodo dalla riga «Quando è pagata:» (importo, se manca, dal titolo); descrizione = titolo senza «– importo €».
+  parse(t){
+    const notes=t.notes||"", i=notes.search(/quando\s+è\s+pagata\s*:/i), line=i<0?"":notes.slice(i).split("\n")[0];
+    const num=txt=>{ const m=/(\d{1,3}(?:\.\d{3})+,\d{1,2}|\d+(?:[.,]\d{1,2})?)\s*(?:€|euro)/i.exec(txt||""); return m?Number(m[1].replace(/\.(?=\d{3}(\D|$))/g,"").replace(",",".")):null; };
+    const pick=(re,list)=>{ const m=re.exec(line); if(!m) return ""; const v=m[1].trim().replace(/[«»"]/g,""); return list.find(x=>x.toLowerCase()===v.toLowerCase())||list.find(x=>v.toLowerCase().startsWith(x.toLowerCase()))||""; };
+    return{
+      importo:num(line)??num(t.title),
+      categoria:pick(/categoria\s+([^,.;\n]+)/i,Data.FIN_CATEGORIE),
+      metodo:pick(/metodo\s+([^,.;\n]+)/i,Data.FIN_METODI),
+      descrizione:(t.title||"").replace(/\s*[–—-]\s*[\d.,]+\s*(?:€|euro)\s*$/i,"").trim()||t.title||""
+    };
+  },
+  eur(n){ return Number(n).toLocaleString("it-IT",{minimumFractionDigits:2,maximumFractionDigits:2})+" €"; },
+  // Spunta di un impegno singolo: true se l'ha gestita qui (finestra aperta), false per la spunta normale.
+  onDone(t){
+    if(!Data.billsAvailable||!this.isBill(t)||t.finanze_movimento_id) return false;
+    this.openPay(t); return true;
+  },
+  onUndo(t){
+    if(!Data.billsAvailable||!t||!t.finanze_movimento_id) return false;
+    this.openUndo(t); return true;
+  },
+  openPay(t){
+    const v=this.parse(t), opt=(list,cur,empty)=>(empty?`<option value="">${empty}</option>`:"")+list.map(x=>`<option value="${escapeHTML(x)}" ${x===cur?"selected":""}>${escapeHTML(x)}</option>`).join("");
+    openModal(`
+      <div class="modal-head"><h3>💶 Come l'hai pagata?</h3><button class="icon-btn" data-close>✕</button></div>
+      <form id="bill-form" class="modal-form">
+        <p class="card-text">${escapeHTML(t.title)}</p>
+        <div class="row-split">
+          <div class="row"><label for="bill-date">Pagata il</label><input type="date" id="bill-date" value="${todayISO()}" required></div>
+          <div class="row"><label for="bill-amount">Importo (€)</label><input type="text" id="bill-amount" inputmode="decimal" value="${v.importo!=null?String(v.importo.toFixed(2)).replace(".",","):""}" placeholder="0,00" required></div>
+        </div>
+        <div class="row-split">
+          <div class="row"><label for="bill-cat">Categoria</label><select id="bill-cat">${opt(Data.FIN_CATEGORIE,v.categoria,v.categoria?"":"Scegli…")}</select></div>
+          <div class="row"><label for="bill-method">Metodo</label><select id="bill-method">${opt(Data.FIN_METODI,v.metodo,"—")}</select></div>
+        </div>
+        <div class="row"><label for="bill-desc">Descrizione</label><input type="text" id="bill-desc" maxlength="200" value="${escapeHTML(v.descrizione)}"></div>
+        <p class="lock-msg" id="bill-msg" role="status"></p>
+        <div class="modal-actions"><button type="button" class="btn btn-ghost" id="bill-nospesa">Segna fatta senza spesa</button><div><button type="button" class="btn btn-ghost" data-close>Annulla</button><button type="submit" class="btn btn-primary">Segna pagata e registra la spesa</button></div></div>
+      </form>`);
+    modalEl.querySelectorAll("[data-close]").forEach(b=>b.addEventListener("click",closeModal));
+    const $=id=>document.getElementById(id), msg=$("bill-msg"), form=$("bill-form");
+    $("bill-nospesa").addEventListener("click",async()=>{ closeModal(); await Data.completeTodo(t.id,null); });
+    form.addEventListener("submit",async e=>{
+      e.preventDefault();
+      const importo=Number($("bill-amount").value.trim().replace(/\.(?=\d{3}(\D|$))/g,"").replace(",","."));
+      if(!(importo>0)){ msg.textContent="Scrivi l'importo pagato."; return; }
+      if(!$("bill-cat").value){ msg.textContent="Scegli la categoria."; return; }
+      const btns=form.querySelectorAll("button"); btns.forEach(b=>b.disabled=true); msg.textContent="Salvataggio…";
+      const body={data:$("bill-date").value||todayISO(),descrizione:$("bill-desc").value.trim()||t.title,categoria:$("bill-cat").value,importo:Math.round(importo*100)/100,tipo:"uscita",persona:"Massimo"};
+      if($("bill-method").value) body.metodo=$("bill-method").value;
+      let mov;
+      try{ const res=await sbFetch("/finanze_movimenti",{method:"POST",body,prefer:"return=representation"}); mov=res&&res[0]; if(!mov) throw new Error("risposta vuota"); }
+      catch(err){ btns.forEach(b=>b.disabled=false); msg.textContent="Non sono riuscito a registrare la spesa: "+err.message+". L'impegno non è stato spuntato."; return; }
+      // La spesa c'è: ora l'impegno fatto e collegato. Se non riesce, la spesa si toglie (niente spese senza spunta).
+      const row=await Data.updateTodo(t.id,{done_at:new Date().toISOString(),finanze_movimento_id:mov.id});
+      if(!row){ try{ await sbFetch(`/finanze_movimenti?id=eq.${encodeURIComponent(mov.id)}`,{method:"DELETE"}); }catch(_){} btns.forEach(b=>b.disabled=false); msg.textContent="L'impegno non si è potuto spuntare: la spesa non è stata registrata."; return; }
+      closeModal();
+    });
+  },
+  openUndo(t){
+    const v=this.parse(t);
+    openModal(`
+      <div class="modal-head"><h3>Togliere la spunta?</h3><button class="icon-btn" data-close>✕</button></div>
+      <div class="modal-form">
+        <p class="card-text">«${escapeHTML(t.title)}» è collegata a una spesa${v.importo!=null?` di <b>${this.eur(v.importo)}</b>`:""} in «Le mie finanze». Togliere anche la spesa?</p>
+        <p class="lock-msg" id="bill-msg" role="status"></p>
+        <div class="modal-actions"><button type="button" class="btn btn-danger" id="bill-undo-all">Togli spunta e spesa</button><div><button type="button" class="btn btn-ghost" data-close>Annulla</button><button type="button" class="btn btn-primary" id="bill-undo-only">Togli solo la spunta</button></div></div>
+      </div>`);
+    modalEl.querySelectorAll("[data-close]").forEach(b=>b.addEventListener("click",closeModal));
+    const msg=document.getElementById("bill-msg"), btns=()=>modalEl.querySelectorAll("button");
+    document.getElementById("bill-undo-only").addEventListener("click",async()=>{ closeModal(); await Data.uncompleteTodo(t.id,null); });
+    document.getElementById("bill-undo-all").addEventListener("click",async()=>{
+      btns().forEach(b=>b.disabled=true); msg.textContent="Salvataggio…";
+      try{ await sbFetch(`/finanze_movimenti?id=eq.${encodeURIComponent(t.finanze_movimento_id)}`,{method:"DELETE"}); }
+      catch(err){ btns().forEach(b=>b.disabled=false); msg.textContent="Non sono riuscito a togliere la spesa: "+err.message+". Non ho cambiato niente."; return; }
+      await Data.updateTodo(t.id,{done_at:null,finanze_movimento_id:null});
+      closeModal();
+    });
+  }
+};
 function openTodoModal({id,date}={}){
   const t=id?Data.TODOS.find(x=>x.id===id):null;
   if(id&&!t)return;
@@ -6008,8 +6104,9 @@ document.addEventListener("click",e=>{
   else if(action==="todo-new") openTodoModal({date:btn.dataset.date});
   else if(action==="todo-edit") openTodoModal({id:btn.dataset.id});
   else if(action==="todo-done"||action==="todo-undo"){
+    const occ=btn.dataset.occ||null, bill=!occ&&Data.TODOS.find(x=>x.id===btn.dataset.id);
+    if(bill&&(action==="todo-done"?Bills.onDone(bill):Bills.onUndo(bill))) return;
     btn.disabled=true;
-    const occ=btn.dataset.occ||null;
     (action==="todo-done"?Data.completeTodo(btn.dataset.id,occ):Data.uncompleteTodo(btn.dataset.id,occ)).finally(()=>{ btn.disabled=false; });
   }
   else if(action==="todo-prev-week"){ state.todoWeekFrom=TodoLogic.addDaysISO(state.todoWeekFrom,-7); render(); }
