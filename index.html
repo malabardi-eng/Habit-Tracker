@@ -873,14 +873,24 @@ body.dp-open{overflow:hidden;}
     }
     const NET_MSG = 'Il collegamento non risponde: non ho salvato. Controlla la connessione e riprova.';
     const pause = ms => new Promise(r => setTimeout(r, ms));
+    // Tempo massimo per ogni richiesta: un collegamento bloccato (pagina aperta a lungo, Mac in stop)
+    // non lascia più «Salvataggio…» per sempre. Una scrittura interrotta può essere arrivata o no: lo si dice.
+    const LIMIT_MS = config.timeoutMs || 20000;
+    const SLOW_MSG = 'Il collegamento non risponde da ' + Math.round(LIMIT_MS / 1000) + ' secondi: ricarica la pagina e controlla se il salvataggio è avvenuto prima di riprovare.';
+    function limited(promise) {
+      let timer;
+      return Promise.race([promise, new Promise((_, reject) => { timer = setTimeout(() => reject(new Error(SLOW_MSG)), LIMIT_MS); })])
+        .finally(() => clearTimeout(timer));
+    }
     // Con la rete lenta (dopo lo stop del Mac, sull'iPhone) riprova una volta e poi lo dice,
     // senza ricaricare la pagina né chiedere di nuovo la password: si perderebbe quello che è scritto.
     async function tokenOrFail() {
-      try { return await token(); }
+      try { return await limited(token()); }
       catch (error) {
+        if (error.message === SLOW_MSG) throw error;
         if (retryable(error)) {
           await pause(1500);
-          try { return await token(); }
+          try { return await limited(token()); }
           catch (again) { if (retryable(again)) throw new Error(NET_MSG); error = again; }
         }
         if (config.onAuthFailure) config.onAuthFailure();
@@ -901,15 +911,16 @@ body.dp-open{overflow:hidden;}
           const bearer = await tokenOrFail();
           const headers={ apikey: config.key, Authorization: 'Bearer ' + bearer, 'Content-Type':'application/json' };
           if(opts.prefer) headers.Prefer=opts.prefer;
+          const stop = typeof AbortController === 'function' ? new AbortController() : null;
           try {
-            res = await config.fetch(config.url + '/rest/v1' + path, {
-              method, headers, body:opts.body===undefined?undefined:JSON.stringify(opts.body)
-            });
-          } catch (_) { throw new Error(NET_MSG); }
+            res = await limited(config.fetch(config.url + '/rest/v1' + path, {
+              method, headers, body:opts.body===undefined?undefined:JSON.stringify(opts.body), signal: stop ? stop.signal : undefined
+            }));
+          } catch (error) { if (stop) stop.abort(); throw new Error(error.message === SLOW_MSG ? SLOW_MSG : NET_MSG); }
           // Token scaduto nel frattempo: lo rinnovo una volta e ripeto, prima di chiedere l'accesso.
           if (res.status !== 401 || attempt > 0 || !client.auth.refreshSession) break;
           verifiedToken = null;
-          const renewed = await client.auth.refreshSession();
+          const renewed = await limited(client.auth.refreshSession());
           if (renewed.error) { if (retryable(renewed.error)) throw new Error(NET_MSG); break; }
         }
         if (!res.ok) {
@@ -917,7 +928,7 @@ body.dp-open{overflow:hidden;}
           throw new Error('Richiesta non riuscita (' + res.status + '). Verifica i dati prima di riprovare.');
         }
         if(res.status===204) return null;
-        const body=await res.text();return body?JSON.parse(body):null;
+        const body=await limited(res.text());return body?JSON.parse(body):null;
       },
       async file(action, key, extra = {}) {
         if (typeof key !== 'string' || !FILE_KEY.test(key)) throw new Error('Percorso non valido.');
