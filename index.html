@@ -459,6 +459,12 @@ a.attach-name{color:var(--c-todo);text-decoration:underline;}
 .gcal-cals{display:flex;flex-direction:column;gap:8px;margin:8px 0 12px;}
 .gcal-cals label{display:flex;align-items:center;gap:8px;font-size:.88rem;}
 .gcal-note{font-size:.76rem;color:var(--ink-faint);}
+.gcal-banner{display:block;width:100%;margin:0 0 14px;padding:12px 16px;border:1px solid #E8B44C;border-radius:var(--r-md);background:#FFF4D6;color:#5C3D00;font-size:.9rem;font-weight:600;text-align:left;cursor:pointer;line-height:1.35;}
+.gcal-banner:hover{background:#FFECBF;}
+.gcal-banner.error{border-color:var(--c-danger);background:var(--c-danger-soft);color:var(--c-danger);}
+.gcal-banner[hidden]{display:none;}
+.gcal-skipped{margin:4px 0 12px;padding-left:18px;font-size:.8rem;color:var(--ink-soft);}
+.gcal-skipped li{margin:2px 0;}
 .agenda-seg{display:none;}
 .notebook{--lh:26px;display:grid;grid-template-columns:1fr 14px 1fr;background:var(--paper);border-radius:6px 6px 6px 6px;box-shadow:var(--shadow),0 0 0 1px var(--paper-edge);color:var(--paper-ink);overflow:hidden;}
 .notebook-spine{background:linear-gradient(90deg,transparent,rgba(0,0,0,.08) 30%,var(--spine) 30%,var(--spine) 70%,rgba(0,0,0,.08) 70%,transparent);}
@@ -1457,7 +1463,7 @@ const Data={
     this.ready=true;
     updateSyncUI();
     render();
-    GCal.soon();
+    GCal.preload(); GCal.soon();
   },
 
   _applyActivities(rows){
@@ -5013,7 +5019,7 @@ function render(){
   switch(state.route){
     case "dashboard": root.innerHTML=renderDashboard(); break;
     case "dafare": root.innerHTML=renderTodos(); break;
-    case "agenda": root.innerHTML=renderAgenda();
+    case "agenda": root.innerHTML=GCal.bannerHTML()+renderAgenda(); GCal.preload();
       if(Agenda.refocus){ const el=document.getElementById("ag-new-"+Agenda.refocus); Agenda.refocus=null; if(el) el.focus(); }
       if(Agenda.scrollTo){ const el=document.getElementById(Agenda.scrollTo); Agenda.scrollTo=null; if(el) el.scrollIntoView({block:"center"}); }
       Forme.afterRender(); Postit.afterRender();
@@ -5027,7 +5033,7 @@ function render(){
     case "medicine": root.innerHTML=renderMedicine(); break;
     case "storico": root.innerHTML=renderHistory(state.historyFilters); break;
     case "allegati": root.innerHTML=renderAttachments(); break;
-    case "impostazioni": root.innerHTML=renderSettings(); break;
+    case "impostazioni": root.innerHTML=renderSettings(); GCal.preload(); break;
   }
   // La pagina del Diario aperta: si chiude lasciando la sezione, altrimenti si ridisegnano post-it e forme.
   if(DiaryPage.date){ if(state.route!=="diario") DiaryPage.close({quiet:true}); else DiaryPage.redrawLayers(); }
@@ -5251,6 +5257,10 @@ function gcalPlainText(html){
 }
 // Un evento di più giorni: in Habit Tracker resta nel primo giorno e la fine va in fondo alle note.
 const GCAL_UNTIL_NOTE=/\n?\(fino al (\d{4}-\d{2}-\d{2})(?: (\d{2}:\d{2}))?\)$/;
+// Eventi che Google crea da solo (biglietti e prenotazioni da Gmail, compleanni, «fuori sede»…): non si possono
+// modificare da qui. L'impegno lo ricorda con questa riga nelle note e il push non prova a cambiarli.
+const GCAL_LOCKED="(evento di Google non modificabile)";
+const GCAL_LOCKED_RE=/\n?\(evento di Google non modificabile\)/;
 const GCal={
   token:null, expires:0, email:"", state:"", msg:"", lastSync:null, timer:null, busy:null, again:false, list:null, gis:null,
   available(){ return !!GCAL_CLIENT_ID&&!!Data.gcalAvailable&&!!Data.settingsAvailable; },
@@ -5272,15 +5282,22 @@ const GCal={
     }));
   },
   // Solo da un tocco (Collega, 🔄 Google, Sincronizza ora): Google apre la sua finestra, la prima volta per il permesso.
-  async authorize(){
-    await this.loadGis();
-    await new Promise((res,rej)=>{
+  // La finestra di Google si apre subito, ancora dentro il tocco (Safari blocca quelle aperte dopo un'attesa):
+  // per questo lo script di Google si carica in anticipo (preload) e qui non si aspetta niente prima di aprirla.
+  authorize(){
+    const open=()=>new Promise((res,rej)=>{
       const tc=google.accounts.oauth2.initTokenClient({client_id:GCAL_CLIENT_ID,scope:GCAL_SCOPES,hint:this.email||undefined,
         callback:r=>{ if(r&&r.access_token){ this.token=r.access_token; this.expires=Date.now()+(Number(r.expires_in)||3600)*1000; res(); } else rej(new Error(r&&r.error_description||r&&r.error||"permesso non dato")); },
-        error_callback:e=>rej(new Error(e&&e.type==="popup_closed"?"finestra di Google chiusa":"finestra di Google bloccata o chiusa"))});
+        error_callback:e=>{ const t=e&&e.type;
+          rej(new Error(t==="popup_failed_to_open"?"Il browser ha bloccato la finestra di Google: consenti le finestre a comparsa per questo sito e riprova"
+            :t==="popup_closed"?"Hai chiuso la finestra di Google prima di finire":"La finestra di Google non ha risposto: riprova")); }});
       tc.requestAccessToken({prompt:""});
     });
+    if(window.google&&google.accounts&&google.accounts.oauth2) return open();
+    return this.loadGis().then(open);
   },
+  // Lo script di Google pronto prima del tocco (all'apertura, in Agenda e in Impostazioni).
+  preload(){ if(this.connected()) this.loadGis().catch(()=>{}); },
   async api(path,{method="GET",body,query}={}){
     if(!this.hasToken()) throw Object.assign(new Error("da ricollegare"),{auth:true});
     const url=GCAL_API+path+(query?"?"+new URLSearchParams(query):"");
@@ -5304,6 +5321,7 @@ const GCal={
     this.state=state; this.msg=msg;
     const txt=this.statusText();
     document.querySelectorAll("[data-gcal-status]").forEach(el=>{ el.textContent=txt; el.classList.toggle("error",state==="error"||state==="reconnect"); });
+    document.querySelectorAll("[data-gcal-banner]").forEach(el=>{ const b=this.banner(); el.hidden=!b; if(b){ el.textContent=b.text; el.classList.toggle("error",b.error); } });
   },
   statusText(){
     if(this.state==="syncing") return "Google: aggiorno…";
@@ -5311,6 +5329,32 @@ const GCal={
     if(this.state==="error") return "⚠️ Google: "+this.msg;
     return this.lastSync?"Google: aggiornato alle "+this.lastSync.toLocaleTimeString("it-IT",{hour:"2-digit",minute:"2-digit"}):"Google: collegato";
   },
+  // Striscia in cima all'Agenda: quando serve un tocco per il permesso o qualcosa non è andato.
+  banner(){
+    if(!this.connected()||this.state==="syncing") return null;
+    if(this.state==="error") return{text:"⚠️ Google Calendar non è aggiornato: "+this.msg+" — tocca qui per riprovare",error:true};
+    if(this.state==="reconnect"||!this.hasToken()) return{text:"📅 Google Calendar non è aggiornato — tocca qui per aggiornare",error:false};
+    return null;
+  },
+  bannerHTML(){ const b=this.banner(); return this.connected()?`<button type="button" class="gcal-banner${b&&b.error?" error":""}" data-action="gcal-sync" data-gcal-banner ${b?"":"hidden"}>${b?escapeHTML(b.text):""}</button>`:""; },
+  // Impegni che Google ha rifiutato (restano solo in Habit Tracker): gli ultimi 50, anche nelle impostazioni.
+  skipped(){ return Array.isArray(Data.SETTINGS.gcal_saltati)?Data.SETTINGS.gcal_saltati:[]; },
+  skipNew:[], calOk:new Set(),
+  async skip(t,err){
+    await this.mark(t,{});      // allineato così com'è: al giro dopo non si riprova
+    this.skipNew.push({id:t.id,titolo:t.title,data:t.due_date,motivo:String(err&&err.message||"rifiutato").slice(0,160),quando:new Date().toISOString()});
+  },
+  async saveSkipped(){
+    // Un calendario che oggi si è letto bene esce dall'elenco.
+    const healed=this.skipped().some(x=>x.id.startsWith("cal:")&&this.calOk.has(x.id.slice(4)));
+    if(!this.skipNew.length&&!healed){ this.calOk.clear(); return; }
+    const ids=new Set(this.skipNew.map(x=>x.id)), ok=this.calOk;
+    const list=[...this.skipped().filter(x=>!ids.has(x.id)&&!(x.id.startsWith("cal:")&&ok.has(x.id.slice(4)))),...this.skipNew].slice(-50);
+    this.skipNew=[]; this.calOk=new Set();
+    try{ await Fonts.save("gcal_saltati",list); }catch(_){ Data.SETTINGS.gcal_saltati=list; }
+  },
+  // Errore di Google su un solo impegno o calendario (dati rifiutati): si salta e si va avanti. 401, 5xx e rete fermano il giro.
+  refused(err){ return !err.auth&&Number.isInteger(err.status)&&err.status>=400&&err.status<500&&![401,404,410].includes(err.status); },
   soon(){ if(!this.connected()) return; clearTimeout(this.timer); this.timer=setTimeout(()=>this.sync(),1200); },
   // Collega (da un tocco): permesso, calendari scritti nelle impostazioni, poi la prima sincronizzazione.
   async connect(){
@@ -5360,6 +5404,7 @@ const GCal={
         this.lastSync=new Date(); this.setState("ok");
         if(changed) render();
       }catch(err){ if(err.auth) this.setState("reconnect"); else this.setState("error",err.message); }
+      await this.saveSkipped();
     })().finally(()=>{ this.busy=null; if(this.again){ this.again=false; this.soon(); } });
     return this.busy;
   },
@@ -5375,7 +5420,7 @@ const GCal={
   // Da impegno a evento di Google.
   toEvent(t){
     const done=!!t.done_at&&!t.recurrence, note=GCAL_UNTIL_NOTE.exec(t.notes||"");
-    const ev={summary:(done?"✓ ":"")+t.title,description:(t.notes||"").replace(GCAL_UNTIL_NOTE,"")};
+    const ev={summary:(done?"✓ ":"")+t.title,description:(t.notes||"").replace(GCAL_UNTIL_NOTE,"").replace(GCAL_LOCKED_RE,"")};
     if(t.due_time){
       const st=t.due_time.slice(0,5);
       let endDate=t.due_date, en=t.due_end_time&&t.due_end_time.slice(0,5)>st?t.due_end_time.slice(0,5):null;
@@ -5403,7 +5448,9 @@ const GCal={
     }
     let title=(ev.summary||"").trim(), done=false;
     if(/^✓\s*/.test(title)){ done=!rule; title=title.replace(/^✓\s*/,""); }
-    const notes=(gcalPlainText(ev.description).slice(0,4970)+(until?(ev.description?"\n":"")+until:"")).trim();
+    const locked=!!ev.eventType&&ev.eventType!=="default";
+    const desc=gcalPlainText(ev.description).slice(0,4930)+(locked?(ev.description?"\n":"")+GCAL_LOCKED:"");
+    const notes=(desc+(until?(desc?"\n":"")+until:"")).trim();
     const f={title:(title||"(senza titolo)").slice(0,300),notes,due_date,due_time,recurrence:rule||null};
     if(todoEndAvailable()||!Data.TODOS.length) f.due_end_time=due_end_time;
     f.done_at=!rule&&done?new Date().toISOString():null;   // una ricorrente non ha done_at
@@ -5420,11 +5467,18 @@ const GCal={
         if(syncToken) q.syncToken=syncToken; else{ q.timeMin=GCAL_FROM+"T00:00:00Z"; q.singleEvents="false"; }
         let r;
         try{ r=await this.api(`/calendars/${gcalEnc(cal.id)}/events`,{query:q}); }
-        catch(err){ if(err.status===410&&syncToken){ syncToken=null; pageToken=null; items=[]; continue; } if(err.status===404||err.status===403) break; throw err; }
+        catch(err){
+          if((err.status===410||err.status===400)&&syncToken){ syncToken=null; pageToken=null; items=[]; continue; }
+          if(err.status===404||err.status===403) break;
+          if(this.refused(err)){ this.skipNew.push({id:"cal:"+cal.id,titolo:"Calendario «"+cal.nome+"»: non letto",data:"",motivo:String(err.message).slice(0,160),quando:new Date().toISOString()}); items=null; break; }
+          throw err;
+        }
         items.push(...(r.items||[]));
         if(r.nextPageToken){ pageToken=r.nextPageToken; continue; }
         next=r.nextSyncToken||null; break;
       }
+      if(items===null){ delete tokens[cal.id]; continue; }      // calendario saltato: al prossimo giro si rilegge da capo
+      this.calOk.add(cal.id);
       if(await this.apply(cal,items)) changed=true;
       if(next) tokens[cal.id]=next;
     }
@@ -5518,12 +5572,18 @@ const GCal={
       }
       const calId=this.calendar(t.gcal_calendar_id)?t.gcal_calendar_id:t.gcal_event_id?null:this.defaultCal();
       if(!calId) continue;                       // calendario non più scelto: l'impegno resta solo qui
+      if(t.gcal_event_id&&GCAL_LOCKED_RE.test(t.notes||"")){ await this.mark(t,{}); continue; }   // evento di Google non modificabile
       let ev=null;
-      if(t.gcal_event_id){
-        try{ ev=await this.api(`/calendars/${gcalEnc(calId)}/events/${gcalEnc(t.gcal_event_id)}`,{method:"PATCH",body:this.toEvent(t)}); }
-        catch(err){ if(err.auth) throw err; if(![404,410].includes(err.status)) throw err; ev=null; }
+      try{
+        if(t.gcal_event_id){
+          try{ ev=await this.api(`/calendars/${gcalEnc(calId)}/events/${gcalEnc(t.gcal_event_id)}`,{method:"PATCH",body:this.toEvent(t)}); }
+          catch(err){ if(err.auth||![404,410].includes(err.status)) throw err; ev=null; }
+        }
+        if(!ev) ev=await this.api(`/calendars/${gcalEnc(calId)}/events`,{method:"POST",body:this.toEvent(t)});
+      }catch(err){
+        if(!this.refused(err)) throw err;        // permesso scaduto, Google o rete giù: si riprova al prossimo giro
+        await this.skip(t,err); continue;        // rifiutato da Google: resta solo in Habit Tracker, elencato in Impostazioni
       }
-      if(!ev) ev=await this.api(`/calendars/${gcalEnc(calId)}/events`,{method:"POST",body:this.toEvent(t)});
       await this.mark(t,{gcal_calendar_id:calId,gcal_event_id:ev.id,gcal_etag:ev.etag||null});
     }
   },
@@ -5553,6 +5613,7 @@ function gcalCardHTML(){
   return `<div class="card">${head}
     <p class="card-text"><span class="gcal-status" data-gcal-status>${escapeHTML(GCal.statusText())}</span></p>
     <div class="gcal-cals">${rows}</div>
+    ${GCal.skipped().length?`<p class="gcal-note"><b>Eventi non modificabili su Google</b> (restano solo in Habit Tracker; di solito sono creati da Gmail, come biglietti e prenotazioni):</p><ul class="gcal-skipped">${GCal.skipped().slice().reverse().map(x=>`<li>${escapeHTML(x.titolo)}${x.data?` · ${formatDateIT(x.data)}`:""} <span class="gcal-note">— ${escapeHTML(x.motivo)}</span></li>`).join("")}</ul>`:""}
     ${GCal.list?"":`<p class="gcal-note">Per vedere tutti i tuoi calendari tocca «Mostra tutti i calendari».</p>`}
     <div class="row"><label for="gcal-default">Calendario di base per gli impegni nuovi</label><select id="gcal-default">${chosen.map(c=>`<option value="${escapeHTML(c.id)}" ${c.id===def?"selected":""}>${escapeHTML(c.nome)}</option>`).join("")}</select></div>
     <div class="settings-actions"><button class="btn btn-primary" data-action="gcal-sync">Sincronizza ora</button>${GCal.list?"":`<button class="btn btn-outline" data-action="gcal-list">Mostra tutti i calendari</button>`}<button class="btn btn-danger" data-action="gcal-disconnect">Scollega</button></div>
